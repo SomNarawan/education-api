@@ -25,13 +25,25 @@ class StudentController extends Controller
 
     /**
      * GET /api/students/detail
-     * ข้อมูล student + study plan + curriculum
+     * ข้อมูล student + FK ทั้งหมด
      */
     public function detail(): JsonResponse
     {
         $items = Student::query()
             ->with([
+                'title',
+                'teacher',
+                'teacher.title',
+                'studentStatus',
+                'admissionChannel',
+                'highSchool',
+                'affiliation',
                 'studyPlan',
+                'department',
+                'faculty',
+                'campus',
+
+                // Nested Relation
                 'studyPlan.curriculum',
             ])
             ->orderBy('id')

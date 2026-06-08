@@ -24,7 +24,6 @@ class Student extends Model
         'high_school_id',
         'affiliation_id',
         'study_plan_id',
-        'curriculum_id',
         'department_id',
         'faculty_id',
         'campus_id',
@@ -46,7 +45,7 @@ class Student extends Model
         return $this->belongsTo(Teacher::class);
     }
 
-    public function status(): BelongsTo
+    public function studentStatus(): BelongsTo
     {
         return $this->belongsTo(StudentStatus::class, 'student_status_id');
     }
@@ -69,11 +68,6 @@ class Student extends Model
     public function studyPlan(): BelongsTo
     {
         return $this->belongsTo(StudyPlanTrack::class, 'study_plan_id');
-    }
-
-    public function curriculum(): BelongsTo
-    {
-        return $this->belongsTo(Curriculum::class);
     }
 
     public function department(): BelongsTo
