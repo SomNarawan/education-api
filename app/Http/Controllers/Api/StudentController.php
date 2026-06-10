@@ -32,11 +32,18 @@ class StudentController extends Controller
         $items = Student::query()
             ->with([
                 'title',
+
                 'teacher',
                 'teacher.title',
+
                 'studentStatus',
                 'admissionChannel',
+
                 'highSchool',
+                'highSchool.subdistrict',
+                'highSchool.subdistrict.district',
+                'highSchool.subdistrict.district.province',
+
                 'affiliation',
                 'studyPlan',
                 'department',
