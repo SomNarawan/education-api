@@ -31,6 +31,13 @@ class Student extends Model
         'gpa',
         'earned_credits',
         'required_credits',
+
+        'guardian_title_id',
+        'guardian_first_name_th',
+        'guardian_last_name_th',
+        'guardian_relationship_id',
+        'guardian_phone',
+
         'deleted_at',
         'is_deleted',
     ];
@@ -38,6 +45,16 @@ class Student extends Model
     public function title(): BelongsTo
     {
         return $this->belongsTo(Title::class);
+    }
+
+    public function guardianTitle(): BelongsTo
+    {
+        return $this->belongsTo(Title::class, 'guardian_title_id');
+    }
+
+    public function guardianRelationship(): BelongsTo
+    {
+        return $this->belongsTo(Relationship::class, 'guardian_relationship_id');
     }
 
     public function teacher(): BelongsTo

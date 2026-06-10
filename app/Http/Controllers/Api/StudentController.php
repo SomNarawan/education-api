@@ -50,6 +50,9 @@ class StudentController extends Controller
                 'faculty',
                 'campus',
 
+                'guardianTitle',
+                'guardianRelationship',
+                
                 // Nested Relation
                 'studyPlan.curriculum',
             ])

@@ -52,3 +52,4 @@ Route::get('/study-terms', [StudyTermController::class, 'index']);
 Route::get('/study-term-courses', [StudyTermCourseController::class, 'index']);
 Route::get('/subdistricts', [SubdistrictController::class, 'index']);
 Route::get('/teachers', [TeacherController::class, 'index']);
+Route::get('/relationships', [RelationshipController::class, 'index']);
