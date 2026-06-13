@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\Api\TitleController;
 use App\Http\Controllers\Api\AffiliationController;
 use App\Http\Controllers\Api\AdmissionChannelController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\Api\StudyTermController;
 use App\Http\Controllers\Api\StudyTermCourseController;
 use App\Http\Controllers\Api\SubdistrictController;
 use App\Http\Controllers\Api\TeacherController;
+use App\Http\Controllers\Api\RelationshipController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -44,8 +46,6 @@ Route::get('/districts', [DistrictController::class, 'index']);
 Route::get('/faculties', [FacultyController::class, 'index']);
 Route::get('/high-schools', [HighSchoolController::class, 'index']);
 Route::get('/provinces', [ProvinceController::class, 'index']);
-Route::get('/students', [StudentController::class, 'index']);
-Route::get('/students/detail', [StudentController::class, 'detail']);
 Route::get('/student-statuses', [StudentStatusController::class, 'index']);
 Route::get('/study-plan-tracks', [StudyPlanTrackController::class, 'index']);
 Route::get('/study-terms', [StudyTermController::class, 'index']);
@@ -53,3 +53,19 @@ Route::get('/study-term-courses', [StudyTermCourseController::class, 'index']);
 Route::get('/subdistricts', [SubdistrictController::class, 'index']);
 Route::get('/teachers', [TeacherController::class, 'index']);
 Route::get('/relationships', [RelationshipController::class, 'index']);
+
+Route::prefix('students')->group(function () {
+    Route::get('/', [StudentController::class, 'index']);
+    Route::get('/detail', [StudentController::class, 'detail']);
+
+    Route::get('/advisor', [StudentController::class, 'advisor']);
+    Route::get('/advisor/graduated', [StudentController::class, 'advisorGraduated']);
+
+    Route::get('/department', [StudentController::class, 'department']);
+    Route::get('/department/graduated', [StudentController::class, 'departmentGraduated']);
+
+    Route::get('/faculty', [StudentController::class, 'faculty']);
+    Route::get('/faculty/graduated', [StudentController::class, 'facultyGraduated']);
+
+    Route::get('/{id}', [StudentController::class, 'show']);
+});
