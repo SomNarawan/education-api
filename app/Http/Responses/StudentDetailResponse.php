@@ -14,94 +14,54 @@ class StudentDetailResponse extends JsonResource
             'title_id' => $this->title_id,
             'full_name_th' => trim(($this->title->title_abbr_th ?? '') . ($this->first_name_th ?? '') . ' ' . ($this->last_name_th ?? '')),
             'full_name_en' => trim(($this->title->title_abbr_en ?? '') . ($this->first_name_en ?? '') . ' ' . ($this->last_name_en ?? '')),
-            'first_name' => $this->first_name,
-            'last_name' => $this->last_name,
-            'mobile' => $this->mobile,
+            'first_name_th' => $this->first_name_th,
+            'last_name_th' => $this->last_name_th,
+            'first_name_en' => $this->first_name_en,
+            'last_name_en' => $this->last_name_en,
+            'phone' => $this->phone,
             'email' => $this->email,
-            'address' => $this->address,
-
-            'teacher' => $this->whenLoaded('teacher', function () {
-                $t = $this->teacher;
-                return [
-                    'id' => $t->id,
-                    'title' => $t->whenLoaded('title', function () use ($t) {
-                        return $t->title->name ?? null;
-                    }, ($t->title->name ?? null) ?? null),
-                    'first_name' => $t->first_name ?? null,
-                    'last_name' => $t->last_name ?? null,
-                ];
+            'entry_year_ad' => (int) $this->entry_year,
+            'entry_year_be' => (int) $this->entry_year + 543,
+            'teacher_full_name_th' => $this->teacher->title->title_abbr_th . $this->teacher->first_name_th . ' ' . $this->teacher->last_name_th,
+            'teacher_id' => $this->teacher_id,
+            'student_status_id' => $this->student_status_id,
+            'student_status_name' => $this->whenLoaded('studentStatus', function () {
+                return $this->studentStatus->status_name ?? null;
             }),
-
-            'student_status' => $this->whenLoaded('studentStatus', function () {
-                return [
-                    'id' => $this->studentStatus->id,
-                    'name' => $this->studentStatus->name ?? null,
-                ];
+            'admission_channel_id' => $this->admission_channel_id,
+            'admission_channel_name' => $this->whenLoaded('admissionChannel', function () {
+                return $this->admissionChannel->channel_name ?? null;
             }),
-
-            'admission_channel' => $this->whenLoaded('admissionChannel', function () {
-                return [
-                    'id' => $this->admissionChannel->id,
-                    'name' => $this->admissionChannel->name ?? null,
-                ];
+            'guardian_full_name' => trim(($this->guardianTitle->title_abbr_th ?? '') . ($this->guardian_first_name ?? '') . ' ' . ($this->guardian_last_name ?? '')),
+            'guardian_relationship_id' => $this->guardian_relationship_id,
+            'guardian_relationship_name' => $this->whenLoaded('guardianRelationship', function () {
+                return $this->guardianRelationship->relationship_name ?? null;
             }),
-
-            'guardian' => ($this->whenLoaded('guardianTitle') || $this->whenLoaded('guardianRelationship')) ? [
-                'title' => $this->guardianTitle->name ?? null,
-                'first_name' => $this->guardian_first_name ?? null,
-                'last_name' => $this->guardian_last_name ?? null,
-                'relationship' => $this->guardianRelationship->name ?? null,
-            ] : null,
-
-            'high_school' => $this->whenLoaded('highSchool', function () {
-                $hs = $this->highSchool;
-                $sub = $hs->relationLoaded('subdistrict') && $hs->subdistrict ? $hs->subdistrict : null;
-                $dist = $sub && $sub->relationLoaded('district') && $sub->district ? $sub->district : null;
-                $prov = $dist && $dist->relationLoaded('province') && $dist->province ? $dist->province : null;
-
-                return [
-                    'id' => $hs->id,
-                    'name' => $hs->name ?? null,
-                    'subdistrict' => $sub ? [
-                        'id' => $sub->id,
-                        'name' => $sub->name ?? null,
-                        'district' => $dist ? [
-                            'id' => $dist->id,
-                            'name' => $dist->name ?? null,
-                            'province' => $prov ? [
-                                'id' => $prov->id,
-                                'name' => $prov->name ?? null,
-                            ] : null,
-                        ] : null,
-                    ] : null,
-                ];
+            'guardian_phone' => $this->guardian_phone,
+            'high_school_id' => $this->high_school_id,
+            'high_school_name' => $this->whenLoaded('highSchool', function () {
+                return $this->highSchool->school_name ?? null;
             }),
+            'high_school_address' => $this->whenLoaded('highSchool', function () {
+                $subdistrict = $this->highSchool?->subdistrict;
+                $district = $subdistrict?->district;
+                $province = $district?->province;
 
-            'study_plan' => $this->whenLoaded('studyPlan', function () {
-                $sp = $this->studyPlan;
-                $curr = $sp->curriculum ?? null;
-                $dept = $curr ? $curr->department : null;
-                $faculty = $dept ? $dept->faculty : null;
+                $subdistrictName = $subdistrict?->subdistrict_name ?? '-';
+                $districtName = $district?->district_name ?? '-';
+                $provinceName = $province?->province_name ?? '-';
+                $postalCode = $subdistrict?->postal_code ?? '-';
 
-                return [
-                    'id' => $sp->id,
-                    'curriculum' => $curr ? [
-                        'id' => $curr->id,
-                        'name' => $curr->name ?? null,
-                        'department' => $dept ? [
-                            'id' => $dept->id,
-                            'name' => $dept->name ?? null,
-                            'faculty' => $faculty ? [
-                                'id' => $faculty->id,
-                                'name' => $faculty->name ?? null,
-                            ] : null,
-                        ] : null,
-                    ] : null,
-                ];
+                return $provinceName === 'กรุงเทพมหานคร'
+                    ? "แขวง{$subdistrictName} เขต{$districtName} {$provinceName} {$postalCode}"
+                    : "ตำบล{$subdistrictName} อำเภอ{$districtName} จังหวัด{$provinceName} {$postalCode}";
             }),
-
-            'created_at' => $this->created_at ? $this->created_at->toDateTimeString() : null,
-            'updated_at' => $this->updated_at ? $this->updated_at->toDateTimeString() : null,
+            
+            'study_plan_id' => $this->study_plan_id,
+            'curriculum_type' => $this->studyPlan->curriculum->degree_short_name_th,
+            'study_plan_name' => $this->studyPlan->name_th,
+            'department_name' => $this->studyPlan->curriculum->department->department_name,
+            'faculty_name' => $this->studyPlan->curriculum->department->faculty->faculty_name_th,
         ];
     }
 }

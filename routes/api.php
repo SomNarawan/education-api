@@ -57,15 +57,5 @@ Route::get('/relationships', [RelationshipController::class, 'index']);
 Route::prefix('students')->group(function () {
     Route::get('/', [StudentController::class, 'index']);
     Route::get('/detail', [StudentController::class, 'detail']);
-
-    Route::get('/advisor', [StudentController::class, 'advisor']);
-    Route::get('/advisor/graduated', [StudentController::class, 'advisorGraduated']);
-
-    Route::get('/department', [StudentController::class, 'department']);
-    Route::get('/department/graduated', [StudentController::class, 'departmentGraduated']);
-
-    Route::get('/faculty', [StudentController::class, 'faculty']);
-    Route::get('/faculty/graduated', [StudentController::class, 'facultyGraduated']);
-
     Route::get('/{id}', [StudentController::class, 'show']);
 });
