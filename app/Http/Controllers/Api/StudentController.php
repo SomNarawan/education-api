@@ -25,7 +25,6 @@ class StudentController extends Controller
                 'title',
 
                 'teacher',
-                'teacher.title',
 
                 'studentStatus',
                 'admissionChannel',
@@ -58,7 +57,6 @@ class StudentController extends Controller
                 'title',
 
                 'teacher',
-                'teacher.title',
 
                 'studentStatus',
 
