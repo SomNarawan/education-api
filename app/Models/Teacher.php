@@ -11,31 +11,15 @@ class Teacher extends Model
     protected $table = 'teachers';
 
     protected $fillable = [
-        'teacher_code',
-        'title_id',
-        'first_name_th',
-        'last_name_th',
-        'first_name_en',
-        'last_name_en',
-        'phone',
-        'email',
+        'nontri_id',
+        'full_name_th',
         'department_id',
-        'deleted_at',
         'is_deleted',
+        'deleted_at',
     ];
-
-    public function title(): BelongsTo
-    {
-        return $this->belongsTo(Title::class);
-    }
 
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
-    }
-
-    public function students(): HasMany
-    {
-        return $this->hasMany(Student::class, 'teacher_id', 'id');
     }
 }

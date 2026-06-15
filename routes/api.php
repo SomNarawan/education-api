@@ -51,7 +51,6 @@ Route::get('/study-plan-tracks', [StudyPlanTrackController::class, 'index']);
 Route::get('/study-terms', [StudyTermController::class, 'index']);
 Route::get('/study-term-courses', [StudyTermCourseController::class, 'index']);
 Route::get('/subdistricts', [SubdistrictController::class, 'index']);
-Route::get('/teachers', [TeacherController::class, 'index']);
 Route::get('/relationships', [RelationshipController::class, 'index']);
 
 Route::prefix('students')->group(function () {
@@ -59,3 +58,6 @@ Route::prefix('students')->group(function () {
     Route::get('/detail', [StudentController::class, 'detail']);
     Route::get('/{id}', [StudentController::class, 'show']);
 });
+
+Route::get('/teachers', [TeacherController::class, 'index']);
+Route::post('/teachers/sync', [TeacherController::class, 'sync']);
