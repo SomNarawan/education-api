@@ -32,7 +32,7 @@ class StudentDetailResponse extends JsonResource
             'admission_channel_name' => $this->whenLoaded('admissionChannel', function () {
                 return $this->admissionChannel->channel_name ?? null;
             }),
-            'guardian_full_name' => trim(($this->guardianTitle->title_abbr_th ?? '') . ($this->guardian_first_name ?? '') . ' ' . ($this->guardian_last_name ?? '')),
+            'guardian_full_name' => trim(($this->guardianTitle->title_abbr_th ?? '') . ($this->guardian_first_name_th ?? '') . ' ' . ($this->guardian_last_name_th ?? '')),
             'guardian_relationship_id' => $this->guardian_relationship_id,
             'guardian_relationship_name' => $this->whenLoaded('guardianRelationship', function () {
                 return $this->guardianRelationship->relationship_name ?? null;
@@ -62,6 +62,11 @@ class StudentDetailResponse extends JsonResource
             'study_plan_name' => $this->studyPlan->name_th,
             'department_name' => $this->studyPlan->curriculum->department->name_th,
             'faculty_name' => $this->studyPlan->curriculum->department->faculty->name_th,
+            'required_credits' => $this->studyPlan->curriculum->total_credits_min,
+            'passed_credits' => $this->passed_credits,
+            'not_passed_credits' => $this->not_passed_credits,
+            'overed_credits' => $this->overed_credits,
+            'gpa' => $this->gpa
         ];
     }
 }

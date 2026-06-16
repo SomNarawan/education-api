@@ -16,9 +16,9 @@ class StudentListResponse extends JsonResource
             'teacher_full_name_th' => $this->teacher->full_name_th,
             'curriculum_type' => $this->studyPlan->curriculum->degree_short_name_th,
             'study_plan_name' => $this->studyPlan->name_th,
-            'credits_required' => $this->studyPlan->curriculum->total_credits_min,
-            'pass_credits' => $this->passed_credits,
-            'not_pass_credits' => $this->not_passed_credits,
+            'required_credits' => $this->studyPlan->curriculum->total_credits_min,
+            'passed_credits' => $this->passed_credits,
+            'not_passed_credits' => $this->not_passed_credits,
             'overed_credits' => $this->overed_credits,
             'gpa' => $this->gpa
         ];

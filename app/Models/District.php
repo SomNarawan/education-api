@@ -11,7 +11,7 @@ class District extends Model
 
     public $timestamps = false;
 
-    public function province()
+    public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class, 'province_id');
     }

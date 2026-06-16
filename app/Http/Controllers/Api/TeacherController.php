@@ -16,7 +16,7 @@ class TeacherController extends Controller
     public function index(Request $request): JsonResponse
     {
         $items = Teacher::query()
-            ->where('is_deleted', 0)
+            ->where('deleted_at', null)
             ->when(
                 $request->filled('department_id'),
                 fn($query) => $query->where(
@@ -75,7 +75,6 @@ class TeacherController extends Controller
                         'department_id' => $departmentId,
 
                         // ถ้าเคยถูกลบ แล้ว API ส่งกลับมาอีก ให้กลับมาใช้งาน
-                        'is_deleted' => 0,
                         'deleted_at' => null,
                     ]
                 );
@@ -85,10 +84,9 @@ class TeacherController extends Controller
 
             if (!empty($activeNontriIds)) {
                 $deleted = Teacher::where('department_id', $departmentId)
-                    ->where('is_deleted', 0)
+                    ->where('deleted_at', null)
                     ->whereNotIn('nontri_id', $activeNontriIds)
                     ->update([
-                        'is_deleted' => 1,
                         'deleted_at' => now(),
                     ]);
             }

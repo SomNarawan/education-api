@@ -42,7 +42,7 @@ class StudentController extends Controller
                 'guardianTitle',
                 'guardianRelationship',
             ])
-            ->where('is_deleted', 0);
+            ->where('deleted_at', null);
     }
 
     /**
@@ -65,7 +65,7 @@ class StudentController extends Controller
                 'studyPlan.curriculum.department',
                 'studyPlan.curriculum.department.faculty',
             ])
-            ->where('is_deleted', 0);
+            ->where('deleted_at', null);
     }
 
     /**

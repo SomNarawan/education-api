@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AffiliationController;
 use App\Http\Controllers\Api\AdmissionChannelController;
 use App\Http\Controllers\Api\CampusController;
 use App\Http\Controllers\Api\CourseController;
+use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\CoursePrerequisiteController;
 use App\Http\Controllers\Api\CurriculumController;
 use App\Http\Controllers\Api\CurriculumCategoryController;
@@ -61,3 +62,7 @@ Route::prefix('students')->group(function () {
 
 Route::get('/teachers', [TeacherController::class, 'index']);
 Route::post('/teachers/sync', [TeacherController::class, 'sync']);
+
+Route::get('/notes', [NoteController::class, 'index']);
+Route::post('/notes', [NoteController::class, 'store']);
+Route::delete('/notes/{id}', [NoteController::class, 'destroy']);
