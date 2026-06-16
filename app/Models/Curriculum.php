@@ -11,8 +11,8 @@ class Curriculum extends Model
 
     public $timestamps = false;
 
-    public function department(): BelongsTo
+    public function program(): BelongsTo
     {
-        return $this->belongsTo(Department::class, 'department_id');
+        return $this->belongsTo(Program::class, 'program_id');
     }
 }

@@ -56,12 +56,12 @@ class StudentDetailResponse extends JsonResource
                     ? "แขวง{$subdistrictName} เขต{$districtName} {$provinceName} {$postalCode}"
                     : "ตำบล{$subdistrictName} อำเภอ{$districtName} จังหวัด{$provinceName} {$postalCode}";
             }),
-            
+
             'study_plan_id' => $this->study_plan_id,
-            'curriculum_type' => $this->studyPlan->curriculum->degree_short_name_th,
+            'curriculum_type' => $this->studyPlan->curriculum->program->degree_short_th,
             'study_plan_name' => $this->studyPlan->name_th,
-            'department_name' => $this->studyPlan->curriculum->department->name_th,
-            'faculty_name' => $this->studyPlan->curriculum->department->faculty->name_th,
+            'department_name' => $this->studyPlan->curriculum->program->department->name_th,
+            'faculty_name' => $this->studyPlan->curriculum->program->department->faculty->name_th,
             'required_credits' => $this->studyPlan->curriculum->total_credits_min,
             'passed_credits' => $this->passed_credits,
             'not_passed_credits' => $this->not_passed_credits,

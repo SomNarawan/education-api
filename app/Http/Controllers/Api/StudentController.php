@@ -36,8 +36,9 @@ class StudentController extends Controller
 
                 'studyPlan',
                 'studyPlan.curriculum',
-                'studyPlan.curriculum.department',
-                'studyPlan.curriculum.department.faculty',
+                'studyPlan.curriculum.program',
+                'studyPlan.curriculum.program.department',
+                'studyPlan.curriculum.program.department.faculty',
 
                 'guardianTitle',
                 'guardianRelationship',
@@ -62,8 +63,9 @@ class StudentController extends Controller
 
                 'studyPlan',
                 'studyPlan.curriculum',
-                'studyPlan.curriculum.department',
-                'studyPlan.curriculum.department.faculty',
+                'studyPlan.curriculum.program',
+                'studyPlan.curriculum.program.department',
+                'studyPlan.curriculum.program.department.faculty',
             ])
             ->where('deleted_at', null);
     }
@@ -116,7 +118,7 @@ class StudentController extends Controller
         if ($request->filled('department_id')) {
             $departmentId = $request->query('department_id');
 
-            $query->whereHas('studyPlan.curriculum.department', function ($q) use ($departmentId) {
+            $query->whereHas('studyPlan.curriculum.program.department', function ($q) use ($departmentId) {
                 $q->where('id', $departmentId);
             });
         }
@@ -124,7 +126,7 @@ class StudentController extends Controller
         if ($request->filled('faculty_id')) {
             $facultyId = $request->query('faculty_id');
 
-            $query->whereHas('studyPlan.curriculum.department.faculty', function ($q) use ($facultyId) {
+            $query->whereHas('studyPlan.curriculum.program.department.faculty', function ($q) use ($facultyId) {
                 $q->where('id', $facultyId);
             });
         }
