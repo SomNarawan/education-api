@@ -60,8 +60,8 @@ class StudentDetailResponse extends JsonResource
             'study_plan_id' => $this->study_plan_id,
             'curriculum_type' => $this->studyPlan->curriculum->degree_short_name_th,
             'study_plan_name' => $this->studyPlan->name_th,
-            'department_name' => $this->studyPlan->curriculum->department->department_name,
-            'faculty_name' => $this->studyPlan->curriculum->department->faculty->faculty_name_th,
+            'department_name' => $this->studyPlan->curriculum->department->name_th,
+            'faculty_name' => $this->studyPlan->curriculum->department->faculty->name_th,
         ];
     }
 }
