@@ -66,6 +66,9 @@ class StudentController extends Controller
                 'studyPlan.curriculum.program',
                 'studyPlan.curriculum.program.department',
                 'studyPlan.curriculum.program.department.faculty',
+
+                'notes',
+                'notes.noteType',
             ])
             ->where('deleted_at', null);
     }
@@ -82,12 +85,17 @@ class StudentController extends Controller
      * - faculty_id optional
      * - student_status_id optional
      * - search_text optional
+     * - search_note optional
      *
      * search_text ใช้ค้นหาจาก:
      * - student_code
      * - first_name_th
      * - last_name_th
      * - student_id_card
+     *
+     * search_note ใช้ค้นหาจาก:
+     * - notes.remark
+     * - note_types.note
      *
      * Examples:
      * GET /api/students
@@ -99,9 +107,9 @@ class StudentController extends Controller
      * GET /api/students?faculty_id=1&student_status_id=2
      * GET /api/students?search_text=602050
      * GET /api/students?search_text=สม
-     * GET /api/students?search_text=ใจ
-     * GET /api/students?search_text=1234
-     * GET /api/students?faculty_id=1&search_text=สม
+     * GET /api/students?search_note=ซึมเศร้า
+     * GET /api/students?search_note=ขาดเรียน
+     * GET /api/students?faculty_id=1&search_note=ซึมเศร้า
      */
     public function index(Request $request): JsonResponse
     {
@@ -132,13 +140,27 @@ class StudentController extends Controller
         }
 
         if ($request->filled('search_text')) {
-            $searchText = trim($request->query('search_text'));
+            $searchText = trim((string) $request->query('search_text'));
 
             $query->where(function ($q) use ($searchText) {
                 $q->where('student_code', 'like', '%' . $searchText . '%')
                     ->orWhere('first_name_th', 'like', '%' . $searchText . '%')
                     ->orWhere('last_name_th', 'like', '%' . $searchText . '%')
                     ->orWhere('student_id_card', 'like', '%' . $searchText . '%');
+            });
+        }
+
+        if ($request->filled('search_note')) {
+            $searchNote = trim((string) $request->query('search_note'));
+
+            $query->whereHas('notes', function ($noteQuery) use ($searchNote) {
+                $noteQuery->whereNull('deleted_at')
+                    ->where(function ($q) use ($searchNote) {
+                        $q->where('remark', 'like', '%' . $searchNote . '%')
+                            ->orWhereHas('noteType', function ($noteTypeQuery) use ($searchNote) {
+                                $noteTypeQuery->where('note', 'like', '%' . $searchNote . '%');
+                            });
+                    });
             });
         }
 
