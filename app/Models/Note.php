@@ -16,7 +16,8 @@ class Note extends Model
 
     protected $fillable = [
         'student_id',
-        'note',
+        'note_type_id',
+        'remark',
         'deleted_at'
     ];
 
@@ -26,6 +27,10 @@ class Note extends Model
 
     public function student(): BelongsTo
     {
-        return $this->belongsTo(Student::class);
+        return $this->belongsTo(Student::class, 'student_id');
+    }
+    public function noteType(): BelongsTo
+    {
+        return $this->belongsTo(NoteType::class, 'note_type_id');
     }
 }

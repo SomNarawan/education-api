@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Note;
+use App\Models\NoteType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Http\Responses\NoteListResponse;
@@ -13,16 +14,16 @@ class NoteController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $items = Note::query()
-            ->whereNull('deleted_at')
+        $items = Note::withTrashed()
+            ->with('noteType')
             ->when(
                 $request->filled('student_id'),
-                fn($query) => $query->where(
+                fn ($query) => $query->where(
                     'student_id',
                     $request->query('student_id')
                 )
             )
-            ->orderBy('id')
+            ->orderByDesc('id')
             ->get();
 
         $data = NoteListResponse::collection($items);
@@ -32,19 +33,27 @@ class NoteController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $request->merge([
-            'note' => trim((string) $request->input('note')),
-        ]);
-
         $validated = $request->validate([
             'student_id' => ['required', 'integer'],
-            'note' => ['required', 'string', 'min:1'],
+            'note_type_id' => ['required', 'integer', 'exists:note_types,id'],
+            'remark' => ['nullable', 'string'],
         ]);
+
+        $noteType = NoteType::query()->find($validated['note_type_id']);
+
+        $isOther = $noteType && trim($noteType->note) === 'อื่นๆ';
+
+        if ($isOther && blank($request->input('remark'))) {
+            return ApiResponse::error('กรุณากรอก remark', 422);
+        }
 
         $item = Note::create([
             'student_id' => $validated['student_id'],
-            'note' => $validated['note'],
+            'note_type_id' => $validated['note_type_id'],
+            'remark' => $isOther ? trim($validated['remark'] ?? '') : null,
         ]);
+
+        $item->load('noteType');
 
         return ApiResponse::success(
             new NoteListResponse($item),
@@ -54,17 +63,13 @@ class NoteController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $item = Note::query()
-            ->whereNull('deleted_at')
-            ->find($id);
+        $item = Note::query()->find($id);
 
         if (!$item) {
             return ApiResponse::error('Note not found', 404);
         }
 
-        $item->update([
-            'deleted_at' => now(),
-        ]);
+        $item->delete();
 
         return ApiResponse::success(
             null,

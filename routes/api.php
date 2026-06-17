@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\StudyTermCourseController;
 use App\Http\Controllers\Api\SubdistrictController;
 use App\Http\Controllers\Api\TeacherController;
 use App\Http\Controllers\Api\RelationshipController;
+use App\Http\Controllers\Api\NoteTypeController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -66,3 +67,5 @@ Route::post('/teachers/sync', [TeacherController::class, 'sync']);
 Route::get('/notes', [NoteController::class, 'index']);
 Route::post('/notes', [NoteController::class, 'store']);
 Route::delete('/notes/{id}', [NoteController::class, 'destroy']);
+
+Route::get('/note-types', [NoteTypeController::class, 'index']);
