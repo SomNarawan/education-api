@@ -83,7 +83,8 @@ class TeacherController extends Controller
             }
 
             if (!empty($activeNontriIds)) {
-                $deleted = Teacher::where('department_id', $departmentId)
+                $deleted = Teacher::query()
+                    ->where('department_id', $departmentId)
                     ->where('deleted_at', null)
                     ->whereNotIn('nontri_id', $activeNontriIds)
                     ->update([

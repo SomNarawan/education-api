@@ -11,6 +11,7 @@ class StudentDetailResponse extends JsonResource
         return [
             'id' => $this->id,
             'student_code' => $this->student_code,
+            'student_id_card' => $this->student_id_card,
             'title_id' => $this->title_id,
             'full_name_th' => trim(($this->title->title_abbr_th ?? '') . ($this->first_name_th ?? '') . ' ' . ($this->last_name_th ?? '')),
             'full_name_en' => trim(($this->title->title_abbr_en ?? '') . ($this->first_name_en ?? '') . ' ' . ($this->last_name_en ?? '')),
