@@ -3,12 +3,48 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Student extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'students';
+    
+    protected $fillable = [
+        'student_code',
+        'student_id_card',
+        'title_id',
+        'first_name_th',
+        'last_name_th',
+        'first_name_en',
+        'last_name_en',
+        'title_id',
+        'phone',
+        'email',
+        'teacher_id',
+        'student_status_id',
+        'admission_channel_id',
+        'high_school_id',
+        'study_plan_id',
+        'entry_year',
+        'gpa',
+        'passed_credits',
+        'not_passed_credits',
+        'overed_credits',
+
+        'guardian_title_id',
+        'guardian_first_name_th',
+        'guardian_last_name_th',
+        'guardian_relationship_id',
+        'guardian_phone',
+    ];
+
+    protected $casts = [
+        'deleted_at' => 'datetime',
+    ];
 
     public function title(): BelongsTo
     {

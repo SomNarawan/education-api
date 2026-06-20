@@ -59,6 +59,9 @@ Route::prefix('students')->group(function () {
     Route::get('/', [StudentController::class, 'index']);
     Route::get('/detail', [StudentController::class, 'detail']);
     Route::get('/{id}', [StudentController::class, 'show']);
+    Route::post('/', [StudentController::class, 'store']);
+    Route::match(['put', 'patch'], '/{id}', [StudentController::class, 'update']);
+    Route::delete('/{id}', [StudentController::class, 'destroy']);
 });
 
 Route::get('/teachers', [TeacherController::class, 'index']);

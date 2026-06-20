@@ -21,7 +21,7 @@ class StudentDetailResponse extends JsonResource
             'last_name_en' => $this->last_name_en,
             'phone' => $this->phone,
             'email' => $this->email,
-            'entry_year_ad' => (int) $this->entry_year,
+            'entry_year' => (int) $this->entry_year,
             'entry_year_be' => (int) $this->entry_year + 543,
             'teacher_id' => $this->teacher_id,
             'teacher_full_name_th' => $this->teacher->full_name_th,
@@ -33,6 +33,9 @@ class StudentDetailResponse extends JsonResource
             'admission_channel_name' => $this->whenLoaded('admissionChannel', function () {
                 return $this->admissionChannel->channel_name ?? null;
             }),
+            'guardian_title_id' => $this->guardian_title_id,
+            'guardian_first_name_th' => $this->guardian_first_name_th,
+            'guardian_last_name_th' => $this->guardian_last_name_th,
             'guardian_full_name' => trim(($this->guardianTitle->title_abbr_th ?? '') . ($this->guardian_first_name_th ?? '') . ' ' . ($this->guardian_last_name_th ?? '')),
             'guardian_relationship_id' => $this->guardian_relationship_id,
             'guardian_relationship_name' => $this->whenLoaded('guardianRelationship', function () {

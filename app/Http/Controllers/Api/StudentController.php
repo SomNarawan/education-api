@@ -193,4 +193,108 @@ class StudentController extends Controller
 
         return ApiResponse::success($data, 'Load student successfully');
     }
+
+    /**
+     * POST /api/students
+     * Create a new student
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'student_code' => ['required', 'string'],
+            'student_id_card' => ['required', 'string'],
+            'title_id' => ['required', 'integer'],
+            'first_name_th' => ['required', 'string'],
+            'last_name_th' => ['required', 'string'],
+            'first_name_en' => ['required', 'string'],
+            'last_name_en' => ['required', 'string'],
+            'phone' => ['required', 'string'],
+            'email' => ['required', 'email'],
+            'teacher_id' => ['required', 'integer'],
+            'student_status_id' => ['required', 'integer'],
+            'admission_channel_id' => ['required', 'integer'],
+            'high_school_id' => ['required', 'integer'],
+            'study_plan_id' => ['required', 'integer'],
+            'entry_year' => ['required', 'integer'],
+            'gpa' => ['required', 'numeric'],
+            'passed_credits' => ['nullable', 'integer'],
+            'not_passed_credits' => ['nullable', 'integer'],
+            'overed_credits' => ['nullable', 'integer'],
+
+            'guardian_title_id' => ['required', 'integer'],
+            'guardian_first_name_th' => ['required', 'string'],
+            'guardian_last_name_th' => ['required', 'string'],
+            'guardian_relationship_id' => ['required', 'integer'],
+            'guardian_phone' => ['required', 'string'],
+        ]);
+
+        $item = Student::create($validated);
+
+        $item = $this->studentDetailQuery()
+            ->where('id', $item->id)
+            ->first();
+
+        return ApiResponse::success((new StudentDetailResponse($item))->resolve(), 'Create student successfully');
+    }
+
+    /**
+     * PUT/PATCH /api/students/{id}
+     * Update an existing student
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $item = Student::query()->find($id);
+
+        if (!$item) {
+            return ApiResponse::error('Student not found', 404);
+        }
+
+        $validated = $request->validate([
+            'student_code' => ['sometimes', 'required', 'string'],
+            'student_id_card' => ['sometimes', 'required', 'string'],
+            'title_id' => ['sometimes', 'required', 'integer'],
+            'first_name_th' => ['sometimes', 'required', 'string'],
+            'last_name_th' => ['sometimes', 'required', 'string'],
+            'first_name_en' => ['sometimes', 'required', 'string'],
+            'last_name_en' => ['sometimes', 'required', 'string'],
+            'phone' => ['sometimes', 'required', 'string'],
+            'email' => ['sometimes', 'required', 'email'],
+            'teacher_id' => ['sometimes', 'required', 'integer'],
+            'student_status_id' => ['sometimes', 'required', 'integer'],
+            'admission_channel_id' => ['sometimes', 'required', 'integer'],
+            'high_school_id' => ['sometimes', 'required', 'integer'],
+            'study_plan_id' => ['sometimes', 'required', 'integer'],
+            'entry_year' => ['sometimes', 'required', 'integer'],
+            'gpa' => ['sometimes', 'required', 'numeric'],
+            'passed_credits' => ['sometimes', 'nullable', 'integer'],
+            'not_passed_credits' => ['sometimes', 'nullable', 'integer'],
+            'overed_credits' => ['sometimes', 'nullable', 'integer'],
+
+            'guardian_title_id' => ['sometimes', 'required', 'integer'],
+            'guardian_first_name_th' => ['sometimes', 'required', 'string'],
+            'guardian_last_name_th' => ['sometimes', 'required', 'string'],
+            'guardian_relationship_id' => ['sometimes', 'required', 'integer'],
+            'guardian_phone' => ['sometimes', 'required', 'string'],
+        ]);
+
+        $item->update($validated);
+
+        $item = $this->studentDetailQuery()
+            ->where('id', $item->id)
+            ->first();
+
+        return ApiResponse::success((new StudentDetailResponse($item))->resolve(), 'Update student successfully');
+    }
+
+    /**
+     * DELETE /api/students/{id}
+     * Soft delete a student (set deleted_at)
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        $item = Student::findOrFail($id);
+        $item->delete();
+
+        return ApiResponse::success(null, 'Delete student successfully');
+    }
 }

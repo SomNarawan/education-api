@@ -63,17 +63,9 @@ class NoteController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $item = Note::query()->find($id);
-
-        if (!$item) {
-            return ApiResponse::error('Note not found', 404);
-        }
-
+        $item = Note::findOrFail($id);
         $item->delete();
 
-        return ApiResponse::success(
-            null,
-            'Delete note successfully'
-        );
+        return ApiResponse::success(null, 'Delete note successfully');
     }
 }
