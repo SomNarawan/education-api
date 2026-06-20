@@ -119,7 +119,9 @@ class StudentController extends Controller
             $query->where('teacher_id', $request->query('teacher_id'));
         }
 
-        if ($request->filled('student_status_id')) {
+        if ($request->query('student_status') === 'non-graduated') {
+            $query->where('student_status_id', '!=', 2);
+        } elseif ($request->filled('student_status_id')) {
             $query->where('student_status_id', $request->query('student_status_id'));
         }
 
