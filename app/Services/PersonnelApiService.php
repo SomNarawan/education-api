@@ -4,7 +4,6 @@ namespace App\Services;
 
 use Exception;
 use Illuminate\Support\Facades\Http;
-use App\Models\DepartmentMap;
 
 class PersonnelApiService
 {
@@ -23,17 +22,6 @@ class PersonnelApiService
         //     throw new Exception('Certificate file not found: ' . $certPath);
         // }
 
-        // map internal department id to external id; require mapping exists
-        $departmentMap = DepartmentMap::query()
-            ->where('id_in', $departmentId)
-            ->first();
-
-        if (!$departmentMap) {
-            throw new Exception('Department mapping not found for id: ' . $departmentId);
-        }
-
-        $outDeptId = $departmentMap->id_out;
-
         $response = Http::withOptions([
             'verify' => false,
         ])
@@ -41,7 +29,7 @@ class PersonnelApiService
             ->get(
                 $baseUrl . $endpoint,
                 [
-                    'department_id' => $outDeptId,
+                    'department_id' => $departmentId,
                 ]
             );
 

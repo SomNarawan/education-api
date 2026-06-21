@@ -28,10 +28,13 @@ use App\Http\Controllers\Api\SubdistrictController;
 use App\Http\Controllers\Api\TeacherController;
 use App\Http\Controllers\Api\RelationshipController;
 use App\Http\Controllers\Api\NoteTypeController;
+use App\Http\Controllers\Api\MeController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
+
+Route::get('/me', [MeController::class, 'show']);
 
 Route::get('/titles', [TitleController::class, 'index']);
 Route::get('/affiliations', [AffiliationController::class, 'index']);
