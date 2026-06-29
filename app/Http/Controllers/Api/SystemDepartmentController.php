@@ -19,54 +19,55 @@ class SystemDepartmentController extends Controller
             ->orderBy('id')
             ->get();
 
-        $data = collection($items);
-
-        return ApiResponse::success($data, 'Load system departments successfully');
+        return ApiResponse::success($items, 'Load system departments successfully');
     }
 
     public function sync(
         Request $request,
         PersonnelApiService $personnelApiService
     ): JsonResponse {
-        $departmentId = $request->query('department_id');
+        $facultyId = $request->query('faculty_id');
 
-        if (!$departmentId) {
+        if (!$facultyId) {
             return ApiResponse::error(
-                'department_id is required',
+                'faculty_id is required',
                 422
             );
         }
 
         try {
-            $departmentId = (int) $departmentId;
-            $teachers = $personnelApiService->getTeachers($departmentId);
+            $facultyId = (int) $facultyId;
+
+            $response = $personnelApiService->getDepartments($facultyId);
+
+            $departments = $response['departments'] ?? [];
+            $systemFacultyId = (int) ($response['faculty_id'] ?? $facultyId);
 
             $synced = 0;
             $deleted = 0;
-            $activeNontriIds = [];
+            $activeDepartmentIds = [];
 
-            foreach ($teachers['users'] ?? [] as $teacher) {
+            foreach ($departments as $department) {
                 if (
-                    empty($teacher['nontri_id']) ||
-                    empty($teacher['full_name'])
+                    empty($department['id']) ||
+                    empty($department['th_name'])
                 ) {
                     continue;
                 }
 
-                $nontriId = trim($teacher['nontri_id']);
-                $fullName = trim($teacher['full_name']);
+                $departmentId = (int) $department['id'];
+                $activeDepartmentIds[] = $departmentId;
 
-                $activeNontriIds[] = $nontriId;
-
-                Teacher::updateOrCreate(
+                SystemDepartment::updateOrCreate(
                     [
-                        'nontri_id' => $nontriId,
+                        'id' => $departmentId,
                     ],
                     [
-                        'full_name_th' => $fullName,
-                        'department_id' => $departmentId,
-
-                        // ถ้าเคยถูกลบ แล้ว API ส่งกลับมาอีก ให้กลับมาใช้งาน
+                        'th_name' => $department['th_name'],
+                        'en_name' => $department['en_name'],
+                        'th_short_name' => $department['th_short_name'],
+                        'en_short_name' => $department['en_short_name'],
+                        'system_faculty_id' => $systemFacultyId,
                         'deleted_at' => null,
                     ]
                 );
@@ -74,11 +75,11 @@ class SystemDepartmentController extends Controller
                 $synced++;
             }
 
-            if (!empty($activeNontriIds)) {
-                $deleted = Teacher::query()
-                    ->where('department_id', $departmentId)
+            if (!empty($activeDepartmentIds)) {
+                $deleted = SystemDepartment::query()
+                    ->where('system_faculty_id', $systemFacultyId)
                     ->where('deleted_at', null)
-                    ->whereNotIn('nontri_id', $activeNontriIds)
+                    ->whereNotIn('id', $activeDepartmentIds)
                     ->update([
                         'deleted_at' => now(),
                     ]);
@@ -89,7 +90,7 @@ class SystemDepartmentController extends Controller
                     'synced' => $synced,
                     'deleted' => $deleted,
                 ],
-                'Sync teachers successfully'
+                'Sync system departments successfully'
             );
         } catch (Exception $e) {
             return ApiResponse::error(

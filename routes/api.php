@@ -14,7 +14,6 @@ use App\Http\Controllers\Api\CurriculumController;
 use App\Http\Controllers\Api\CurriculumCategoryController;
 use App\Http\Controllers\Api\CurriculumCourseController;
 use App\Http\Controllers\Api\CurriculumGroupController;
-use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\DistrictController;
 use App\Http\Controllers\Api\FacultyController;
 use App\Http\Controllers\Api\HighSchoolController;
@@ -29,6 +28,8 @@ use App\Http\Controllers\Api\TeacherController;
 use App\Http\Controllers\Api\RelationshipController;
 use App\Http\Controllers\Api\NoteTypeController;
 use App\Http\Controllers\Api\MeController;
+use App\Http\Controllers\Api\SystemDepartmentController;
+use App\Http\Controllers\Api\SystemFacultyController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -46,7 +47,6 @@ Route::get('/curriculums', [CurriculumController::class, 'index']);
 Route::get('/curriculum-categories', [CurriculumCategoryController::class, 'index']);
 Route::get('/curriculum-courses', [CurriculumCourseController::class, 'index']);
 Route::get('/curriculum-groups', [CurriculumGroupController::class, 'index']);
-Route::get('/departments', [DepartmentController::class, 'index']);
 Route::get('/districts', [DistrictController::class, 'index']);
 Route::get('/faculties', [FacultyController::class, 'index']);
 Route::get('/high-schools', [HighSchoolController::class, 'index']);
@@ -68,10 +68,16 @@ Route::prefix('students')->group(function () {
 });
 
 Route::get('/teachers', [TeacherController::class, 'index']);
-Route::post('/teachers/sync', [TeacherController::class, 'sync']);
+Route::get('/teachers/sync', [TeacherController::class, 'sync']);
 
 Route::get('/notes', [NoteController::class, 'index']);
 Route::post('/notes', [NoteController::class, 'store']);
 Route::delete('/notes/{id}', [NoteController::class, 'destroy']);
 
 Route::get('/note-types', [NoteTypeController::class, 'index']);
+
+Route::get('/system-departments', [SystemDepartmentController::class, 'index']);
+Route::get('/system-departments/sync', [SystemDepartmentController::class, 'sync']);
+
+Route::get('/system-faculties', [SystemFacultyController::class, 'index']);
+Route::get('/system-faculties/sync', [SystemFacultyController::class, 'sync']);

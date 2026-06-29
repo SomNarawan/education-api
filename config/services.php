@@ -37,7 +37,13 @@ return [
 
     'personnel_api' => [
         'url' => env('PERSONNEL_API_URL'),
-        'all_user_endpoint' => '/kukps-eng-personnel-api/api/portal-student-map/all-user',
+        'base_path' => '/kukps-eng-personnel-api/api/portal-student-map',
+
+        'endpoints' => [
+            'all_user' => '/all-user',
+            'all_department' => '/all-department',
+            'all_faculty' => '/all-faculty',
+        ],
     ],
 
 ];
