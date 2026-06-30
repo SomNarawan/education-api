@@ -26,11 +26,11 @@ class SystemDepartmentController extends Controller
         Request $request,
         PersonnelApiService $personnelApiService
     ): JsonResponse {
-        $facultyId = $request->query('faculty_id');
+        $facultyId = $request->query('system_faculty_id');
 
         if (!$facultyId) {
             return ApiResponse::error(
-                'faculty_id is required',
+                'system_faculty_id is required',
                 422
             );
         }
@@ -41,7 +41,7 @@ class SystemDepartmentController extends Controller
             $response = $personnelApiService->getDepartments($facultyId);
 
             $departments = $response['departments'] ?? [];
-            $systemFacultyId = (int) ($response['faculty_id'] ?? $facultyId);
+            $systemFacultyId = (int) ($response['system_faculty_id'] ?? $facultyId);
 
             $synced = 0;
             $deleted = 0;

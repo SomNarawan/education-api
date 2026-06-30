@@ -34,11 +34,12 @@ class StudentController extends Controller
                 'highSchool.subdistrict.district',
                 'highSchool.subdistrict.district.province',
 
+                'systemDepartment',
+                'systemDepartment.systemFaculty',
+
                 'studyPlan',
                 'studyPlan.curriculum',
                 'studyPlan.curriculum.program',
-                'studyPlan.curriculum.program.department',
-                'studyPlan.curriculum.program.department.faculty',
 
                 'guardianTitle',
                 'guardianRelationship',
@@ -61,11 +62,12 @@ class StudentController extends Controller
 
                 'studentStatus',
 
+                'systemDepartment',
+                'systemDepartment.systemFaculty',
+
                 'studyPlan',
                 'studyPlan.curriculum',
                 'studyPlan.curriculum.program',
-                'studyPlan.curriculum.program.department',
-                'studyPlan.curriculum.program.department.faculty',
 
                 'notes',
                 'notes.noteType',
@@ -101,15 +103,15 @@ class StudentController extends Controller
      * GET /api/students
      * GET /api/students?teacher_id=1
      * GET /api/students?teacher_id=1&student_status_id=2
-     * GET /api/students?department_id=1
-     * GET /api/students?department_id=1&student_status_id=2
-     * GET /api/students?faculty_id=1
-     * GET /api/students?faculty_id=1&student_status_id=2
+     * GET /api/students?system_department_id=1
+     * GET /api/students?system_department_id=1&student_status_id=2
+     * GET /api/students?system_faculty_id=1
+     * GET /api/students?system_faculty_id=1&student_status_id=2
      * GET /api/students?search_text=602050
      * GET /api/students?search_text=สม
      * GET /api/students?search_note=ซึมเศร้า
      * GET /api/students?search_note=ขาดเรียน
-     * GET /api/students?faculty_id=1&search_note=ซึมเศร้า
+     * GET /api/students?system_faculty_id=1&search_note=ซึมเศร้า
      */
     public function index(Request $request): JsonResponse
     {
@@ -119,24 +121,18 @@ class StudentController extends Controller
             $query->where('teacher_id', $request->query('teacher_id'));
         }
 
-        if ($request->query('student_status') === 'non-graduated') {
-            $query->where('student_status_id', '!=', 2);
-        } elseif ($request->filled('student_status_id')) {
+        if ($request->filled('student_status_id')) {
             $query->where('student_status_id', $request->query('student_status_id'));
         }
 
-        if ($request->filled('department_id')) {
-            $departmentId = $request->query('department_id');
-
-            $query->whereHas('studyPlan.curriculum.program.department', function ($q) use ($departmentId) {
-                $q->where('id', $departmentId);
-            });
+        if ($request->filled('system_department_id')) {
+            $query->where('system_department_id', $request->query('system_department_id'));
         }
 
-        if ($request->filled('faculty_id')) {
-            $facultyId = $request->query('faculty_id');
+        if ($request->filled('system_faculty_id')) {
+            $facultyId = $request->query('system_faculty_id');
 
-            $query->whereHas('studyPlan.curriculum.program.department.faculty', function ($q) use ($facultyId) {
+            $query->whereHas('systemDepartment.systemFaculty', function ($q) use ($facultyId) {
                 $q->where('id', $facultyId);
             });
         }

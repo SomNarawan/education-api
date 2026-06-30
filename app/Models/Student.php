@@ -29,6 +29,7 @@ class Student extends Model
         'admission_channel_id',
         'high_school_id',
         'study_plan_id',
+        'system_department_id',
         'entry_year',
         'gpa',
         'passed_credits',
@@ -84,6 +85,11 @@ class Student extends Model
     public function studyPlan(): BelongsTo
     {
         return $this->belongsTo(StudyPlanTrack::class, 'study_plan_id');
+    }
+
+    public function systemDepartment(): BelongsTo
+    {
+        return $this->belongsTo(SystemDepartment::class, 'system_department_id');
     }
 
     public function notes(): HasMany
