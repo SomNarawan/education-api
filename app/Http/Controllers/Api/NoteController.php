@@ -47,10 +47,20 @@ class NoteController extends Controller
             return ApiResponse::error('กรุณากรอก remark', 422);
         }
 
+        $createdBy = $this->actorFromJwt($request);
+
+        if ($createdBy === null) {
+            return ApiResponse::error(
+                'JWT does not contain name, nontri_id, or sub',
+                422
+            );
+        }
+
         $item = Note::create([
             'student_id' => $validated['student_id'],
             'note_type_id' => $validated['note_type_id'],
             'remark' => $isOther ? trim($validated['remark'] ?? '') : null,
+            'created_by' => $createdBy,
         ]);
 
         $item->load('noteType');
@@ -61,11 +71,37 @@ class NoteController extends Controller
         );
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $item = Note::findOrFail($id);
+
+        $deletedBy = $this->actorFromJwt($request);
+
+        if ($deletedBy === null) {
+            return ApiResponse::error(
+                'JWT does not contain name, nontri_id, or sub',
+                422
+            );
+        }
+
+        $item->deleted_by = $deletedBy;
+        $item->save();
+
         $item->delete();
 
         return ApiResponse::success(null, 'Delete note successfully');
+    }
+
+    private function actorFromJwt(Request $request): ?string
+    {
+        $claims = $request->attributes->get('jwt_claims', []);
+        $actor = $claims['name']
+            ?? $claims['nontri_id']
+            ?? $claims['sub']
+            ?? null;
+
+        return is_scalar($actor) && trim((string) $actor) !== ''
+            ? trim((string) $actor)
+            : null;
     }
 }
