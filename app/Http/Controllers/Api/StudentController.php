@@ -152,7 +152,7 @@ class StudentController extends Controller
             $searchNote = trim((string) $request->query('search_note'));
 
             $query->whereHas('notes', function ($noteQuery) use ($searchNote) {
-                $noteQuery->whereNull('deleted_at')
+                $noteQuery->withTrashed()
                     ->where(function ($q) use ($searchNote) {
                         $q->where('remark', 'like', '%' . $searchNote . '%')
                             ->orWhereHas('noteType', function ($noteTypeQuery) use ($searchNote) {

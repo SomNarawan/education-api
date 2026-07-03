@@ -18,7 +18,8 @@ class Note extends Model
         'student_id',
         'note_type_id',
         'remark',
-        'deleted_at'
+        'created_by',
+        'deleted_by',
     ];
 
     protected $casts = [
@@ -29,6 +30,7 @@ class Note extends Model
     {
         return $this->belongsTo(Student::class, 'student_id');
     }
+
     public function noteType(): BelongsTo
     {
         return $this->belongsTo(NoteType::class, 'note_type_id');

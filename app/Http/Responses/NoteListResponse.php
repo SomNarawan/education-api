@@ -14,7 +14,9 @@ class NoteListResponse extends JsonResource
             'note' => $this->noteType->note,
             'remark' => $this->remark,
             'created_at' => $this->created_at,
+            'created_by' => $this->created_by,
             'deleted_at' => $this->deleted_at,
+            'deleted_by' => $this->deleted_by,
         ];
     }
 }
