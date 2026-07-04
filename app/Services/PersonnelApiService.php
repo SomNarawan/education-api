@@ -45,7 +45,7 @@ class PersonnelApiService
         return $teachers['data'] ?? $teachers ?? [];
     }
 
-    public function getDepartments(int $facultyId): array
+    public function getDepartments(): array
     {
         $endpoint = config('services.personnel_api.endpoints.all_department');
         $url = $this->getApiUrl($endpoint);
@@ -54,9 +54,7 @@ class PersonnelApiService
             'verify' => false,
         ])
             ->timeout(15)
-            ->get($url, [
-                'faculty_id' => $facultyId,
-            ]);
+            ->get($url);
 
         if (!$response->successful()) {
             throw new Exception(

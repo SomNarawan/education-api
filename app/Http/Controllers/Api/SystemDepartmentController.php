@@ -8,7 +8,6 @@ use App\Models\SystemDepartment;
 use App\Services\PersonnelApiService;
 use Exception;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class SystemDepartmentController extends Controller
 {
@@ -23,28 +22,16 @@ class SystemDepartmentController extends Controller
     }
 
     public function sync(
-        Request $request,
         PersonnelApiService $personnelApiService
     ): JsonResponse {
-        $facultyId = $request->query('system_faculty_id');
-
-        if (!$facultyId) {
-            return ApiResponse::error(
-                'system_faculty_id is required',
-                422
-            );
-        }
-
         try {
-            $facultyId = (int) $facultyId;
+            $response = $personnelApiService->getDepartments();
 
-            $response = $personnelApiService->getDepartments($facultyId);
-
-            $departments = $response['departments'] ?? [];
-            $systemFacultyId = (int) ($response['system_faculty_id'] ?? $facultyId);
+            $departments = $response['departments'] ?? $response;
 
             $synced = 0;
             $deleted = 0;
+            $skippedWithoutFaculty = 0;
             $activeDepartmentIds = [];
 
             foreach ($departments as $department) {
@@ -55,7 +42,16 @@ class SystemDepartmentController extends Controller
                     continue;
                 }
 
+                if (
+                    empty($department['system_faculty_id']) ||
+                    !is_numeric($department['system_faculty_id'])
+                ) {
+                    $skippedWithoutFaculty++;
+                    continue;
+                }
+
                 $departmentId = (int) $department['id'];
+                $systemFacultyId = (int) $department['system_faculty_id'];
                 $activeDepartmentIds[] = $departmentId;
 
                 SystemDepartment::updateOrCreate(
@@ -77,7 +73,6 @@ class SystemDepartmentController extends Controller
 
             if (!empty($activeDepartmentIds)) {
                 $deleted = SystemDepartment::query()
-                    ->where('system_faculty_id', $systemFacultyId)
                     ->where('deleted_at', null)
                     ->whereNotIn('id', $activeDepartmentIds)
                     ->update([
@@ -89,6 +84,7 @@ class SystemDepartmentController extends Controller
                 [
                     'synced' => $synced,
                     'deleted' => $deleted,
+                    'skipped_without_faculty' => $skippedWithoutFaculty,
                 ],
                 'Sync system departments successfully'
             );
