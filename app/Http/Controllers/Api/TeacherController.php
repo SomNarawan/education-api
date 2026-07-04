@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Department;
 use App\Models\Teacher;
 use App\Services\PersonnelApiService;
 use Exception;
@@ -33,31 +34,53 @@ class TeacherController extends Controller
     }
 
     public function sync(
-        Request $request,
         PersonnelApiService $personnelApiService
     ): JsonResponse {
-        $departmentId = $request->query('department_id');
-
-        if (!$departmentId) {
-            return ApiResponse::error(
-                'department_id is required',
-                422
-            );
-        }
-
         try {
-            $departmentId = (int) $departmentId;
-            $teachers = $personnelApiService->getTeachers($departmentId);
+            $response = $personnelApiService->getTeachers();
+            $teachers = $response['users'] ?? $response;
 
             $synced = 0;
             $deleted = 0;
+            $skippedWithoutDepartment = 0;
+            $skippedUnknownDepartment = 0;
             $activeNontriIds = [];
 
-            foreach ($teachers['users'] ?? [] as $teacher) {
+            $departmentIds = collect($teachers)
+                ->pluck('department_id')
+                ->filter(fn($departmentId) => is_numeric($departmentId) && (int) $departmentId > 0)
+                ->map(fn($departmentId) => (int) $departmentId)
+                ->unique()
+                ->values()
+                ->all();
+
+            $existingDepartmentIds = Department::query()
+                ->whereIn('id', $departmentIds, 'and', false)
+                ->pluck('id')
+                ->mapWithKeys(fn($departmentId) => [(int) $departmentId => true])
+                ->all();
+
+            foreach ($teachers as $teacher) {
                 if (
                     empty($teacher['nontri_id']) ||
                     empty($teacher['full_name'])
                 ) {
+                    continue;
+                }
+
+                if (
+                    !isset($teacher['department_id']) ||
+                    !is_numeric($teacher['department_id']) ||
+                    (int) $teacher['department_id'] <= 0
+                ) {
+                    $skippedWithoutDepartment++;
+                    continue;
+                }
+
+                $departmentId = (int) $teacher['department_id'];
+
+                if (!isset($existingDepartmentIds[$departmentId])) {
+                    $skippedUnknownDepartment++;
                     continue;
                 }
 
@@ -84,7 +107,6 @@ class TeacherController extends Controller
 
             if (!empty($activeNontriIds)) {
                 $deleted = Teacher::query()
-                    ->where('department_id', $departmentId)
                     ->where('deleted_at', null)
                     ->whereNotIn('nontri_id', $activeNontriIds)
                     ->update([
@@ -96,6 +118,8 @@ class TeacherController extends Controller
                 [
                     'synced' => $synced,
                     'deleted' => $deleted,
+                    'skipped_without_department' => $skippedWithoutDepartment,
+                    'skipped_unknown_department' => $skippedUnknownDepartment,
                 ],
                 'Sync teachers successfully'
             );

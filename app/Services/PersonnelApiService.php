@@ -23,7 +23,7 @@ class PersonnelApiService
             . ltrim($endpoint, '/');
     }
 
-    public function getTeachers(int $departmentId): array
+    public function getTeachers(): array
     {
         $endpoint = config('services.personnel_api.endpoints.all_user');
         $url = $this->getApiUrl($endpoint);
@@ -32,9 +32,7 @@ class PersonnelApiService
             'verify' => false,
         ])
             ->timeout(15)
-            ->get($url, [
-                'department_id' => $departmentId,
-            ]);
+            ->get($url);
 
         if (!$response->successful()) {
             throw new Exception(
