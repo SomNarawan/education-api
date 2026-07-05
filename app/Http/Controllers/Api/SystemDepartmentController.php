@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\SystemDepartment;
+use App\Models\SystemFaculty;
 use App\Services\PersonnelApiService;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -32,7 +33,23 @@ class SystemDepartmentController extends Controller
             $synced = 0;
             $deleted = 0;
             $skippedWithoutFaculty = 0;
+            $skippedUnknownFaculty = 0;
             $activeDepartmentIds = [];
+
+            $facultyIds = collect($departments)
+                ->pluck('system_faculty_id')
+                ->filter(fn($facultyId) => is_numeric($facultyId) && (int) $facultyId > 0)
+                ->map(fn($facultyId) => (int) $facultyId)
+                ->unique()
+                ->values()
+                ->all();
+
+            $existingFacultyIds = SystemFaculty::query()
+                ->where('deleted_at', null)
+                ->whereIn('id', $facultyIds, 'and', false)
+                ->pluck('id')
+                ->mapWithKeys(fn($facultyId) => [(int) $facultyId => true])
+                ->all();
 
             foreach ($departments as $department) {
                 if (
@@ -44,7 +61,8 @@ class SystemDepartmentController extends Controller
 
                 if (
                     empty($department['system_faculty_id']) ||
-                    !is_numeric($department['system_faculty_id'])
+                    !is_numeric($department['system_faculty_id']) ||
+                    (int) $department['system_faculty_id'] <= 0
                 ) {
                     $skippedWithoutFaculty++;
                     continue;
@@ -52,6 +70,12 @@ class SystemDepartmentController extends Controller
 
                 $departmentId = (int) $department['id'];
                 $systemFacultyId = (int) $department['system_faculty_id'];
+
+                if (!isset($existingFacultyIds[$systemFacultyId])) {
+                    $skippedUnknownFaculty++;
+                    continue;
+                }
+
                 $activeDepartmentIds[] = $departmentId;
 
                 SystemDepartment::updateOrCreate(
@@ -84,7 +108,8 @@ class SystemDepartmentController extends Controller
                 [
                     'synced' => $synced,
                     'deleted' => $deleted,
-                    'skipped_without_faculty' => $skippedWithoutFaculty,
+                    'skipped_null' => $skippedWithoutFaculty,
+                    'skipped_unknown' => $skippedUnknownFaculty,
                 ],
                 'Sync system departments successfully'
             );

@@ -118,8 +118,8 @@ class TeacherController extends Controller
                 [
                     'synced' => $synced,
                     'deleted' => $deleted,
-                    'skipped_without_department' => $skippedWithoutDepartment,
-                    'skipped_unknown_department' => $skippedUnknownDepartment,
+                    'skipped_null' => $skippedWithoutDepartment,
+                    'skipped_unknown' => $skippedUnknownDepartment,
                 ],
                 'Sync teachers successfully'
             );
