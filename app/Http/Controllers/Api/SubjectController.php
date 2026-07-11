@@ -3,19 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\StudyPlanTrack;
+use App\Models\Subject;
 use Illuminate\Http\JsonResponse;
 use App\Helpers\ApiResponse;
 
-class StudyPlanTrackController extends Controller
+class SubjectController extends Controller
 {
     public function index(): JsonResponse
     {
-        $items = StudyPlanTrack::orderBy('id')->get();
+        $items = Subject::orderBy('id')->get();
 
         return ApiResponse::success(
             $items,
-            'Load study plan tracks successfully'
+            'Load subjects successfully'
         );
     }
 }

@@ -61,12 +61,12 @@ class StudentDetailResponse extends JsonResource
                     : "ตำบล{$subdistrictName} อำเภอ{$districtName} จังหวัด{$provinceName} {$postalCode}";
             }),
 
-            'study_plan_id' => $this->study_plan_id,
-            'curriculum_type' => $this->studyPlan->curriculum->program->degree_short_th,
-            'study_plan_name' => $this->studyPlan->name_th,
+            'curriculum_plan_id' => $this->study_plan_id,
+            'curriculum_type' => $this->curriculumPlan->curriculum->degree_short_th,
+            'curriculum_plan_name' => $this->curriculumPlan->name_th,
             'department_name' => $this->systemDepartment->th_name,
             'faculty_name' => $this->systemDepartment->systemFaculty->th_name,
-            'required_credits' => $this->studyPlan->curriculum->total_credits_min,
+            'required_credits' => $this->curriculumPlan->curriculum->total_credits_min,
             'passed_credits' => $this->passed_credits,
             'not_passed_credits' => $this->not_passed_credits,
             'overed_credits' => $this->overed_credits,

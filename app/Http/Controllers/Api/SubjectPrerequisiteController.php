@@ -3,19 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Affiliation;
+use App\Models\SubjectPrerequisite;
 use Illuminate\Http\JsonResponse;
 use App\Helpers\ApiResponse;
 
-class AffiliationController extends Controller
+class SubjectPrerequisiteController extends Controller
 {
     public function index(): JsonResponse
     {
-        $items = Affiliation::orderBy('id')->get();
+        $items = SubjectPrerequisite::orderBy('id')->get();
 
         return ApiResponse::success(
             $items,
-            'Load affiliations successfully'
+            'Load subject prerequisites successfully'
         );
     }
 }

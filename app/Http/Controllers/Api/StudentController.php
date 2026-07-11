@@ -37,9 +37,8 @@ class StudentController extends Controller
                 'systemDepartment',
                 'systemDepartment.systemFaculty',
 
-                'studyPlan',
-                'studyPlan.curriculum',
-                'studyPlan.curriculum.program',
+                'curriculumPlan',
+                'curriculumPlan.curriculum',
 
                 'guardianTitle',
                 'guardianRelationship',
@@ -65,9 +64,8 @@ class StudentController extends Controller
                 'systemDepartment',
                 'systemDepartment.systemFaculty',
 
-                'studyPlan',
-                'studyPlan.curriculum',
-                'studyPlan.curriculum.program',
+                'curriculumPlan',
+                'curriculumPlan.curriculum',
 
                 'notes',
                 'notes.noteType',
@@ -212,7 +210,7 @@ class StudentController extends Controller
             'student_status_id' => ['required', 'integer'],
             'admission_channel_id' => ['required', 'integer'],
             'high_school_id' => ['required', 'integer'],
-            'study_plan_id' => ['required', 'integer'],
+            'curriculum_plan_id' => ['required', 'integer'],
             'entry_year' => ['required', 'integer'],
             'gpa' => ['required', 'numeric'],
             'passed_credits' => ['nullable', 'integer'],
@@ -225,6 +223,9 @@ class StudentController extends Controller
             'guardian_relationship_id' => ['required', 'integer'],
             'guardian_phone' => ['required', 'string'],
         ]);
+
+        $validated['study_plan_id'] = $validated['curriculum_plan_id'];
+        unset($validated['curriculum_plan_id']);
 
         $item = Student::create($validated);
 
@@ -261,7 +262,7 @@ class StudentController extends Controller
             'student_status_id' => ['sometimes', 'required', 'integer'],
             'admission_channel_id' => ['sometimes', 'required', 'integer'],
             'high_school_id' => ['sometimes', 'required', 'integer'],
-            'study_plan_id' => ['sometimes', 'required', 'integer'],
+            'curriculum_plan_id' => ['sometimes', 'required', 'integer'],
             'entry_year' => ['sometimes', 'required', 'integer'],
             'gpa' => ['sometimes', 'required', 'numeric'],
             'passed_credits' => ['sometimes', 'nullable', 'integer'],
@@ -274,6 +275,11 @@ class StudentController extends Controller
             'guardian_relationship_id' => ['sometimes', 'required', 'integer'],
             'guardian_phone' => ['sometimes', 'required', 'string'],
         ]);
+
+        if (array_key_exists('curriculum_plan_id', $validated)) {
+            $validated['study_plan_id'] = $validated['curriculum_plan_id'];
+            unset($validated['curriculum_plan_id']);
+        }
 
         $item->update($validated);
 

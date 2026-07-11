@@ -3,19 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Course;
+use App\Models\PlanTerm;
 use Illuminate\Http\JsonResponse;
 use App\Helpers\ApiResponse;
 
-class CourseController extends Controller
+class PlanTermController extends Controller
 {
     public function index(): JsonResponse
     {
-        $items = Course::orderBy('id')->get();
+        $items = PlanTerm::orderBy('id')->get();
 
         return ApiResponse::success(
             $items,
-            'Load courses successfully'
+            'Load plan terms successfully'
         );
     }
 }

@@ -3,19 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\CurriculumCategory;
+use App\Models\CurriculumDivisionSubject;
 use Illuminate\Http\JsonResponse;
 use App\Helpers\ApiResponse;
 
-class CurriculumCategoryController extends Controller
+class CurriculumDivisionSubjectController extends Controller
 {
     public function index(): JsonResponse
     {
-        $items = CurriculumCategory::orderBy('id')->get();
+        $items = CurriculumDivisionSubject::orderBy('id')->get();
 
         return ApiResponse::success(
             $items,
-            'Load curriculum categories successfully'
+            'Load curriculum division subjects successfully'
         );
     }
 }

@@ -82,9 +82,9 @@ class Student extends Model
         return $this->belongsTo(HighSchool::class, 'high_school_id');
     }
 
-    public function studyPlan(): BelongsTo
+    public function curriculumPlan(): BelongsTo
     {
-        return $this->belongsTo(StudyPlanTrack::class, 'study_plan_id');
+        return $this->belongsTo(CurriculumPlan::class, 'study_plan_id');
     }
 
     public function systemDepartment(): BelongsTo
