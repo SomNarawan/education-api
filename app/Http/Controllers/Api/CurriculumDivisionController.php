@@ -24,6 +24,7 @@ class CurriculumDivisionController extends Controller
         $items = CurriculumDivision::query()
             ->select(['id', 'name_th'])
             ->where('division_type', 'category')
+            ->whereNull('parent_id')
             ->orderBy('id')
             ->get();
 
