@@ -12,7 +12,7 @@ class Student extends Model
     use SoftDeletes;
 
     protected $table = 'students';
-    
+
     protected $fillable = [
         'student_code',
         'student_id_card',
@@ -31,6 +31,8 @@ class Student extends Model
         'study_plan_id',
         'system_department_id',
         'entry_year',
+        'current_year',
+        'current_semester',
         'gpa',
         'passed_credits',
         'not_passed_credits',
