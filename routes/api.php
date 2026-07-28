@@ -1,33 +1,33 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-
-use App\Http\Controllers\Api\TitleController;
 use App\Http\Controllers\Api\AdmissionChannelController;
 use App\Http\Controllers\Api\CampusController;
-use App\Http\Controllers\Api\SubjectController;
-use App\Http\Controllers\Api\NoteController;
-use App\Http\Controllers\Api\SubjectPrerequisiteController;
 use App\Http\Controllers\Api\CurriculumController;
 use App\Http\Controllers\Api\CurriculumDivisionController;
 use App\Http\Controllers\Api\CurriculumDivisionSubjectController;
+use App\Http\Controllers\Api\CurriculumPlanController;
 use App\Http\Controllers\Api\DistrictController;
 use App\Http\Controllers\Api\FacultyController;
 use App\Http\Controllers\Api\HighSchoolController;
-use App\Http\Controllers\Api\ProvinceController;
-use App\Http\Controllers\Api\StudentController;
-use App\Http\Controllers\Api\StudentStatusController;
-use App\Http\Controllers\Api\CurriculumPlanController;
-use App\Http\Controllers\Api\PlanTermController;
-use App\Http\Controllers\Api\PlanEntryController;
-use App\Http\Controllers\Api\SubdistrictController;
-use App\Http\Controllers\Api\TeacherController;
-use App\Http\Controllers\Api\RelationshipController;
-use App\Http\Controllers\Api\NoteTypeController;
 use App\Http\Controllers\Api\MeController;
+use App\Http\Controllers\Api\NoteController;
+use App\Http\Controllers\Api\NoteTypeController;
+use App\Http\Controllers\Api\PlanEntryController;
+use App\Http\Controllers\Api\PlanTermController;
+use App\Http\Controllers\Api\ProvinceController;
+use App\Http\Controllers\Api\RelationshipController;
+use App\Http\Controllers\Api\StudentController;
+use App\Http\Controllers\Api\StudentJsonDataController;
+use App\Http\Controllers\Api\StudentStatusController;
+use App\Http\Controllers\Api\SubdistrictController;
+use App\Http\Controllers\Api\SubjectController;
+use App\Http\Controllers\Api\SubjectPrerequisiteController;
 use App\Http\Controllers\Api\SystemDepartmentController;
 use App\Http\Controllers\Api\SystemFacultyController;
+use App\Http\Controllers\Api\TeacherController;
+use App\Http\Controllers\Api\TitleController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -65,6 +65,12 @@ Route::get('/relationships', [RelationshipController::class, 'index']);
 
 Route::prefix('students')->group(function () {
     Route::get('/', [StudentController::class, 'index']);
+    Route::get('/json-data/enrollment/{studentCode}', [StudentJsonDataController::class, 'enrollment'])
+        ->whereNumber('studentCode');
+    Route::get('/json-data/enrollment-statuses/{studentCode}', [StudentJsonDataController::class, 'enrollmentStatuses'])
+        ->whereNumber('studentCode');
+    Route::get('/json-data/graphs/{studentCode}', [StudentJsonDataController::class, 'graphs'])
+        ->whereNumber('studentCode');
     Route::get('/{id}', [StudentController::class, 'show']);
     Route::post('/', [StudentController::class, 'store']);
     Route::match(['put', 'patch'], '/{id}', [StudentController::class, 'update']);
