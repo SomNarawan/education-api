@@ -65,6 +65,8 @@ Route::get('/relationships', [RelationshipController::class, 'index']);
 
 Route::prefix('students')->group(function () {
     Route::get('/', [StudentController::class, 'index']);
+    Route::get('/without-advisor', [StudentController::class, 'withoutAdvisor']);
+    Route::patch('/advisor', [StudentController::class, 'updateAdvisor']);
     Route::get('/json-data/enrollment/{studentCode}', [StudentJsonDataController::class, 'enrollment'])
         ->whereNumber('studentCode');
     Route::get('/json-data/enrollment-statuses/{studentCode}', [StudentJsonDataController::class, 'enrollmentStatuses'])

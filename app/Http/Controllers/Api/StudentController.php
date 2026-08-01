@@ -6,9 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Student;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use App\Helpers\ApiResponse;
 use App\Http\Responses\StudentListResponse;
 use App\Http\Responses\StudentDetailResponse;
+use App\Http\Responses\StudentWithoutAdvisorResponse;
 
 class StudentController extends Controller
 {
@@ -165,6 +170,139 @@ class StudentController extends Controller
         $data = StudentListResponse::collection($items)->resolve();
 
         return ApiResponse::success($data, 'Load students successfully');
+    }
+
+    /**
+     * GET /api/students/without-advisor?department_id=1
+     *
+     * Load students in a department who do not have an advisor.
+     */
+    public function withoutAdvisor(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'department_id' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $items = Student::query()
+            ->with('title')
+            ->where('system_department_id', $validated['department_id'])
+            ->whereNull('teacher_id')
+            ->orderBy('student_code')
+            ->get();
+
+        $data = StudentWithoutAdvisorResponse::collection($items)->resolve();
+
+        return ApiResponse::success($data, 'Load students without advisor successfully');
+    }
+
+    /**
+     * PATCH /api/students/advisor
+     *
+     * Assign and remove an advisor for multiple students.
+     *
+     * Request: teacher_id, assign_student_ids[], remove_student_ids[]
+     */
+    public function updateAdvisor(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'assign_student_ids' => ['present', 'array'],
+            'assign_student_ids.*' => [
+                'required',
+                'integer',
+                'distinct',
+                Rule::exists('students', 'id')->whereNull('deleted_at'),
+            ],
+            'remove_student_ids' => ['present', 'array'],
+            'remove_student_ids.*' => [
+                'required',
+                'integer',
+                'distinct',
+                Rule::exists('students', 'id')->whereNull('deleted_at'),
+            ],
+            'teacher_id' => [
+                'required',
+                'integer',
+                Rule::exists('teachers', 'id')->whereNull('deleted_at'),
+            ],
+        ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $assignStudentIds = $request->input('assign_student_ids', []);
+            $removeStudentIds = $request->input('remove_student_ids', []);
+
+            if (!is_array($assignStudentIds) || !is_array($removeStudentIds)) {
+                return;
+            }
+
+            if ($assignStudentIds === [] && $removeStudentIds === []) {
+                $validator->errors()->add(
+                    'student_ids',
+                    'At least one student must be assigned or removed.'
+                );
+            }
+
+            if (array_intersect($assignStudentIds, $removeStudentIds) !== []) {
+                $validator->errors()->add(
+                    'student_ids',
+                    'A student cannot be both assigned and removed.'
+                );
+            }
+        });
+
+        $validated = $validator->validate();
+
+        $data = DB::transaction(function () use ($validated) {
+            $teacherId = $validated['teacher_id'];
+            $assignStudentIds = $validated['assign_student_ids'];
+            $removeStudentIds = $validated['remove_student_ids'];
+            $allStudentIds = array_merge($assignStudentIds, $removeStudentIds);
+
+            $students = Student::query()
+                ->whereIn('id', $allStudentIds)
+                ->lockForUpdate()
+                ->get(['id', 'teacher_id'])
+                ->keyBy('id');
+
+            $unavailableStudentIds = collect($allStudentIds)
+                ->reject(fn ($studentId) => $students->has($studentId))
+                ->values()
+                ->all();
+
+            $conflictingStudentIds = $students
+                ->filter(fn ($student) => $student->teacher_id !== null
+                    && (int) $student->teacher_id !== (int) $teacherId)
+                ->keys()
+                ->values()
+                ->all();
+
+            if ($unavailableStudentIds !== [] || $conflictingStudentIds !== []) {
+                throw ValidationException::withMessages([
+                    'student_ids' => [
+                        'Some students are unavailable or assigned to another advisor: '
+                        .implode(', ', array_merge($unavailableStudentIds, $conflictingStudentIds)),
+                    ],
+                ]);
+            }
+
+            $assignedCount = Student::query()
+                ->whereIn('id', $assignStudentIds)
+                ->update(['teacher_id' => $teacherId]);
+
+            $removedCount = Student::query()
+                ->whereIn('id', $removeStudentIds)
+                ->where('teacher_id', $teacherId)
+                ->update(['teacher_id' => null]);
+
+            return [
+                'teacher_id' => $teacherId,
+                'assign_student_ids' => $assignStudentIds,
+                'remove_student_ids' => $removeStudentIds,
+                'assigned_count' => $assignedCount,
+                'removed_count' => $removedCount,
+            ];
+        });
+
+        return ApiResponse::success($data, 'Update student advisors successfully');
     }
 
     /**
