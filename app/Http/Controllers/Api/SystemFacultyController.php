@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Http\Responses\SyncResponse;
+use App\Models\Sync;
 use App\Models\SystemFaculty;
 use App\Services\PersonnelApiService;
-use Exception;
 use Illuminate\Http\JsonResponse;
+use Throwable;
 
 class SystemFacultyController extends Controller
 {
@@ -21,10 +23,17 @@ class SystemFacultyController extends Controller
         return ApiResponse::success($items, 'Load system faculties successfully');
     }
 
+    /**
+     * GET /api/system-faculties/sync
+     */
     public function sync(
         PersonnelApiService $personnelApiService
     ): JsonResponse {
+        $sync = null;
+
         try {
+            $sync = Sync::start(Sync::TYPE_SYSTEM_FACULTY);
+
             $response = $personnelApiService->getFaculties();
 
             $faculties = $response['faculties'] ?? $response ?? [];
@@ -60,7 +69,7 @@ class SystemFacultyController extends Controller
                 $synced++;
             }
 
-            if (!empty($activeFacultyIds)) {
+            if (! empty($activeFacultyIds)) {
                 $deleted = SystemFaculty::query()
                     ->where('deleted_at', null)
                     ->whereNotIn('id', $activeFacultyIds)
@@ -69,14 +78,22 @@ class SystemFacultyController extends Controller
                     ]);
             }
 
+            $skipped = max(count($faculties) - $synced, 0);
+            $sync->markAsSuccess($synced, $deleted, $skipped);
+
             return ApiResponse::success(
-                [
-                    'synced' => $synced,
-                    'deleted' => $deleted,
-                ],
-                'Sync system faculties successfully'
+                new SyncResponse($sync),
+                'Sync successfully'
             );
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
+            if ($sync !== null) {
+                try {
+                    $sync->markAsFailed($e->getMessage());
+                } catch (Throwable) {
+                    // Keep the original sync error in the API response.
+                }
+            }
+
             return ApiResponse::error(
                 $e->getMessage(),
                 500

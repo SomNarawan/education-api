@@ -22,6 +22,8 @@ use App\Http\Controllers\Api\StudentStatusController;
 use App\Http\Controllers\Api\SubdistrictController;
 use App\Http\Controllers\Api\SubjectController;
 use App\Http\Controllers\Api\SubjectPrerequisiteController;
+use App\Http\Controllers\Api\SyncController;
+use App\Http\Controllers\Api\SyncTypeController;
 use App\Http\Controllers\Api\SystemDepartmentController;
 use App\Http\Controllers\Api\SystemFacultyController;
 use App\Http\Controllers\Api\TeacherController;
@@ -63,6 +65,10 @@ Route::get('/plan-entries', [PlanEntryController::class, 'index']);
 Route::get('/subdistricts', [SubdistrictController::class, 'index']);
 Route::get('/relationships', [RelationshipController::class, 'index']);
 
+Route::get('/syncs', [SyncController::class, 'index']);
+Route::post('/syncs', [SyncController::class, 'store']);
+Route::get('/sync-types', [SyncTypeController::class, 'index']);
+
 Route::prefix('students')->group(function () {
     Route::get('/', [StudentController::class, 'index']);
     Route::get('/without-advisor', [StudentController::class, 'withoutAdvisor']);
@@ -80,6 +86,7 @@ Route::prefix('students')->group(function () {
 });
 
 Route::get('/teachers', [TeacherController::class, 'index']);
+Route::get('/teachers/all', [TeacherController::class, 'allTeachers']);
 Route::get('/teachers/sync', [TeacherController::class, 'sync']);
 
 Route::get('/notes', [NoteController::class, 'index']);

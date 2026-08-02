@@ -27,7 +27,7 @@ class StudentDetailResponse extends JsonResource
             'study_semester' => $this->study_semester,
             'study_period' => $this->study_period,
             'teacher_id' => $this->teacher_id,
-            'teacher_full_name_th' => $this->teacher->full_name_th,
+            'teacher_full_name_th' => $this->teacher?->full_name_th,
             'student_status_id' => $this->student_status_id,
             'student_status_name' => $this->whenLoaded('studentStatus', function () {
                 return $this->studentStatus->status_name ?? null;

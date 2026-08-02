@@ -1,0 +1,120 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Helpers\ApiResponse;
+use App\Http\Controllers\Controller;
+use App\Http\Responses\SyncResponse;
+use App\Models\Sync;
+use App\Models\SyncType;
+use Illuminate\Database\Query\JoinClause;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+class SyncController extends Controller
+{
+    /**
+     * GET /api/syncs
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'sync_type' => ['nullable', 'integer', 'min:1'],
+            'status' => [
+                'nullable',
+                'string',
+                Rule::in([
+                    Sync::STATUS_RUNNING,
+                    Sync::STATUS_SUCCESS,
+                    Sync::STATUS_FAILED,
+                ]),
+            ],
+        ]);
+
+        $latestSyncIds = Sync::query()
+            ->selectRaw('sync_type, MAX(id) AS latest_sync_id')
+            ->when(
+                isset($validated['status']),
+                fn ($query) => $query->where('status', $validated['status'])
+            )
+            ->groupBy('sync_type');
+
+        $items = SyncType::query()
+            ->leftJoinSub(
+                $latestSyncIds,
+                'latest_syncs',
+                fn (JoinClause $join) => $join->on(
+                    'sync_types.id',
+                    '=',
+                    'latest_syncs.sync_type'
+                )
+            )
+            ->leftJoin('syncs', 'syncs.id', '=', 'latest_syncs.latest_sync_id')
+            ->when(
+                isset($validated['sync_type']),
+                fn ($query) => $query->where('sync_types.id', $validated['sync_type'])
+            )
+            ->when(
+                isset($validated['status']),
+                fn ($query) => $query->whereNotNull('syncs.id')
+            )
+            ->select([
+                'syncs.id',
+                'sync_types.id AS sync_type',
+                'sync_types.sync_type AS sync_type_name',
+                'syncs.synced_count',
+                'syncs.deleted_count',
+                'syncs.skipped_count',
+                'syncs.status',
+                'syncs.error_message',
+                'syncs.created_at',
+                'syncs.updated_at',
+            ])
+            ->orderBy('sync_types.id')
+            ->get();
+
+        return ApiResponse::success(
+            SyncResponse::collection($items),
+            'Load syncs successfully'
+        );
+    }
+
+    /**
+     * POST /api/syncs
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'sync_type' => ['required', 'integer', 'min:1'],
+            'synced_count' => ['sometimes', 'integer', 'min:0'],
+            'deleted_count' => ['sometimes', 'integer', 'min:0'],
+            'skipped_count' => ['sometimes', 'integer', 'min:0'],
+            'status' => [
+                'sometimes',
+                'string',
+                Rule::in([
+                    Sync::STATUS_RUNNING,
+                    Sync::STATUS_SUCCESS,
+                    Sync::STATUS_FAILED,
+                ]),
+            ],
+            'error_message' => ['nullable', 'string'],
+        ]);
+
+        $item = Sync::create([
+            'sync_type' => $validated['sync_type'],
+            'synced_count' => $validated['synced_count'] ?? 0,
+            'deleted_count' => $validated['deleted_count'] ?? 0,
+            'skipped_count' => $validated['skipped_count'] ?? 0,
+            'status' => $validated['status'] ?? Sync::STATUS_RUNNING,
+            'error_message' => $validated['error_message'] ?? null,
+        ]);
+
+        return ApiResponse::success(
+            new SyncResponse($item),
+            'Create sync successfully',
+            201
+        );
+    }
+}

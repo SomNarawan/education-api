@@ -128,8 +128,12 @@ class StudentController extends Controller
             $query->where('student_status_id', $request->query('student_status_id'));
         }
 
-        if ($request->filled('system_department_id')) {
-            $query->where('system_department_id', $request->query('system_department_id'));
+        if ($request->filled('department_id') || $request->filled('system_department_id')) {
+            $departmentId = $request->filled('department_id')
+                ? $request->query('department_id')
+                : $request->query('system_department_id');
+
+            $query->where('system_department_id', $departmentId);
         }
 
         if ($request->filled('system_faculty_id')) {

@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Http\Responses\SyncResponse;
+use App\Models\Sync;
 use App\Models\SystemDepartment;
 use App\Models\SystemFaculty;
 use App\Services\PersonnelApiService;
-use Exception;
 use Illuminate\Http\JsonResponse;
+use Throwable;
 
 class SystemDepartmentController extends Controller
 {
@@ -22,24 +24,29 @@ class SystemDepartmentController extends Controller
         return ApiResponse::success($items, 'Load system departments successfully');
     }
 
+    /**
+     * GET /api/system-departments/sync
+     */
     public function sync(
         PersonnelApiService $personnelApiService
     ): JsonResponse {
+        $sync = null;
+
         try {
+            $sync = Sync::start(Sync::TYPE_SYSTEM_DEPARTMENT);
+
             $response = $personnelApiService->getDepartments();
 
             $departments = $response['departments'] ?? $response;
 
             $synced = 0;
             $deleted = 0;
-            $skippedWithoutFaculty = 0;
-            $skippedUnknownFaculty = 0;
             $activeDepartmentIds = [];
 
             $facultyIds = collect($departments)
                 ->pluck('system_faculty_id')
-                ->filter(fn($facultyId) => is_numeric($facultyId) && (int) $facultyId > 0)
-                ->map(fn($facultyId) => (int) $facultyId)
+                ->filter(fn ($facultyId) => is_numeric($facultyId) && (int) $facultyId > 0)
+                ->map(fn ($facultyId) => (int) $facultyId)
                 ->unique()
                 ->values()
                 ->all();
@@ -48,7 +55,7 @@ class SystemDepartmentController extends Controller
                 ->where('deleted_at', null)
                 ->whereIn('id', $facultyIds, 'and', false)
                 ->pluck('id')
-                ->mapWithKeys(fn($facultyId) => [(int) $facultyId => true])
+                ->mapWithKeys(fn ($facultyId) => [(int) $facultyId => true])
                 ->all();
 
             foreach ($departments as $department) {
@@ -61,18 +68,16 @@ class SystemDepartmentController extends Controller
 
                 if (
                     empty($department['system_faculty_id']) ||
-                    !is_numeric($department['system_faculty_id']) ||
+                    ! is_numeric($department['system_faculty_id']) ||
                     (int) $department['system_faculty_id'] <= 0
                 ) {
-                    $skippedWithoutFaculty++;
                     continue;
                 }
 
                 $departmentId = (int) $department['id'];
                 $systemFacultyId = (int) $department['system_faculty_id'];
 
-                if (!isset($existingFacultyIds[$systemFacultyId])) {
-                    $skippedUnknownFaculty++;
+                if (! isset($existingFacultyIds[$systemFacultyId])) {
                     continue;
                 }
 
@@ -95,7 +100,7 @@ class SystemDepartmentController extends Controller
                 $synced++;
             }
 
-            if (!empty($activeDepartmentIds)) {
+            if (! empty($activeDepartmentIds)) {
                 $deleted = SystemDepartment::query()
                     ->where('deleted_at', null)
                     ->whereNotIn('id', $activeDepartmentIds)
@@ -104,16 +109,22 @@ class SystemDepartmentController extends Controller
                     ]);
             }
 
+            $skipped = max(count($departments) - $synced, 0);
+            $sync->markAsSuccess($synced, $deleted, $skipped);
+
             return ApiResponse::success(
-                [
-                    'synced' => $synced,
-                    'deleted' => $deleted,
-                    'skipped_null' => $skippedWithoutFaculty,
-                    'skipped_unknown' => $skippedUnknownFaculty,
-                ],
-                'Sync system departments successfully'
+                new SyncResponse($sync),
+                'Sync successfully'
             );
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
+            if ($sync !== null) {
+                try {
+                    $sync->markAsFailed($e->getMessage());
+                } catch (Throwable) {
+                    // Keep the original sync error in the API response.
+                }
+            }
+
             return ApiResponse::error(
                 $e->getMessage(),
                 500
