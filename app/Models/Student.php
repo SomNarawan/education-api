@@ -3,9 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Student extends Model
 {
@@ -21,7 +21,6 @@ class Student extends Model
         'last_name_th',
         'first_name_en',
         'last_name_en',
-        'title_id',
         'phone',
         'email',
         'teacher_id',
@@ -47,6 +46,13 @@ class Student extends Model
     ];
 
     protected $casts = [
+        'entry_year' => 'integer',
+        'study_year' => 'integer',
+        'study_semester' => 'integer',
+        'gpa' => 'decimal:2',
+        'passed_credits' => 'integer',
+        'not_passed_credits' => 'integer',
+        'overed_credits' => 'integer',
         'deleted_at' => 'datetime',
     ];
 

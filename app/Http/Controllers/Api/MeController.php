@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
-use App\Models\Department;
+use App\Models\SystemDepartment;
 use App\Models\Teacher;
 use Illuminate\Http\Request;
 
 class MeController extends Controller
 {
+    /**
+     * API: GET /api/me
+     */
     public function show(Request $request)
     {
         $claims = $request->attributes->get('jwt_claims', []);
@@ -17,11 +20,13 @@ class MeController extends Controller
             ? (is_array($claims['role']) ? $claims['role'] : [$claims['role']])
             : [];
         $nontriId = $claims['nontri_id'] ?? null;
-        $departmentId = $claims['department_id'] ?? null;
+        $teacher = $this->findTeacher($nontriId);
+        $departmentId = $teacher?->department_id
+            ?? $this->validSystemDepartmentId($claims['department_id'] ?? null);
 
         return ApiResponse::success([
             'nontri_id' => $nontriId,
-            'teacher_id' => $this->getTeacherIdByNontriId($nontriId),
+            'teacher_id' => $teacher?->id,
             'name' => $claims['name'] ?? ($claims['given_name'] ?? null),
             'role' => $roles,
             'current_role' => $claims['current_role'] ?? ($roles[0] ?? null),
@@ -32,26 +37,38 @@ class MeController extends Controller
         ], 'OK', 200);
     }
 
-    private function getFacultyIdByDepartmentId($departmentId)
+    private function getFacultyIdByDepartmentId(mixed $departmentId): ?int
     {
-        if (!$departmentId) {
+        if (! is_numeric($departmentId)) {
             return null;
         }
 
-        return Department::query()
+        $facultyId = SystemDepartment::query()
             ->where('id', $departmentId)
-            ->value('faculty_id');
+            ->value('system_faculty_id');
+
+        return $facultyId === null ? null : (int) $facultyId;
     }
 
-    private function getTeacherIdByNontriId($nontriId)
+    private function findTeacher(mixed $nontriId): ?Teacher
     {
-        if (!$nontriId) {
+        if (! is_scalar($nontriId) || trim((string) $nontriId) === '') {
             return null;
         }
 
         return Teacher::query()
             ->where('nontri_id', $nontriId)
-            ->value('id');
+            ->first(['id', 'department_id']);
     }
 
+    private function validSystemDepartmentId(mixed $departmentId): ?int
+    {
+        if (! is_numeric($departmentId)) {
+            return null;
+        }
+
+        return SystemDepartment::query()->whereKey($departmentId)->exists()
+            ? (int) $departmentId
+            : null;
+    }
 }

@@ -4,49 +4,43 @@ namespace App\Http\Controllers\Api;
 
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Note\ListNotesRequest;
+use App\Http\Requests\Note\StoreNoteRequest;
+use App\Http\Responses\NoteListResponse;
 use App\Models\Note;
 use App\Models\NoteType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use App\Http\Responses\NoteListResponse;
 
 class NoteController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    /**
+     * API: GET /api/notes?student_id={id}
+     */
+    public function index(ListNotesRequest $request): JsonResponse
     {
-        $items = Note::withTrashed()
+        $notes = Note::withTrashed()
             ->with('noteType')
-            ->when(
-                $request->filled('student_id'),
-                fn ($query) => $query->where(
-                    'student_id',
-                    $request->query('student_id')
-                )
-            )
+            ->where('student_id', $request->validated('student_id'))
             ->orderByDesc('id')
             ->get();
 
-        $data = NoteListResponse::collection($items);
-
-        return ApiResponse::success($data, 'Load notes successfully');
+        return ApiResponse::success(
+            NoteListResponse::collection($notes),
+            'Load notes successfully'
+        );
     }
 
-    public function store(Request $request): JsonResponse
+    /**
+     * API: POST /api/notes
+     */
+    public function store(StoreNoteRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'student_id' => ['required', 'integer'],
-            'note_type_id' => ['required', 'integer', 'exists:note_types,id'],
-            'remark' => ['nullable', 'string'],
-        ]);
-
-        $noteType = NoteType::query()->find($validated['note_type_id']);
-
-        $isOther = $noteType && trim($noteType->note) === 'อื่นๆ';
-
-        if ($isOther && blank($request->input('remark'))) {
-            return ApiResponse::error('กรุณากรอก remark', 422);
-        }
-
+        $validated = $request->validated();
+        $isOther = NoteType::query()
+            ->whereKey($validated['note_type_id'])
+            ->where('note', 'อื่นๆ')
+            ->exists();
         $createdBy = $this->actorFromJwt($request);
 
         if ($createdBy === null) {
@@ -56,24 +50,31 @@ class NoteController extends Controller
             );
         }
 
-        $item = Note::create([
+        $note = Note::query()->create([
             'student_id' => $validated['student_id'],
             'note_type_id' => $validated['note_type_id'],
-            'remark' => $isOther ? trim($validated['remark'] ?? '') : null,
+            'remark' => $isOther ? trim($validated['remark']) : null,
             'created_by' => $createdBy,
         ]);
-
-        $item->load('noteType');
+        $note->load('noteType');
 
         return ApiResponse::success(
-            new NoteListResponse($item),
-            'Create note successfully'
+            new NoteListResponse($note),
+            'Create note successfully',
+            201
         );
     }
 
+    /**
+     * API: DELETE /api/notes/{id}
+     */
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $item = Note::findOrFail($id);
+        $note = Note::query()->find($id);
+
+        if ($note === null) {
+            return ApiResponse::error('Note not found', 404);
+        }
 
         $deletedBy = $this->actorFromJwt($request);
 
@@ -84,10 +85,8 @@ class NoteController extends Controller
             );
         }
 
-        $item->deleted_by = $deletedBy;
-        $item->save();
-
-        $item->delete();
+        $note->forceFill(['deleted_by' => $deletedBy])->save();
+        $note->delete();
 
         return ApiResponse::success(null, 'Delete note successfully');
     }

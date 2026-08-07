@@ -6,8 +6,8 @@ use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\SyncResponse;
 use App\Http\Responses\TeacherListResponse;
-use App\Models\Department;
 use App\Models\Sync;
+use App\Models\SystemDepartment;
 use App\Models\Teacher;
 use App\Services\PersonnelApiService;
 use Illuminate\Http\JsonResponse;
@@ -16,6 +16,9 @@ use Throwable;
 
 class TeacherController extends Controller
 {
+    /**
+     * API: GET /api/teachers/all
+     */
     public function allTeachers(): JsonResponse
     {
         $items = Teacher::withTrashed()
@@ -25,6 +28,9 @@ class TeacherController extends Controller
         return ApiResponse::success($items, 'Load all teachers successfully');
     }
 
+    /**
+     * API: GET /api/teachers?department_id={id}
+     */
     public function index(Request $request): JsonResponse
     {
         $items = Teacher::query()
@@ -45,7 +51,7 @@ class TeacherController extends Controller
     }
 
     /**
-     * GET /api/teachers/sync
+     * API: GET /api/teachers/sync
      */
     public function sync(
         PersonnelApiService $personnelApiService
@@ -70,7 +76,8 @@ class TeacherController extends Controller
                 ->values()
                 ->all();
 
-            $existingDepartmentIds = Department::query()
+            $existingDepartmentIds = SystemDepartment::query()
+                ->whereNull('deleted_at')
                 ->whereIn('id', $departmentIds, 'and', false)
                 ->pluck('id')
                 ->mapWithKeys(fn ($departmentId) => [(int) $departmentId => true])

@@ -9,6 +9,9 @@ use Illuminate\Http\JsonResponse;
 
 class RelationshipController extends Controller
 {
+    /**
+     * API: GET /api/relationships
+     */
     public function index(): JsonResponse
     {
         $items = Relationship::orderBy('id')->get();

@@ -9,6 +9,9 @@ use Illuminate\Http\JsonResponse;
 
 class NoteTypeController extends Controller
 {
+    /**
+     * API: GET /api/note-types
+     */
     public function index(): JsonResponse
     {
         $items = NoteType::all();

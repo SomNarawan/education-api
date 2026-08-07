@@ -11,7 +11,7 @@ use JsonException;
 class StudentJsonDataController extends Controller
 {
     /**
-     * GET /api/students/json-data/enrollment/{studentCode}
+     * API: GET /api/students/json-data/enrollment/{studentCode}
      */
     public function enrollment(string $studentCode): JsonResponse
     {
@@ -34,7 +34,7 @@ class StudentJsonDataController extends Controller
     }
 
     /**
-     * GET /api/students/json-data/enrollment-statuses/{studentCode}
+     * API: GET /api/students/json-data/enrollment-statuses/{studentCode}
      */
     public function enrollmentStatuses(string $studentCode): JsonResponse
     {
@@ -51,7 +51,7 @@ class StudentJsonDataController extends Controller
     }
 
     /**
-     * GET /api/students/json-data/graphs/{studentCode}
+     * API: GET /api/students/json-data/graphs/{studentCode}
      */
     public function graphs(string $studentCode): JsonResponse
     {

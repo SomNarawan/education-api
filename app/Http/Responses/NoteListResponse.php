@@ -11,7 +11,8 @@ class NoteListResponse extends JsonResource
         return [
             'id' => $this->id,
             'student_id' => $this->student_id,
-            'note' => $this->noteType->note,
+            'note_type_id' => $this->note_type_id,
+            'note' => $this->noteType?->note,
             'remark' => $this->remark,
             'created_at' => $this->created_at,
             'created_by' => $this->created_by,

@@ -11,7 +11,7 @@ class StudentWithoutAdvisorResponse extends JsonResource
         return [
             'id' => $this->id,
             'student_code' => $this->student_code,
-            'full_name_th' => trim(($this->title->title_abbr_th ?? '').($this->first_name_th ?? '').' '.($this->last_name_th ?? '')),
+            'full_name_th' => trim(($this->title?->title_abbr_th ?? '').($this->first_name_th ?? '').' '.($this->last_name_th ?? '')),
         ];
     }
 }

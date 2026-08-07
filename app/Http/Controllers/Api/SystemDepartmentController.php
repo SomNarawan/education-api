@@ -14,6 +14,9 @@ use Throwable;
 
 class SystemDepartmentController extends Controller
 {
+    /**
+     * API: GET /api/system-departments
+     */
     public function index(): JsonResponse
     {
         $items = SystemDepartment::query()
@@ -25,7 +28,7 @@ class SystemDepartmentController extends Controller
     }
 
     /**
-     * GET /api/system-departments/sync
+     * API: GET /api/system-departments/sync
      */
     public function sync(
         PersonnelApiService $personnelApiService

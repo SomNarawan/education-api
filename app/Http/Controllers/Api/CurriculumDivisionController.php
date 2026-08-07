@@ -9,6 +9,9 @@ use Illuminate\Http\JsonResponse;
 
 class CurriculumDivisionController extends Controller
 {
+    /**
+     * API: GET /api/curriculum-divisions
+     */
     public function index(): JsonResponse
     {
         $divisionsByParent = CurriculumDivision::query()
@@ -35,34 +38,6 @@ class CurriculumDivisionController extends Controller
         return ApiResponse::success(
             $items,
             'Load curriculum divisions successfully'
-        );
-    }
-
-    public function categories(): JsonResponse
-    {
-        $items = CurriculumDivision::query()
-            ->select(['id', 'name_th'])
-            ->where('division_type', 'category')
-            ->whereNull('parent_id')
-            ->orderBy('id')
-            ->get();
-
-        return ApiResponse::success(
-            $items,
-            'Load curriculum categories successfully'
-        );
-    }
-
-    public function groups(): JsonResponse
-    {
-        $items = CurriculumDivision::query()
-            ->where('division_type', 'group')
-            ->orderBy('id')
-            ->get();
-
-        return ApiResponse::success(
-            $items,
-            'Load curriculum groups successfully'
         );
     }
 }

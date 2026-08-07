@@ -19,8 +19,8 @@ class Teacher extends Model
         'deleted_at',
     ];
 
-    public function department(): BelongsTo
+    public function systemDepartment(): BelongsTo
     {
-        return $this->belongsTo(Department::class);
+        return $this->belongsTo(SystemDepartment::class, 'department_id');
     }
 }

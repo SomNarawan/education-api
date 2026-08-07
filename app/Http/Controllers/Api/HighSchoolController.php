@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\HighSchool;
 use Illuminate\Http\JsonResponse;
-use App\Helpers\ApiResponse;
 
 class HighSchoolController extends Controller
 {
+    /**
+     * API: GET /api/high-schools
+     */
     public function index(): JsonResponse
     {
         $items = HighSchool::orderBy('id')->get();

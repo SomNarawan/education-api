@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\StudentStatus;
 use Illuminate\Http\JsonResponse;
-use App\Helpers\ApiResponse;
 
 class StudentStatusController extends Controller
 {
+    /**
+     * API: GET /api/student-statuses
+     */
     public function index(): JsonResponse
     {
         $items = StudentStatus::orderBy('id')->get();

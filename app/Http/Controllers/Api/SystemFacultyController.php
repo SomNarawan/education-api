@@ -13,6 +13,9 @@ use Throwable;
 
 class SystemFacultyController extends Controller
 {
+    /**
+     * API: GET /api/system-faculties
+     */
     public function index(): JsonResponse
     {
         $items = SystemFaculty::query()
@@ -24,7 +27,7 @@ class SystemFacultyController extends Controller
     }
 
     /**
-     * GET /api/system-faculties/sync
+     * API: GET /api/system-faculties/sync
      */
     public function sync(
         PersonnelApiService $personnelApiService

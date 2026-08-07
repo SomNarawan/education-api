@@ -2,22 +2,22 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Title;
 use Illuminate\Http\JsonResponse;
-use App\Helpers\ApiResponse;
 
 class TitleController extends Controller
 {
     /**
-     * GET /api/titles
+     * API: GET /api/titles
      */
     public function index(): JsonResponse
     {
         $items = Title::orderBy('id')->get();
 
         return ApiResponse::success(
-            $items, 
+            $items,
             'Load titles successfully'
         );
     }

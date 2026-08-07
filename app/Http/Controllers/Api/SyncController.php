@@ -15,7 +15,7 @@ use Illuminate\Validation\Rule;
 class SyncController extends Controller
 {
     /**
-     * GET /api/syncs
+     * API: GET /api/syncs
      */
     public function index(Request $request): JsonResponse
     {
@@ -77,44 +77,6 @@ class SyncController extends Controller
         return ApiResponse::success(
             SyncResponse::collection($items),
             'Load syncs successfully'
-        );
-    }
-
-    /**
-     * POST /api/syncs
-     */
-    public function store(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'sync_type' => ['required', 'integer', 'min:1'],
-            'synced_count' => ['sometimes', 'integer', 'min:0'],
-            'deleted_count' => ['sometimes', 'integer', 'min:0'],
-            'skipped_count' => ['sometimes', 'integer', 'min:0'],
-            'status' => [
-                'sometimes',
-                'string',
-                Rule::in([
-                    Sync::STATUS_RUNNING,
-                    Sync::STATUS_SUCCESS,
-                    Sync::STATUS_FAILED,
-                ]),
-            ],
-            'error_message' => ['nullable', 'string'],
-        ]);
-
-        $item = Sync::create([
-            'sync_type' => $validated['sync_type'],
-            'synced_count' => $validated['synced_count'] ?? 0,
-            'deleted_count' => $validated['deleted_count'] ?? 0,
-            'skipped_count' => $validated['skipped_count'] ?? 0,
-            'status' => $validated['status'] ?? Sync::STATUS_RUNNING,
-            'error_message' => $validated['error_message'] ?? null,
-        ]);
-
-        return ApiResponse::success(
-            new SyncResponse($item),
-            'Create sync successfully',
-            201
         );
     }
 }
