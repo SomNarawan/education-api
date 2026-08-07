@@ -17,30 +17,23 @@ use Throwable;
 class TeacherController extends Controller
 {
     /**
-     * API: GET /api/teachers/all
-     */
-    public function allTeachers(): JsonResponse
-    {
-        $items = Teacher::withTrashed()
-            ->orderBy('id')
-            ->get();
-
-        return ApiResponse::success($items, 'Load all teachers successfully');
-    }
-
-    /**
-     * API: GET /api/teachers?department_id={id}
+     * API: GET /api/teachers?department_id={id}&include_deleted={boolean}
      */
     public function index(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'department_id' => ['sometimes', 'integer', 'min:1'],
+            'include_deleted' => ['sometimes', 'in:true,false,1,0'],
+        ]);
+
         $items = Teacher::query()
-            ->where('deleted_at', null)
             ->when(
-                $request->filled('department_id'),
-                fn ($query) => $query->where(
-                    'department_id',
-                    $request->query('department_id')
-                )
+                $request->boolean('include_deleted'),
+                fn ($query) => $query->withTrashed()
+            )
+            ->when(
+                isset($validated['department_id']),
+                fn ($query) => $query->where('department_id', $validated['department_id'])
             )
             ->orderBy('id')
             ->get();
@@ -51,7 +44,7 @@ class TeacherController extends Controller
     }
 
     /**
-     * API: GET /api/teachers/sync
+     * API: POST /api/teachers/sync
      */
     public function sync(
         PersonnelApiService $personnelApiService

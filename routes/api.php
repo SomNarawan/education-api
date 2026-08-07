@@ -26,7 +26,7 @@ Route::get('/high-schools', [HighSchoolController::class, 'index']);
 Route::get('/relationships', [RelationshipController::class, 'index']);
 Route::get('/student-statuses', [StudentStatusController::class, 'index']);
 Route::get('/note-types', [NoteTypeController::class, 'index']);
-Route::get('/study-plan-tracks', [CurriculumPlanController::class, 'index']);
+Route::get('/study-plans', [CurriculumPlanController::class, 'index']);
 Route::get('/curriculum-divisions', [CurriculumDivisionController::class, 'index']);
 
 Route::prefix('students')->group(function (): void {
@@ -34,11 +34,11 @@ Route::prefix('students')->group(function (): void {
     Route::get('/without-advisor', [StudentController::class, 'withoutAdvisor']);
     Route::patch('/advisor', [StudentController::class, 'updateAdvisor']);
 
-    Route::get('/json-data/enrollment/{studentCode}', [StudentJsonDataController::class, 'enrollment'])
+    Route::get('/{studentCode}/enrollments', [StudentJsonDataController::class, 'enrollments'])
         ->whereNumber('studentCode');
-    Route::get('/json-data/enrollment-statuses/{studentCode}', [StudentJsonDataController::class, 'enrollmentStatuses'])
+    Route::get('/{studentCode}/enrollment-statuses', [StudentJsonDataController::class, 'enrollmentStatuses'])
         ->whereNumber('studentCode');
-    Route::get('/json-data/graphs/{studentCode}', [StudentJsonDataController::class, 'graphs'])
+    Route::get('/{studentCode}/performance-summary', [StudentJsonDataController::class, 'performanceSummary'])
         ->whereNumber('studentCode');
 
     Route::post('/', [StudentController::class, 'store']);
@@ -48,8 +48,7 @@ Route::prefix('students')->group(function (): void {
 });
 
 Route::get('/teachers', [TeacherController::class, 'index']);
-Route::get('/teachers/all', [TeacherController::class, 'allTeachers']);
-Route::get('/teachers/sync', [TeacherController::class, 'sync']);
+Route::post('/teachers/sync', [TeacherController::class, 'sync']);
 
 Route::get('/notes', [NoteController::class, 'index']);
 Route::post('/notes', [NoteController::class, 'store']);
@@ -58,7 +57,7 @@ Route::delete('/notes/{id}', [NoteController::class, 'destroy'])->whereNumber('i
 Route::get('/syncs', [SyncController::class, 'index']);
 
 Route::get('/system-departments', [SystemDepartmentController::class, 'index']);
-Route::get('/system-departments/sync', [SystemDepartmentController::class, 'sync']);
+Route::post('/system-departments/sync', [SystemDepartmentController::class, 'sync']);
 
 Route::get('/system-faculties', [SystemFacultyController::class, 'index']);
-Route::get('/system-faculties/sync', [SystemFacultyController::class, 'sync']);
+Route::post('/system-faculties/sync', [SystemFacultyController::class, 'sync']);

@@ -10,7 +10,7 @@ use Illuminate\Http\JsonResponse;
 class CurriculumPlanController extends Controller
 {
     /**
-     * API: GET /api/study-plan-tracks
+     * API: GET /api/study-plans
      */
     public function index(): JsonResponse
     {

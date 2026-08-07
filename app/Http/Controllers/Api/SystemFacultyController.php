@@ -27,7 +27,7 @@ class SystemFacultyController extends Controller
     }
 
     /**
-     * API: GET /api/system-faculties/sync
+     * API: POST /api/system-faculties/sync
      */
     public function sync(
         PersonnelApiService $personnelApiService

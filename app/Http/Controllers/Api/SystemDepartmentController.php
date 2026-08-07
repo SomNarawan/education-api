@@ -28,7 +28,7 @@ class SystemDepartmentController extends Controller
     }
 
     /**
-     * API: GET /api/system-departments/sync
+     * API: POST /api/system-departments/sync
      */
     public function sync(
         PersonnelApiService $personnelApiService

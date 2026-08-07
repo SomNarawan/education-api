@@ -13,6 +13,9 @@ class TeacherListResponse extends JsonResource
             'nontri_id' => $this->nontri_id,
             'full_name_th' => $this->full_name_th,
             'department_id' => $this->department_id,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+            'deleted_at' => $this->deleted_at,
         ];
     }
 }
