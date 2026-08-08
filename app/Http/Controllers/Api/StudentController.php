@@ -7,6 +7,7 @@ use App\Actions\Students\UpdateStudentAdvisor;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\ListStudentsRequest;
+use App\Http\Requests\Student\ListStudyingStudentsRequest;
 use App\Http\Requests\Student\StudentWriteRequest;
 use App\Http\Requests\Student\UpdateStudentAdvisorRequest;
 use App\Http\Responses\StudentDetailResponse;
@@ -39,9 +40,22 @@ class StudentController extends Controller
     }
 
     /**
-     * API: GET /api/students/without-advisor?department_id={id}
+     * API: GET /api/students/studying?teacher_id={id}
      */
-    public function withoutAdvisor(Request $request): JsonResponse
+    public function studying(ListStudyingStudentsRequest $request): JsonResponse
+    {
+        $students = $this->studentQuery->list($request->validated());
+
+        return ApiResponse::success(
+            StudentListResponse::collection($students)->resolve(),
+            'Load studying students successfully'
+        );
+    }
+
+    /**
+     * API: GET /api/students/studying/without-advisor?department_id={id}
+     */
+    public function studyingWithoutAdvisor(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'department_id' => ['required', 'integer', 'min:1', 'exists:system_departments,id'],
@@ -49,6 +63,7 @@ class StudentController extends Controller
 
         $students = Student::query()
             ->with('title')
+            ->studying()
             ->where('system_department_id', $validated['department_id'])
             ->whereNull('teacher_id')
             ->orderBy('student_code')
@@ -56,7 +71,7 @@ class StudentController extends Controller
 
         return ApiResponse::success(
             StudentWithoutAdvisorResponse::collection($students)->resolve(),
-            'Load students without advisor successfully'
+            'Load studying students without advisor successfully'
         );
     }
 

@@ -13,7 +13,9 @@ class StudentQueryService
         return $this->listQuery()
             ->when(
                 isset($filters['teacher_id']),
-                fn (Builder $query) => $query->where('teacher_id', $filters['teacher_id'])
+                fn (Builder $query) => $query
+                    ->where('teacher_id', $filters['teacher_id'])
+                    ->studying()
             )
             ->when(
                 isset($filters['department_id']),

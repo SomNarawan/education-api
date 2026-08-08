@@ -31,7 +31,8 @@ Route::get('/curriculum-divisions', [CurriculumDivisionController::class, 'index
 
 Route::prefix('students')->group(function (): void {
     Route::get('/', [StudentController::class, 'index']);
-    Route::get('/without-advisor', [StudentController::class, 'withoutAdvisor']);
+    Route::get('/studying', [StudentController::class, 'studying']);
+    Route::get('/studying/without-advisor', [StudentController::class, 'studyingWithoutAdvisor']);
     Route::patch('/advisor', [StudentController::class, 'updateAdvisor']);
 
     Route::get('/{studentCode}/enrollments', [StudentJsonDataController::class, 'enrollments'])

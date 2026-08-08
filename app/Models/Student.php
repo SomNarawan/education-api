@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -55,6 +56,15 @@ class Student extends Model
         'overed_credits' => 'integer',
         'deleted_at' => 'datetime',
     ];
+
+    public function scopeStudying(Builder $query): Builder
+    {
+        return $query->whereHas(
+            'studentStatus',
+            fn (Builder $statusQuery) => $statusQuery
+                ->where('status_name', StudentStatus::STATUS_STUDYING)
+        );
+    }
 
     public function title(): BelongsTo
     {
