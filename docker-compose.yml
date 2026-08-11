@@ -45,7 +45,7 @@ services:
       PERSONNEL_API_URL: ${PERSONNEL_API_URL}
       MOCK_LOGIN_ENABLED: ${MOCK_LOGIN_ENABLED:-false}
       MOCK_LOGIN_ADMIN_NONTRI_IDS: ${MOCK_LOGIN_ADMIN_NONTRI_IDS:-}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      FRONTEND_URL: ${FRONTEND_URL:-https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd}
     ports:
       - "8000:80"
     depends_on:
@@ -56,7 +56,7 @@ services:
     build:
       context: ../education-web
       args:
-        VITE_API_URL: http://localhost:8000/api
+        VITE_API_URL: https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api/api
         VITE_MOCK_LOGIN_ENABLED: ${MOCK_LOGIN_ENABLED:-false}
     container_name: web
     ports:

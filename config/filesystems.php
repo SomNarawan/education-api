@@ -41,7 +41,7 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            'url' => rtrim(env('APP_URL', 'https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api'), '/').'/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,
