@@ -25,8 +25,8 @@
     "course_code": "01999141",
     "course_name": "เศรษฐศาสตร์เพื่อการดำเนินชีวิตที่ดี",
     "course_group": "กลุ่มสาระศาสตร์แห่งผู้ประกอบการ",
-    "grade_letter": "C+, C",
-    "grade_point": "2.5, 2",
+    "grade_letter": "F, C",
+    "grade_point": "0, 2",
     "credit": 3
   },
   {
@@ -35,8 +35,8 @@
     "course_code": "01355101",
     "course_name": "ภาษาอังกฤษในชีวิตประจำวัน",
     "course_group": "กลุ่มสาระภาษากับการสื่อสาร",
-    "grade_letter": "D, D+, B",
-    "grade_point": "1, 1.5, 3",
+    "grade_letter": "F, W, B",
+    "grade_point": "0, null, 3",
     "credit": 3
   }
 ]

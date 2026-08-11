@@ -248,7 +248,7 @@
         "course_sub_category":  "กลุ่มสาระการเรียนรู้",
         "course_group":  "กลุ่มสาระศาสตร์แห่งผู้ประกอบการ",
         "course_requirement":  "เลือกเรียนตามกลุ่มสาระ",
-        "grade_letter":  "C+, C",
+        "grade_letter":  "F, C",
         "credit":  3
     },
     {
@@ -320,7 +320,7 @@
         "course_sub_category":  "กลุ่มสาระการเรียนรู้",
         "course_group":  "กลุ่มสาระภาษากับการสื่อสาร",
         "course_requirement":  "ภาษาอังกฤษ",
-        "grade_letter":  "D, D+, B",
+        "grade_letter":  "F, W, B",
         "credit":  3
     },
     {
