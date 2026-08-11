@@ -1,0 +1,74 @@
+[
+  {
+    "course_group": "หมวดวิชาเฉพาะ",
+    "gpa": 2.9,
+    "credits": 94,
+    "completed_credits": 92,
+    "remaining_credits": 2,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "วิชาแกน",
+    "gpa": 2.67,
+    "credits": 30,
+    "completed_credits": 29,
+    "remaining_credits": 1,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "วิชาเฉพาะด้าน",
+    "gpa": 2.97,
+    "credits": 58,
+    "completed_credits": 57,
+    "remaining_credits": 1,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "วิชาเฉพาะด้าน-ฮาร์ดแวร์",
+    "gpa": 3.25,
+    "credits": 9,
+    "completed_credits": 9,
+    "remaining_credits": 0,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "วิชาเฉพาะด้าน-ระบบพื้นฐาน",
+    "gpa": 3.0,
+    "credits": 18,
+    "completed_credits": 18,
+    "remaining_credits": 0,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "วิชาเฉพาะด้าน-ซอฟต์แวร์",
+    "gpa": 2.7,
+    "credits": 12,
+    "completed_credits": 10,
+    "remaining_credits": 2,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "วิชาเฉพาะด้าน-เทคโนโลยีประยุกต์",
+    "gpa": 3.0,
+    "credits": 6,
+    "completed_credits": 6,
+    "remaining_credits": 0,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "วิชาเลือก-กลุ่มวิชาเลือกวิศวกรรมคอมพิวเตอร์",
+    "gpa": 3.07,
+    "credits": 15,
+    "completed_credits": 15,
+    "remaining_credits": 0,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "วิชาเลือก-สหกิจ (แผนสหกิจ)",
+    "gpa": 0,
+    "credits": 6,
+    "completed_credits": 0,
+    "remaining_credits": 6,
+    "overed_credits": 0
+  }
+]
