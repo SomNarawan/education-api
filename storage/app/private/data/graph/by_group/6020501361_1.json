@@ -1,0 +1,66 @@
+[
+  {
+    "course_group": "หมวดวิชาศึกษาทั่วไป",
+    "gpa": 3.0,
+    "credits": 30,
+    "completed_credits": 18,
+    "remaining_credits": 12,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "กลุ่มสาระอยู่ดีมีสุข",
+    "gpa": 1.5,
+    "credits": 3,
+    "completed_credits": 1,
+    "remaining_credits": 2,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "กลุ่มศาสตร์ผู้ประกอบการ",
+    "gpa": 3.5,
+    "credits": 3,
+    "completed_credits": 3,
+    "remaining_credits": 0,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "กลุ่มภาษากับการสื่อสาร-ภาษาอังกฤษ",
+    "gpa": 3.42,
+    "credits": 6,
+    "completed_credits": 6,
+    "remaining_credits": 0,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "กลุ่มภาษากับการสื่อสาร-ภาษาไทย",
+    "gpa": 3.5,
+    "credits": 3,
+    "completed_credits": 3,
+    "remaining_credits": 0,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "กลุ่มภาษากับการสื่อสาร-เทคโนโลยีสารสนเทศ",
+    "gpa": 0,
+    "credits": 3,
+    "completed_credits": 0,
+    "remaining_credits": 3,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "กลุ่มพลเมืองไทยและโลก",
+    "gpa": 2.5,
+    "credits": 3,
+    "completed_credits": 2,
+    "remaining_credits": 1,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "กลุ่มสุทรียศาสตร์",
+    "gpa": 3.0,
+    "credits": 3,
+    "completed_credits": 3,
+    "remaining_credits": 0,
+    "overed_credits": 0
+  }
+]

@@ -1,0 +1,46 @@
+[
+  {
+    "study_year": 1,
+    "semester": "ภาคต้น",
+    "semester_year": 2023,
+    "semester_year_be": 2567,
+    "credits": 19,
+    "gpa": 2.79,
+    "gpax": 2.79,
+    "diff_gpax": 0,
+    "enrollments": [
+      {
+        "course_name": "ภาษาไทยเพื่อการสื่อสาร",
+        "grade_letter": "B+",
+        "credit": 3
+      },
+      {
+        "course_name": "วอลเลย์บอล",
+        "grade_letter": "A",
+        "credit": 1
+      }
+    ]
+  },
+  {
+    "study_year": 1,
+    "semester": "ภาคปลาย",
+    "semester_year": 2023,
+    "semester_year_be": 2567,
+    "credits": 19,
+    "gpa": 3,
+    "gpax": 2.9,
+    "diff_gpax": "+0.11",
+    "enrollments": [
+      {
+        "course_name": "ฟิสิกส์ 2",
+        "grade_letter": "D",
+        "credit": 3
+      },
+      {
+        "course_name": "ปฏิบัติการฟิสิกส์ 2",
+        "grade_letter": "W",
+        "credit": 1
+      }
+    ]
+  }
+]

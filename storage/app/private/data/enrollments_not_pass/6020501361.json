@@ -1,0 +1,22 @@
+[
+  {
+    "study_year": 1,
+    "semester": "ภาคปลาย",
+    "course_code": "01420114",
+    "course_name": "ปฏิบัติการฟิสิกส์ 2",
+    "course_group": "วิชาแกน",
+    "grade_letter": "W",
+    "grade_point": "null",
+    "credit": 1
+  },
+  {
+    "study_year": 4,
+    "semester": "ภาคต้น",
+    "course_code": "0272XXXX",
+    "course_name": "วิชาเลือกเสรี",
+    "course_group": "วิชาเลือกเสรี",
+    "grade_letter": null,
+    "grade_point": null,
+    "credit": 3
+  }
+]
