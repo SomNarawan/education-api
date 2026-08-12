@@ -1,0 +1,14 @@
+[
+  {
+    "type": "credit_study",
+    "credits_study": 9,
+    "credits_all": 20,
+    "gpa": 2.3
+  },
+  {
+    "type": "credit_over",
+    "credits_study": 2,
+    "credits_all": 30,
+    "gpa": 3.26
+  }
+]

@@ -106,6 +106,36 @@ php artisan serve
 
 API จะพร้อมใช้งานที่ `http://localhost:8000/api` (หรือ URL ตาม `APP_URL`/`php artisan serve`)
 
+## Docker Compose
+
+`docker-compose.yml` ตั้งค่า default ให้เหมาะกับ local development เพื่อให้รัน `docker compose up --build` ได้ทันที:
+
+```env
+APP_URL=http://localhost:8000
+FRONTEND_URL=http://localhost:5173
+VITE_API_URL=http://localhost:8000/api
+```
+
+เมื่อต้อง deploy บน server ให้ใช้ไฟล์ env production แทน default ของ compose:
+
+```bash
+cp .env.production.example .env.production
+# ใส่ APP_KEY, JWT_SECRET, DB_PASSWORD และค่า production อื่น ๆ ให้ครบ
+docker compose --env-file .env.production up -d --build
+```
+
+ค่าที่ต้องเป็น URL จริงบน server:
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api
+FRONTEND_URL=https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd
+VITE_API_URL=https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api/api
+```
+
+สรุปคือ `FRONTEND_URL` ใช้ฝั่ง backend สำหรับ CORS/mock-login redirect ส่วน `VITE_API_URL` ถูกฝังตอน build frontend; เวลาเปลี่ยนจาก local เป็น server ต้องเปลี่ยนทั้งสองค่าและ rebuild frontend container ใหม่
+
 ## Database Setup
 
 **ข้อควรระวัง:** โฟลเดอร์ `database/migrations` ของโปรเจกต์นี้มีแค่ตารางพื้นฐานของ Laravel (`users`, `cache`, `jobs`, `personal_access_tokens`) เท่านั้น **ไม่มี migration ของตารางข้อมูลหลัก** เช่น `students`, `teachers`, `curriculums`, `system_departments` ฯลฯ

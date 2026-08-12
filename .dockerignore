@@ -4,8 +4,7 @@
 .gitignore
 node_modules
 vendor
-docker
-docker-compose.yml
+docker/db/*.sql
 storage/app/private/*
 !storage/app/private/.gitignore
 storage/framework/cache/*
