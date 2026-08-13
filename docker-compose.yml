@@ -48,7 +48,7 @@ services:
       MOCK_LOGIN_ADMIN_NONTRI_IDS: ${MOCK_LOGIN_ADMIN_NONTRI_IDS:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
     ports:
-      - "8000:80"
+      - "3009:3009"
     depends_on:
       mysql:
         condition: service_healthy
@@ -62,7 +62,7 @@ services:
         VITE_MOCK_LOGIN_ENABLED: ${MOCK_LOGIN_ENABLED:-false}
     container_name: web
     ports:
-      - "5173:80"
+      - "3008:80"
     depends_on:
       - backend
 
