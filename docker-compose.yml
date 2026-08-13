@@ -58,6 +58,7 @@ services:
       context: ../education-web
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api}
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-}
         VITE_MOCK_LOGIN_ENABLED: ${MOCK_LOGIN_ENABLED:-false}
     container_name: web
     ports:

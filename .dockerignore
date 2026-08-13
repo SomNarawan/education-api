@@ -7,6 +7,8 @@ vendor
 docker/db/*.sql
 storage/app/private/*
 !storage/app/private/.gitignore
+!storage/app/private/data
+!storage/app/private/data/**
 storage/framework/cache/*
 storage/framework/sessions/*
 storage/framework/views/*
