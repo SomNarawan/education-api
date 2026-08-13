@@ -7,13 +7,14 @@ return [
     | Cross-Origin Resource Sharing (CORS) Configuration
     |--------------------------------------------------------------------------
     |
-    | Covers /api/* (the JWT-protected app API) and /mock-login/* (dev-only
-    | login helper, see config/mock_login.php) since both are called directly
-    | from the React frontend running on a different origin.
+    | Covers /api/* — the JWT-protected app API and, since it now lives at
+    | /api/mock-login/*, the dev-only login helper too (see
+    | config/mock_login.php) — since both are called directly from the React
+    | frontend running on a different origin.
     |
     */
 
-    'paths' => ['api/*', 'mock-login/*'],
+    'paths' => ['api/*'],
 
     'allowed_methods' => ['*'],
 

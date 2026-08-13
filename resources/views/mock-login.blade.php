@@ -19,7 +19,7 @@
     <h1>Mock Login (ใช้ทดสอบเท่านั้น)</h1>
     <div class="banner">Endpoint นี้ออก JWT เองโดยไม่ผ่าน SSO จริง — ใช้เฉพาะ local/staging และต้องลบ/ปิดก่อนต่อ SSO จริง</div>
 
-    <a class="admin-btn" href="/mock-login/admin">Login as Admin</a>
+    <a class="admin-btn" href="/api/mock-login/admin">Login as Admin</a>
 
     <div>
         <input id="q" type="text" placeholder="ค้นหาอาจารย์ด้วยชื่อหรือ nontri_id (เช่น fengame)">
@@ -32,11 +32,11 @@
         const results = document.getElementById('results');
 
         async function search(q) {
-            const res = await fetch('/mock-login/search?q=' + encodeURIComponent(q));
+            const res = await fetch('/api/mock-login/search?q=' + encodeURIComponent(q));
             const teachers = await res.json();
 
             results.innerHTML = teachers.map(t =>
-                `<li><a href="/mock-login/teacher/${encodeURIComponent(t.nontri_id)}">${t.full_name_th} <span class="muted">(${t.nontri_id}${t.is_admin ? ' — admin+teacher' : ''})</span></a></li>`
+                `<li><a href="/api/mock-login/teacher/${encodeURIComponent(t.nontri_id)}">${t.full_name_th} <span class="muted">(${t.nontri_id}${t.is_admin ? ' — admin+teacher' : ''})</span></a></li>`
             ).join('');
         }
 
