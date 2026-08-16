@@ -2,23 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Helpers\ApiResponse;
-use App\Http\Controllers\Controller;
 use App\Models\NoteType;
-use Illuminate\Http\JsonResponse;
 
-class NoteTypeController extends Controller
+class NoteTypeController extends MasterDataController
 {
-    /**
-     * API: GET /api/note-types
-     */
-    public function index(): JsonResponse
-    {
-        $items = NoteType::query()
-            ->orderBy('note')
-            ->orderBy('id')
-            ->get();
+    protected string $modelClass = NoteType::class;
 
-        return ApiResponse::success($items, 'Load note types successfully');
-    }
+    protected string $nameField = 'note';
+
+    protected int $nameMaxLength = 255;
+
+    protected string $singularLabel = 'note type';
+
+    protected string $pluralLabel = 'note types';
 }

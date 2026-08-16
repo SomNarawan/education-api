@@ -23,8 +23,22 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/me', [MeController::class, 'show']);
 
-Route::get('/titles', [TitleController::class, 'index']);
-Route::get('/admission-channels', [AdmissionChannelController::class, 'index']);
+Route::prefix('titles')->group(function (): void {
+    Route::get('/', [TitleController::class, 'index']);
+    Route::post('/', [TitleController::class, 'store']);
+    Route::get('/{id}', [TitleController::class, 'show'])->whereNumber('id');
+    Route::match(['put', 'patch'], '/{id}', [TitleController::class, 'update'])->whereNumber('id');
+    Route::patch('/{id}/status', [TitleController::class, 'updateStatus'])->whereNumber('id');
+    Route::delete('/{id}', [TitleController::class, 'destroy'])->whereNumber('id');
+});
+Route::prefix('admission-channels')->group(function (): void {
+    Route::get('/', [AdmissionChannelController::class, 'index']);
+    Route::post('/', [AdmissionChannelController::class, 'store']);
+    Route::get('/{id}', [AdmissionChannelController::class, 'show'])->whereNumber('id');
+    Route::match(['put', 'patch'], '/{id}', [AdmissionChannelController::class, 'update'])->whereNumber('id');
+    Route::patch('/{id}/status', [AdmissionChannelController::class, 'updateStatus'])->whereNumber('id');
+    Route::delete('/{id}', [AdmissionChannelController::class, 'destroy'])->whereNumber('id');
+});
 Route::get('/provinces', [ProvinceController::class, 'index']);
 Route::get('/districts', [DistrictController::class, 'index']);
 Route::get('/subdistricts', [SubdistrictController::class, 'index']);
@@ -35,9 +49,30 @@ Route::prefix('high-schools')->group(function (): void {
     Route::match(['put', 'patch'], '/{id}', [HighSchoolController::class, 'update'])->whereNumber('id');
     Route::patch('/{id}/status', [HighSchoolController::class, 'updateStatus'])->whereNumber('id');
 });
-Route::get('/relationships', [RelationshipController::class, 'index']);
-Route::get('/student-statuses', [StudentStatusController::class, 'index']);
-Route::get('/note-types', [NoteTypeController::class, 'index']);
+Route::prefix('relationships')->group(function (): void {
+    Route::get('/', [RelationshipController::class, 'index']);
+    Route::post('/', [RelationshipController::class, 'store']);
+    Route::get('/{id}', [RelationshipController::class, 'show'])->whereNumber('id');
+    Route::match(['put', 'patch'], '/{id}', [RelationshipController::class, 'update'])->whereNumber('id');
+    Route::patch('/{id}/status', [RelationshipController::class, 'updateStatus'])->whereNumber('id');
+    Route::delete('/{id}', [RelationshipController::class, 'destroy'])->whereNumber('id');
+});
+Route::prefix('student-statuses')->group(function (): void {
+    Route::get('/', [StudentStatusController::class, 'index']);
+    Route::post('/', [StudentStatusController::class, 'store']);
+    Route::get('/{id}', [StudentStatusController::class, 'show'])->whereNumber('id');
+    Route::match(['put', 'patch'], '/{id}', [StudentStatusController::class, 'update'])->whereNumber('id');
+    Route::patch('/{id}/status', [StudentStatusController::class, 'updateStatus'])->whereNumber('id');
+    Route::delete('/{id}', [StudentStatusController::class, 'destroy'])->whereNumber('id');
+});
+Route::prefix('note-types')->group(function (): void {
+    Route::get('/', [NoteTypeController::class, 'index']);
+    Route::post('/', [NoteTypeController::class, 'store']);
+    Route::get('/{id}', [NoteTypeController::class, 'show'])->whereNumber('id');
+    Route::match(['put', 'patch'], '/{id}', [NoteTypeController::class, 'update'])->whereNumber('id');
+    Route::patch('/{id}/status', [NoteTypeController::class, 'updateStatus'])->whereNumber('id');
+    Route::delete('/{id}', [NoteTypeController::class, 'destroy'])->whereNumber('id');
+});
 Route::get('/study-plans', [CurriculumPlanController::class, 'index']);
 Route::get('/curriculum-divisions', [CurriculumDivisionController::class, 'index']);
 

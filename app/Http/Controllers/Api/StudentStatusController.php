@@ -2,26 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Helpers\ApiResponse;
-use App\Http\Controllers\Controller;
 use App\Models\StudentStatus;
-use Illuminate\Http\JsonResponse;
 
-class StudentStatusController extends Controller
+class StudentStatusController extends MasterDataController
 {
-    /**
-     * API: GET /api/student-statuses
-     */
-    public function index(): JsonResponse
-    {
-        $items = StudentStatus::query()
-            ->orderBy('status_name')
-            ->orderBy('id')
-            ->get();
+    protected string $modelClass = StudentStatus::class;
 
-        return ApiResponse::success(
-            $items,
-            'Load student statuses successfully'
-        );
-    }
+    protected string $nameField = 'status_name';
+
+    protected int $nameMaxLength = 50;
+
+    protected string $singularLabel = 'student status';
+
+    protected string $pluralLabel = 'student statuses';
 }

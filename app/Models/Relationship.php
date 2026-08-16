@@ -7,13 +7,21 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Relationship extends Model
 {
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_INACTIVE = 'inactive';
+
     protected $table = 'relationships';
-    
-    public $timestamps = false;
+
+    protected $fillable = [
+        'relationship_name',
+        'status',
+        'created_by',
+        'updated_by',
+    ];
 
     public function students(): HasMany
     {
-        return $this->hasMany(Student::class, 'guardian_relationship_id'
-        );
+        return $this->hasMany(Student::class, 'guardian_relationship_id');
     }
 }

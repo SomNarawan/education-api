@@ -2,26 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Helpers\ApiResponse;
-use App\Http\Controllers\Controller;
 use App\Models\Relationship;
-use Illuminate\Http\JsonResponse;
 
-class RelationshipController extends Controller
+class RelationshipController extends MasterDataController
 {
-    /**
-     * API: GET /api/relationships
-     */
-    public function index(): JsonResponse
-    {
-        $items = Relationship::query()
-            ->orderBy('relationship_name')
-            ->orderBy('id')
-            ->get();
+    protected string $modelClass = Relationship::class;
 
-        return ApiResponse::success(
-            $items,
-            'Load relationships successfully'
-        );
-    }
+    protected string $nameField = 'relationship_name';
+
+    protected int $nameMaxLength = 50;
+
+    protected string $singularLabel = 'relationship';
+
+    protected string $pluralLabel = 'relationships';
 }
