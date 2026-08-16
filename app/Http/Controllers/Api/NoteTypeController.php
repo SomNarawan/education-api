@@ -14,7 +14,10 @@ class NoteTypeController extends Controller
      */
     public function index(): JsonResponse
     {
-        $items = NoteType::all();
+        $items = NoteType::query()
+            ->orderBy('note')
+            ->orderBy('id')
+            ->get();
 
         return ApiResponse::success($items, 'Load note types successfully');
     }

@@ -16,6 +16,7 @@ class CurriculumDivisionController extends Controller
     {
         $divisionsByParent = CurriculumDivision::query()
             ->select(['id', 'parent_id', 'name_th', 'division_type'])
+            ->orderBy('name_th')
             ->orderBy('id')
             ->get()
             ->groupBy(fn (CurriculumDivision $division) => $division->parent_id ?? 'root');

@@ -20,6 +20,7 @@ class SystemFacultyController extends Controller
     {
         $items = SystemFaculty::query()
             ->where('deleted_at', null)
+            ->orderBy('th_name')
             ->orderBy('id')
             ->get();
 

@@ -14,7 +14,10 @@ class StudentStatusController extends Controller
      */
     public function index(): JsonResponse
     {
-        $items = StudentStatus::orderBy('id')->get();
+        $items = StudentStatus::query()
+            ->orderBy('status_name')
+            ->orderBy('id')
+            ->get();
 
         return ApiResponse::success(
             $items,

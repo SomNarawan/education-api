@@ -14,7 +14,10 @@ class TitleController extends Controller
      */
     public function index(): JsonResponse
     {
-        $items = Title::orderBy('id')->get();
+        $items = Title::query()
+            ->orderBy('title_name_th')
+            ->orderBy('id')
+            ->get();
 
         return ApiResponse::success(
             $items,

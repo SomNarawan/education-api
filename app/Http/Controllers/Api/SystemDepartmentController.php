@@ -21,6 +21,7 @@ class SystemDepartmentController extends Controller
     {
         $items = SystemDepartment::query()
             ->where('deleted_at', null)
+            ->orderBy('th_name')
             ->orderBy('id')
             ->get();
 

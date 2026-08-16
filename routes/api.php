@@ -3,14 +3,17 @@
 use App\Http\Controllers\Api\AdmissionChannelController;
 use App\Http\Controllers\Api\CurriculumDivisionController;
 use App\Http\Controllers\Api\CurriculumPlanController;
+use App\Http\Controllers\Api\DistrictController;
 use App\Http\Controllers\Api\HighSchoolController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\NoteTypeController;
+use App\Http\Controllers\Api\ProvinceController;
 use App\Http\Controllers\Api\RelationshipController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\StudentJsonDataController;
 use App\Http\Controllers\Api\StudentStatusController;
+use App\Http\Controllers\Api\SubdistrictController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\SystemDepartmentController;
 use App\Http\Controllers\Api\SystemFacultyController;
@@ -22,7 +25,16 @@ Route::get('/me', [MeController::class, 'show']);
 
 Route::get('/titles', [TitleController::class, 'index']);
 Route::get('/admission-channels', [AdmissionChannelController::class, 'index']);
-Route::get('/high-schools', [HighSchoolController::class, 'index']);
+Route::get('/provinces', [ProvinceController::class, 'index']);
+Route::get('/districts', [DistrictController::class, 'index']);
+Route::get('/subdistricts', [SubdistrictController::class, 'index']);
+Route::prefix('high-schools')->group(function (): void {
+    Route::get('/', [HighSchoolController::class, 'index']);
+    Route::post('/', [HighSchoolController::class, 'store']);
+    Route::get('/{id}', [HighSchoolController::class, 'show'])->whereNumber('id');
+    Route::match(['put', 'patch'], '/{id}', [HighSchoolController::class, 'update'])->whereNumber('id');
+    Route::patch('/{id}/status', [HighSchoolController::class, 'updateStatus'])->whereNumber('id');
+});
 Route::get('/relationships', [RelationshipController::class, 'index']);
 Route::get('/student-statuses', [StudentStatusController::class, 'index']);
 Route::get('/note-types', [NoteTypeController::class, 'index']);

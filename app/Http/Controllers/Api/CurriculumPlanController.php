@@ -14,7 +14,10 @@ class CurriculumPlanController extends Controller
      */
     public function index(): JsonResponse
     {
-        $items = CurriculumPlan::orderBy('id')->get();
+        $items = CurriculumPlan::query()
+            ->orderBy('name_th')
+            ->orderBy('id')
+            ->get();
 
         return ApiResponse::success(
             $items,

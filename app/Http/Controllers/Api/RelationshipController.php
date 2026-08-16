@@ -14,7 +14,10 @@ class RelationshipController extends Controller
      */
     public function index(): JsonResponse
     {
-        $items = Relationship::orderBy('id')->get();
+        $items = Relationship::query()
+            ->orderBy('relationship_name')
+            ->orderBy('id')
+            ->get();
 
         return ApiResponse::success(
             $items,

@@ -11,7 +11,7 @@ class Subdistrict extends Model
 
     public $timestamps = false;
 
-    public function district()
+    public function district(): BelongsTo
     {
         return $this->belongsTo(District::class, 'district_id');
     }

@@ -14,7 +14,10 @@ class AdmissionChannelController extends Controller
      */
     public function index(): JsonResponse
     {
-        $items = AdmissionChannel::orderBy('id')->get();
+        $items = AdmissionChannel::query()
+            ->orderBy('channel_name')
+            ->orderBy('id')
+            ->get();
 
         return ApiResponse::success(
             $items, 'Load admission channels successfully'

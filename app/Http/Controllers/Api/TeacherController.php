@@ -35,6 +35,7 @@ class TeacherController extends Controller
                 isset($validated['department_id']),
                 fn ($query) => $query->where('department_id', $validated['department_id'])
             )
+            ->orderBy('full_name_th')
             ->orderBy('id')
             ->get();
 
