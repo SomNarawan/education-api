@@ -17,6 +17,34 @@ use Throwable;
 
 class StudentImportService
 {
+    private const GROUP_HEADERS = [
+        'รหัสนิสิต',
+        'ข้อมูลส่วนตัว',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        'แผนการเรียน',
+        '',
+        'อาจารย์ที่ปรึกษา',
+        'ช่องทางรับเข้า',
+        'โรงเรียน ม.ปลาย',
+        'ผู้ปกครอง',
+        '',
+        '',
+        '',
+        '',
+        'สถานะปัจจุบัน',
+        'ผลการเรียนล่าสุด',
+        '',
+        '',
+        '',
+        '',
+    ];
+
     private const HEADERS = [
         'รหัสนิสิต',
         'เลขบัตรประชาชน',
@@ -43,6 +71,17 @@ class StudentImportService
         'จำนวนหน่วยกิตที่ผ่าน',
         'จำนวนหน่วยกิตที่ไม่ผ่าน',
         'จำนวนหน่วยกิตที่เกิน',
+    ];
+
+    private const REQUIRED_HEADER_INDEXES = [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+    ];
+
+    private const HEADER_MERGES = [
+        'B1:I1',
+        'J1:K1',
+        'O1:S1',
+        'U1:Y1',
     ];
 
     public function __construct(private readonly SaveStudent $saveStudent) {}
@@ -72,16 +111,23 @@ class StudentImportService
             $rows = $this->readRows($file);
             $this->validateHeaders($rows);
 
+            $dataRows = array_filter(
+                array_slice($rows, 2, null, true),
+                fn (array $row) => ! $this->isEmptyRow($this->sourceRow($row)),
+            );
+
+            if ($dataRows === []) {
+                throw ValidationException::withMessages([
+                    'file' => 'ไม่มีข้อมูลสำหรับนำเข้า',
+                ]);
+            }
+
             $masterData = $this->masterData();
             $successRows = [];
             $failedRows = [];
 
-            foreach (array_slice($rows, 2, null, true) as $index => $row) {
+            foreach ($dataRows as $index => $row) {
                 $sourceRow = $this->sourceRow($row);
-
-                if ($this->isEmptyRow($sourceRow)) {
-                    continue;
-                }
 
                 $rowNumber = $index + 1;
                 [$attributes, $masterErrors] = $this->attributes($sourceRow, $masterData);
@@ -117,14 +163,16 @@ class StudentImportService
             }
 
             $resultPath = $this->writeResult($import->id, $successRows, $failedRows);
-            $total = count($successRows) + count($failedRows);
+            $successCount = count($successRows);
+            $failedCount = count($failedRows);
+            $total = $successCount + $failedCount;
 
             $import->update([
                 'file_result_path' => $resultPath,
                 'total_count' => $total,
-                'success_count' => count($successRows),
-                'failed_count' => count($failedRows),
-                'status' => $failedRows === [] ? 'completed' : 'completed_with_errors',
+                'success_count' => $successCount,
+                'failed_count' => $failedCount,
+                'status' => $this->resultStatus($successCount, $failedCount),
                 'completed_at' => now(),
             ]);
 
@@ -166,18 +214,22 @@ class StudentImportService
 
     private function validateHeaders(array $rows): void
     {
-        if (! isset($rows[1])) {
+        if (! isset($rows[0], $rows[1])) {
             throw ValidationException::withMessages([
-                'file' => 'ไม่พบ header ที่แถว 2 ในชีต Students',
+                'file' => 'ไม่พบ header ที่แถว 1-2 ในชีต Students',
             ]);
         }
 
-        $actual = array_map(
-            fn (mixed $header) => preg_replace('/\s*\*\s*$/u', '', trim((string) $header)),
+        $actualGroupHeaders = array_map(
+            fn (mixed $header) => trim((string) $header),
+            array_slice($rows[0], 0, count(self::GROUP_HEADERS)),
+        );
+        $actualHeaders = array_map(
+            fn (mixed $header) => trim((string) $header),
             array_slice($rows[1], 0, count(self::HEADERS)),
         );
 
-        if ($actual !== self::HEADERS) {
+        if ($actualGroupHeaders !== self::GROUP_HEADERS || $actualHeaders !== $this->templateHeaders()) {
             throw ValidationException::withMessages([
                 'file' => 'รูปแบบ header ไม่ตรงกับ Import Student Template',
             ]);
@@ -378,23 +430,26 @@ class StudentImportService
 
     private function writeResult(int $importId, array $successRows, array $failedRows): string
     {
-        $successHeader = array_map(
-            fn (string $header) => $this->headerCell($header, '#70AD47'),
-            self::HEADERS,
-        );
-        $failedHeader = [
-            ...array_map(fn (string $header) => $this->headerCell($header, '#C00000'), self::HEADERS),
-            $this->headerCell('สาเหตุที่ไม่สำเร็จ', '#C00000'),
-        ];
+        $successHeaders = $this->resultHeaders('#B6D7A8');
+        $failedHeaders = $this->resultHeaders('#F4CCCC', true);
 
         $workbook = new SimpleXLSXGen;
         $workbook
-            ->addSheet([$successHeader, ...$this->excelRows($successRows)], 'Success')
-            ->addSheet([$failedHeader, ...$this->excelRows($failedRows)], 'Fail')
             ->setDefaultFont('Tahoma')
-            ->setDefaultFontSize(11)
+            ->setDefaultFontSize(11);
+
+        $workbook
+            ->addSheet([...$successHeaders, ...$this->excelRows($successRows)], 'Success')
             ->setColWidth('A:Y', 18)
-            ->setColWidth('Z', 60);
+            ->freezePanes('A3');
+        $this->mergeGroupHeaders($workbook);
+
+        $workbook
+            ->addSheet([...$failedHeaders, ...$this->excelRows($failedRows)], 'Fail')
+            ->setColWidth('A:Y', 18)
+            ->setColWidth('Z', 60)
+            ->freezePanes('A3');
+        $this->mergeGroupHeaders($workbook);
 
         $path = "imports/students/{$importId}/result.xlsx";
         $disk = Storage::disk('local');
@@ -418,9 +473,56 @@ class StudentImportService
         );
     }
 
+    private function resultHeaders(string $backgroundColor, bool $includeFailureReason = false): array
+    {
+        $groupHeaders = self::GROUP_HEADERS;
+        $headers = $this->templateHeaders();
+
+        if ($includeFailureReason) {
+            $groupHeaders[] = 'ผลการนำเข้า';
+            $headers[] = 'สาเหตุที่ไม่สำเร็จ';
+        }
+
+        return [
+            array_map(fn (string $header) => $this->headerCell($header, $backgroundColor), $groupHeaders),
+            array_map(fn (string $header) => $this->headerCell($header, $backgroundColor), $headers),
+        ];
+    }
+
+    private function templateHeaders(): array
+    {
+        return array_map(
+            fn (string $header, int $index) => in_array($index, self::REQUIRED_HEADER_INDEXES, true)
+                ? "{$header}*"
+                : $header,
+            self::HEADERS,
+            array_keys(self::HEADERS),
+        );
+    }
+
+    private function mergeGroupHeaders(SimpleXLSXGen $workbook): void
+    {
+        foreach (self::HEADER_MERGES as $range) {
+            $workbook->mergeCells($range);
+        }
+    }
+
+    private function resultStatus(int $successCount, int $failedCount): string
+    {
+        if ($failedCount === 0) {
+            return 'completed';
+        }
+
+        if ($successCount === 0) {
+            return 'failed';
+        }
+
+        return 'completed_with_errors';
+    }
+
     private function headerCell(string $value, string $backgroundColor): string
     {
-        return "<style bgcolor=\"{$backgroundColor}\" color=\"#FFFFFF\"><b><center>{$value}</center></b></style>";
+        return "<style bgcolor=\"{$backgroundColor}\" color=\"#000000\" border=\"#000000\"><b><center>{$value}</center></b></style>";
     }
 
     private function importedBy(array $claims): string
