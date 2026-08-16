@@ -5,12 +5,14 @@ use App\Http\Controllers\Api\CurriculumDivisionController;
 use App\Http\Controllers\Api\CurriculumPlanController;
 use App\Http\Controllers\Api\DistrictController;
 use App\Http\Controllers\Api\HighSchoolController;
+use App\Http\Controllers\Api\ImportTypeController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\NoteTypeController;
 use App\Http\Controllers\Api\ProvinceController;
 use App\Http\Controllers\Api\RelationshipController;
 use App\Http\Controllers\Api\StudentController;
+use App\Http\Controllers\Api\StudentImportController;
 use App\Http\Controllers\Api\StudentJsonDataController;
 use App\Http\Controllers\Api\StudentStatusController;
 use App\Http\Controllers\Api\SubdistrictController;
@@ -73,6 +75,14 @@ Route::prefix('note-types')->group(function (): void {
     Route::patch('/{id}/status', [NoteTypeController::class, 'updateStatus'])->whereNumber('id');
     Route::delete('/{id}', [NoteTypeController::class, 'destroy'])->whereNumber('id');
 });
+Route::prefix('import-types')->group(function (): void {
+    Route::get('/', [ImportTypeController::class, 'index']);
+    Route::post('/', [ImportTypeController::class, 'store']);
+    Route::get('/{id}', [ImportTypeController::class, 'show'])->whereNumber('id');
+    Route::match(['put', 'patch'], '/{id}', [ImportTypeController::class, 'update'])->whereNumber('id');
+    Route::patch('/{id}/status', [ImportTypeController::class, 'updateStatus'])->whereNumber('id');
+    Route::delete('/{id}', [ImportTypeController::class, 'destroy'])->whereNumber('id');
+});
 Route::get('/study-plans', [CurriculumPlanController::class, 'index']);
 Route::get('/curriculum-divisions', [CurriculumDivisionController::class, 'index']);
 
@@ -81,6 +91,7 @@ Route::prefix('students')->group(function (): void {
     Route::get('/studying', [StudentController::class, 'studying']);
     Route::get('/studying/without-advisor', [StudentController::class, 'studyingWithoutAdvisor']);
     Route::patch('/advisor', [StudentController::class, 'updateAdvisor']);
+    Route::post('/import', StudentImportController::class);
 
     Route::get('/{studentCode}/enrollments', [StudentJsonDataController::class, 'enrollments'])
         ->whereNumber('studentCode');

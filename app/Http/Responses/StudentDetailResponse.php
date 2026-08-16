@@ -66,6 +66,7 @@ class StudentDetailResponse extends JsonResource
             'not_passed_credits' => (int) ($this->not_passed_credits ?? 0),
             'overed_credits' => (int) ($this->overed_credits ?? 0),
             'gpa' => (float) $this->gpa,
+            'gpax' => (float) $this->gpax,
         ];
     }
 
