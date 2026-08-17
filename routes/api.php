@@ -22,7 +22,16 @@ use App\Http\Controllers\Api\SystemDepartmentController;
 use App\Http\Controllers\Api\SystemFacultyController;
 use App\Http\Controllers\Api\TeacherController;
 use App\Http\Controllers\Api\TitleController;
+use App\Http\Controllers\MockLoginController;
+use App\Http\Middleware\AuthenticateJwt;
 use Illuminate\Support\Facades\Route;
+
+Route::prefix('mock-login')->withoutMiddleware(AuthenticateJwt::class)->group(function (): void {
+    Route::get('/', [MockLoginController::class, 'picker']);
+    Route::get('/search', [MockLoginController::class, 'search']);
+    Route::get('/admin', [MockLoginController::class, 'issueAdmin']);
+    Route::get('/teacher/{nontriId}', [MockLoginController::class, 'issueTeacher']);
+});
 
 Route::get('/me', [MeController::class, 'show']);
 

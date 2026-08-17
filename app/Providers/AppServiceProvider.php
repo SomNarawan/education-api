@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Foundation\Events\DiagnosingHealth;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,6 +30,10 @@ class AppServiceProvider extends ServiceProvider
             Log::info('Bindings : ', $query->bindings);
 
             Log::info('Time : ' . $query->time . ' ms');
+        });
+
+        Event::listen(DiagnosingHealth::class, function (): void {
+            DB::connection()->getPdo();
         });
     }
 }

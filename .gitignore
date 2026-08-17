@@ -22,3 +22,8 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# local DB dump used to seed the mysql container — contains real student data, never commit
+/docker/db/*.sql
+Makefile
+*.gz

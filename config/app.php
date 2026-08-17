@@ -52,7 +52,7 @@ return [
     |
     */
 
-    'url' => env('APP_URL', 'http://localhost'),
+    'url' => env('APP_URL', 'https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api'),
 
     /*
     |--------------------------------------------------------------------------
