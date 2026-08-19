@@ -51,8 +51,8 @@ class Curriculum extends Model
         return $this->hasMany(CurriculumPlan::class, 'curriculum_id');
     }
 
-    public function divisions(): HasMany
+    public function categories(): HasMany
     {
-        return $this->hasMany(CurriculumDivision::class, 'curriculum_id');
+        return $this->hasMany(CurriculumCategory::class, 'curriculum_id');
     }
 }
