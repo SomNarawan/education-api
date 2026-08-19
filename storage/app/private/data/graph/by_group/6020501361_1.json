@@ -1,7 +1,7 @@
 [
   {
     "course_group": "หมวดวิชาศึกษาทั่วไป",
-    "gpa": 3.0,
+    "gpa": 2.86,
     "credits": 30,
     "completed_credits": 18,
     "remaining_credits": 12,
@@ -16,23 +16,47 @@
     "overed_credits": 0
   },
   {
-    "course_group": "กลุ่มศาสตร์ผู้ประกอบการ",
-    "gpa": 3.5,
-    "credits": 3,
-    "completed_credits": 3,
+    "course_group": "กลุ่มวิชาพลศึกษา",
+    "gpa": 1.5,
+    "credits": 1,
+    "completed_credits": 1,
     "remaining_credits": 0,
     "overed_credits": 0
   },
   {
-    "course_group": "กลุ่มภาษากับการสื่อสาร-ภาษาอังกฤษ",
-    "gpa": 3.42,
+    "course_group": "วิชาเลือกกลุ่มสาระอยู่ดีมีสุข",
+    "gpa": 0,
+    "credits": 2,
+    "completed_credits": 0,
+    "remaining_credits": 2,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "กลุ่มสาระศาสตร์แห่งผู้ประกอบการ",
+    "gpa": 2.75,
     "credits": 6,
     "completed_credits": 6,
     "remaining_credits": 0,
     "overed_credits": 0
   },
   {
-    "course_group": "กลุ่มภาษากับการสื่อสาร-ภาษาไทย",
+    "course_group": "กลุ่มสาระภาษากับการสื่อสาร",
+    "gpa": 3.25,
+    "credits": 13,
+    "completed_credits": 6,
+    "remaining_credits": 7,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "กลุ่มวิชาภาษาอังกฤษ",
+    "gpa": 3.0,
+    "credits": 9,
+    "completed_credits": 3,
+    "remaining_credits": 6,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "กลุ่มวิชาภาษาไทย",
     "gpa": 3.5,
     "credits": 3,
     "completed_credits": 3,
@@ -40,23 +64,23 @@
     "overed_credits": 0
   },
   {
-    "course_group": "กลุ่มภาษากับการสื่อสาร-เทคโนโลยีสารสนเทศ",
+    "course_group": "กลุ่มวิชาสารสนเทศหรือคอมพิวเตอร์",
     "gpa": 0,
-    "credits": 3,
+    "credits": 1,
     "completed_credits": 0,
-    "remaining_credits": 3,
-    "overed_credits": 0
-  },
-  {
-    "course_group": "กลุ่มพลเมืองไทยและโลก",
-    "gpa": 2.5,
-    "credits": 3,
-    "completed_credits": 2,
     "remaining_credits": 1,
     "overed_credits": 0
   },
   {
-    "course_group": "กลุ่มสุทรียศาสตร์",
+    "course_group": "กลุ่มสาระพลเมืองไทยและพลเมืองโลก",
+    "gpa": 2.5,
+    "credits": 5,
+    "completed_credits": 2,
+    "remaining_credits": 3,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "กลุ่มสาระสุนทรียศาสตร์",
     "gpa": 3.0,
     "credits": 3,
     "completed_credits": 3,

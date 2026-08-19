@@ -8,15 +8,5 @@
     "grade_letter": "W",
     "grade_point": "null",
     "credit": 1
-  },
-  {
-    "study_year": 4,
-    "semester": "ภาคต้น",
-    "course_code": "0272XXXX",
-    "course_name": "วิชาเลือกเสรี",
-    "course_group": "วิชาเลือกเสรี",
-    "grade_letter": null,
-    "grade_point": null,
-    "credit": 3
   }
 ]

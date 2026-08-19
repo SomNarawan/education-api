@@ -1,10 +1,10 @@
 [
   {
     "course_group": "หมวดวิชาเฉพาะ",
-    "gpa": 2.9,
-    "credits": 94,
-    "completed_credits": 92,
-    "remaining_credits": 2,
+    "gpa": 2.85,
+    "credits": 98,
+    "completed_credits": 81,
+    "remaining_credits": 17,
     "overed_credits": 0
   },
   {
@@ -17,22 +17,22 @@
   },
   {
     "course_group": "วิชาเฉพาะด้าน",
-    "gpa": 2.97,
-    "credits": 58,
-    "completed_credits": 57,
-    "remaining_credits": 1,
-    "overed_credits": 0
-  },
-  {
-    "course_group": "วิชาเฉพาะด้าน-ฮาร์ดแวร์",
-    "gpa": 3.25,
-    "credits": 9,
-    "completed_credits": 9,
+    "gpa": 2.94,
+    "credits": 49,
+    "completed_credits": 49,
     "remaining_credits": 0,
     "overed_credits": 0
   },
   {
-    "course_group": "วิชาเฉพาะด้าน-ระบบพื้นฐาน",
+    "course_group": "กลุ่มฮาร์ดแวร์และสถาปัตยกรรมคอมพิวเตอร์",
+    "gpa": 3.0,
+    "credits": 12,
+    "completed_credits": 12,
+    "remaining_credits": 0,
+    "overed_credits": 0
+  },
+  {
+    "course_group": "กลุ่มโครงสร้างพื้นฐานของระบบ",
     "gpa": 3.0,
     "credits": 18,
     "completed_credits": 18,
@@ -40,15 +40,15 @@
     "overed_credits": 0
   },
   {
-    "course_group": "วิชาเฉพาะด้าน-ซอฟต์แวร์",
-    "gpa": 2.7,
-    "credits": 12,
-    "completed_credits": 10,
-    "remaining_credits": 2,
+    "course_group": "กลุ่มเทคโนโลยีและวิธีการทางซอฟต์แวร์",
+    "gpa": 2.77,
+    "credits": 13,
+    "completed_credits": 13,
+    "remaining_credits": 0,
     "overed_credits": 0
   },
   {
-    "course_group": "วิชาเฉพาะด้าน-เทคโนโลยีประยุกต์",
+    "course_group": "กลุ่มเทคโนโลยีเพื่องานประยุกต์",
     "gpa": 3.0,
     "credits": 6,
     "completed_credits": 6,
@@ -56,19 +56,11 @@
     "overed_credits": 0
   },
   {
-    "course_group": "วิชาเลือก-กลุ่มวิชาเลือกวิศวกรรมคอมพิวเตอร์",
-    "gpa": 3.07,
-    "credits": 15,
-    "completed_credits": 15,
-    "remaining_credits": 0,
-    "overed_credits": 0
-  },
-  {
-    "course_group": "วิชาเลือก-สหกิจ (แผนสหกิจ)",
-    "gpa": 0,
-    "credits": 6,
-    "completed_credits": 0,
-    "remaining_credits": 6,
+    "course_group": "วิชาเลือก",
+    "gpa": 3.0,
+    "credits": 19,
+    "completed_credits": 3,
+    "remaining_credits": 16,
     "overed_credits": 0
   }
 ]

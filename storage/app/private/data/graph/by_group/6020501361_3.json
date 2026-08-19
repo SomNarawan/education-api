@@ -3,8 +3,8 @@
     "course_group": "หมวดวิชาเลือกเสรี",
     "gpa": 3.0,
     "credits": 6,
-    "completed_credits": 6,
-    "remaining_credits": 0,
+    "completed_credits": 3,
+    "remaining_credits": 3,
     "overed_credits": 0
   }
 ]

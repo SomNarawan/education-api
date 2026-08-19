@@ -4,7 +4,7 @@
     "semester": "ภาคต้น",
     "course_code": "02204111",
     "course_name": "คณิตศาสตร์ดิสครีต",
-    "course_group": "กลุ่มโครงสร้างพื้นฐานระบบ",
+    "course_group": "กลุ่มโครงสร้างพื้นฐานของระบบ",
     "grade_letter": "F, B",
     "grade_point": "0, 3",
     "credit": 3
@@ -14,7 +14,7 @@
     "semester": "ภาคต้น",
     "course_code": "02204121",
     "course_name": "วงจรดิจิทัลพื้นฐาน",
-    "course_group": "กลุ่มฮาร์ดแวร์และสถาปัตยกรรม",
+    "course_group": "กลุ่มฮาร์ดแวร์และสถาปัตยกรรมคอมพิวเตอร์",
     "grade_letter": "W, C+",
     "grade_point": "null, 2.5",
     "credit": 3
@@ -22,7 +22,7 @@
   {
     "study_year": 2,
     "semester": "ภาคปลาย",
-    "course_code": "01999141",
+    "course_code": "01999041",
     "course_name": "เศรษฐศาสตร์เพื่อการดำเนินชีวิตที่ดี",
     "course_group": "กลุ่มสาระศาสตร์แห่งผู้ประกอบการ",
     "grade_letter": "F, C",
@@ -34,7 +34,7 @@
     "semester": "ภาคต้น",
     "course_code": "01355101",
     "course_name": "ภาษาอังกฤษในชีวิตประจำวัน",
-    "course_group": "กลุ่มสาระภาษากับการสื่อสาร",
+    "course_group": "กลุ่มวิชาภาษาอังกฤษ",
     "grade_letter": "F, W, B",
     "grade_point": "0, null, 3",
     "credit": 3
