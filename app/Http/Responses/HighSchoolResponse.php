@@ -2,6 +2,7 @@
 
 namespace App\Http\Responses;
 
+use App\Helpers\ThaiAddressFormatter;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class HighSchoolResponse extends JsonResource
@@ -21,6 +22,12 @@ class HighSchoolResponse extends JsonResource
             'district_name' => $district?->district_name,
             'subdistrict_id' => (int) $this->subdistrict_id,
             'subdistrict_name' => $subdistrict?->subdistrict_name,
+            'address' => ThaiAddressFormatter::format(
+                $subdistrict?->subdistrict_name,
+                $district?->district_name,
+                $province?->province_name,
+                $subdistrict?->postal_code,
+            ),
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
             'status' => $this->status,

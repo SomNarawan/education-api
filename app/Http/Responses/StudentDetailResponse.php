@@ -2,6 +2,7 @@
 
 namespace App\Http\Responses;
 
+use App\Helpers\ThaiAddressFormatter;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class StudentDetailResponse extends JsonResource
@@ -47,7 +48,7 @@ class StudentDetailResponse extends JsonResource
             'guardian_phone' => $this->guardian_phone,
             'high_school_id' => $this->high_school_id,
             'high_school_name' => $this->highSchool?->school_name,
-            'high_school_address' => $this->formatAddress(
+            'high_school_address' => ThaiAddressFormatter::format(
                 $subdistrict?->subdistrict_name,
                 $district?->district_name,
                 $province?->province_name,
@@ -68,25 +69,5 @@ class StudentDetailResponse extends JsonResource
             'gpa' => (float) $this->gpa,
             'gpax' => (float) $this->gpax,
         ];
-    }
-
-    private function formatAddress(
-        ?string $subdistrict,
-        ?string $district,
-        ?string $province,
-        ?string $postalCode,
-    ): ?string {
-        if ($subdistrict === null && $district === null && $province === null) {
-            return null;
-        }
-
-        $subdistrict ??= '-';
-        $district ??= '-';
-        $province ??= '-';
-        $postalCode ??= '-';
-
-        return $province === 'กรุงเทพมหานคร'
-            ? "แขวง{$subdistrict} เขต{$district} {$province} {$postalCode}"
-            : "ตำบล{$subdistrict} อำเภอ{$district} จังหวัด{$province} {$postalCode}";
     }
 }
