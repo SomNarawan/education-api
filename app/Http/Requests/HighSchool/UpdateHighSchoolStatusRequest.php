@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\HighSchool;
 
-use App\Models\HighSchool;
+use App\Constants\Status;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,10 +14,7 @@ class UpdateHighSchoolStatusRequest extends FormRequest
             'status' => [
                 'required',
                 'string',
-                Rule::in([
-                    HighSchool::STATUS_ACTIVE,
-                    HighSchool::STATUS_INACTIVE,
-                ]),
+                Rule::in(Status::activeStatuses()),
             ],
         ];
     }

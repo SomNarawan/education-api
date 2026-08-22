@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Constants\Status;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\SyncResponse;
@@ -24,11 +25,7 @@ class SyncController extends Controller
             'status' => [
                 'nullable',
                 'string',
-                Rule::in([
-                    Sync::STATUS_RUNNING,
-                    Sync::STATUS_SUCCESS,
-                    Sync::STATUS_FAILED,
-                ]),
+                Rule::in(Status::syncStatuses()),
             ],
         ]);
 

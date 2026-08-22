@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Constants\HttpStatus;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\DataImportResponse;
@@ -48,14 +49,14 @@ class DataImportController extends Controller
             ->find($id);
 
         if ($import === null) {
-            return ApiResponse::error('Import not found', 404);
+            return ApiResponse::error('Import not found', HttpStatus::NOT_FOUND['code']);
         }
 
         $path = $import->file_result_path;
         $disk = Storage::disk('local');
 
         if (! is_string($path) || $path === '' || ! $disk->exists($path)) {
-            return ApiResponse::error('Import result file not found', 404);
+            return ApiResponse::error('Import result file not found', HttpStatus::NOT_FOUND['code']);
         }
 
         $type = $import->importType?->type ?? 'import';

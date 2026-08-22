@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Constants\HttpStatus;
+use App\Constants\Status;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -61,7 +62,7 @@ abstract class MasterDataController extends Controller
 
         $item = $this->newQuery()->create([
             ...$this->validateName($request),
-            'status' => 'active',
+            'status' => Status::ACTIVE,
             'created_by' => $actor,
             'updated_by' => $actor,
         ]);
@@ -69,7 +70,7 @@ abstract class MasterDataController extends Controller
         return ApiResponse::success(
             $this->responseData($item),
             "Create {$this->singularLabel} successfully",
-            201
+            HttpStatus::CREATED['code']
         );
     }
 
@@ -104,7 +105,7 @@ abstract class MasterDataController extends Controller
             'status' => [
                 'required',
                 'string',
-                Rule::in(['active', 'inactive']),
+                Rule::in(Status::activeStatuses()),
             ],
         ]);
 
@@ -128,35 +129,6 @@ abstract class MasterDataController extends Controller
         return ApiResponse::success(
             $this->responseData($item->refresh()),
             "Update {$this->singularLabel} status successfully"
-        );
-    }
-
-    public function destroy(int $id): JsonResponse
-    {
-        $item = $this->newQuery()->find($id);
-
-        if ($item === null) {
-            return $this->notFoundResponse();
-        }
-
-        try {
-            $item->delete();
-        } catch (QueryException $exception) {
-            $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
-
-            if (! str_starts_with($sqlState, '23')) {
-                throw $exception;
-            }
-
-            return ApiResponse::error(
-                ucfirst($this->singularLabel).' is in use and cannot be deleted',
-                409
-            );
-        }
-
-        return ApiResponse::success(
-            null,
-            "Delete {$this->singularLabel} successfully"
         );
     }
 
@@ -193,7 +165,7 @@ abstract class MasterDataController extends Controller
     {
         return ApiResponse::error(
             ucfirst($this->singularLabel).' not found',
-            404
+            HttpStatus::NOT_FOUND['code']
         );
     }
 
@@ -201,16 +173,14 @@ abstract class MasterDataController extends Controller
     {
         return ApiResponse::error(
             'JWT does not contain name, nontri_id, or sub',
-            422
+            HttpStatus::UNPROCESSABLE_ENTITY['code']
         );
     }
 
     private function actorFromJwt(Request $request): ?string
     {
         $claims = $request->attributes->get('jwt_claims', []);
-        $actor = $claims['name']
-            ?? $claims['nontri_id']
-            ?? $claims['sub']
+        $actor = $claims['nontri_id']
             ?? null;
 
         return is_scalar($actor) && trim((string) $actor) !== ''

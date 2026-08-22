@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Constants\HttpStatus;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\SystemDepartment;
@@ -34,7 +35,7 @@ class MeController extends Controller
             'faculty_id' => $this->getFacultyIdByDepartmentId($departmentId),
             'iat' => isset($claims['iat']) ? (int) $claims['iat'] : null,
             'exp' => isset($claims['exp']) ? (int) $claims['exp'] : null,
-        ], 'OK', 200);
+        ], HttpStatus::OK['message'], HttpStatus::OK['code']);
     }
 
     private function getFacultyIdByDepartmentId(mixed $departmentId): ?int

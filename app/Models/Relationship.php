@@ -7,10 +7,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Relationship extends Model
 {
-    public const STATUS_ACTIVE = 'active';
-
-    public const STATUS_INACTIVE = 'inactive';
-
     protected $table = 'relationships';
 
     protected $fillable = [

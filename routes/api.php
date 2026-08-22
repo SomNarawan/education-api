@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\DataImportController;
 use App\Http\Controllers\Api\DistrictController;
 use App\Http\Controllers\Api\HighSchoolController;
 use App\Http\Controllers\Api\ImportTypeController;
+use App\Http\Controllers\Api\ListOfValueController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\NoteTypeController;
@@ -35,13 +36,14 @@ Route::prefix('mock-login')->withoutMiddleware(AuthenticateJwt::class)->group(fu
 
 Route::get('/me', [MeController::class, 'show']);
 
+Route::get('/list-of-values/{type}', [ListOfValueController::class, 'index']);
+
 Route::prefix('titles')->group(function (): void {
     Route::get('/', [TitleController::class, 'index']);
     Route::post('/', [TitleController::class, 'store']);
     Route::get('/{id}', [TitleController::class, 'show'])->whereNumber('id');
     Route::match(['put', 'patch'], '/{id}', [TitleController::class, 'update'])->whereNumber('id');
     Route::patch('/{id}/status', [TitleController::class, 'updateStatus'])->whereNumber('id');
-    Route::delete('/{id}', [TitleController::class, 'destroy'])->whereNumber('id');
 });
 Route::prefix('admission-channels')->group(function (): void {
     Route::get('/', [AdmissionChannelController::class, 'index']);
@@ -49,7 +51,6 @@ Route::prefix('admission-channels')->group(function (): void {
     Route::get('/{id}', [AdmissionChannelController::class, 'show'])->whereNumber('id');
     Route::match(['put', 'patch'], '/{id}', [AdmissionChannelController::class, 'update'])->whereNumber('id');
     Route::patch('/{id}/status', [AdmissionChannelController::class, 'updateStatus'])->whereNumber('id');
-    Route::delete('/{id}', [AdmissionChannelController::class, 'destroy'])->whereNumber('id');
 });
 Route::get('/provinces', [ProvinceController::class, 'index']);
 Route::get('/districts', [DistrictController::class, 'index']);
@@ -67,7 +68,6 @@ Route::prefix('relationships')->group(function (): void {
     Route::get('/{id}', [RelationshipController::class, 'show'])->whereNumber('id');
     Route::match(['put', 'patch'], '/{id}', [RelationshipController::class, 'update'])->whereNumber('id');
     Route::patch('/{id}/status', [RelationshipController::class, 'updateStatus'])->whereNumber('id');
-    Route::delete('/{id}', [RelationshipController::class, 'destroy'])->whereNumber('id');
 });
 Route::prefix('student-statuses')->group(function (): void {
     Route::get('/', [StudentStatusController::class, 'index']);
@@ -75,7 +75,6 @@ Route::prefix('student-statuses')->group(function (): void {
     Route::get('/{id}', [StudentStatusController::class, 'show'])->whereNumber('id');
     Route::match(['put', 'patch'], '/{id}', [StudentStatusController::class, 'update'])->whereNumber('id');
     Route::patch('/{id}/status', [StudentStatusController::class, 'updateStatus'])->whereNumber('id');
-    Route::delete('/{id}', [StudentStatusController::class, 'destroy'])->whereNumber('id');
 });
 Route::prefix('note-types')->group(function (): void {
     Route::get('/', [NoteTypeController::class, 'index']);
@@ -83,7 +82,6 @@ Route::prefix('note-types')->group(function (): void {
     Route::get('/{id}', [NoteTypeController::class, 'show'])->whereNumber('id');
     Route::match(['put', 'patch'], '/{id}', [NoteTypeController::class, 'update'])->whereNumber('id');
     Route::patch('/{id}/status', [NoteTypeController::class, 'updateStatus'])->whereNumber('id');
-    Route::delete('/{id}', [NoteTypeController::class, 'destroy'])->whereNumber('id');
 });
 Route::prefix('import-types')->group(function (): void {
     Route::get('/', [ImportTypeController::class, 'index']);
@@ -91,7 +89,6 @@ Route::prefix('import-types')->group(function (): void {
     Route::get('/{id}', [ImportTypeController::class, 'show'])->whereNumber('id');
     Route::match(['put', 'patch'], '/{id}', [ImportTypeController::class, 'update'])->whereNumber('id');
     Route::patch('/{id}/status', [ImportTypeController::class, 'updateStatus'])->whereNumber('id');
-    Route::delete('/{id}', [ImportTypeController::class, 'destroy'])->whereNumber('id');
 });
 Route::get('/study-plans', [CurriculumPlanController::class, 'index']);
 Route::get('/curriculum-categories', [CurriculumCategoryController::class, 'index']);

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Constants\Status;
 use Illuminate\Database\Eloquent\Model;
 
 class Sync extends Model
@@ -11,12 +12,6 @@ class Sync extends Model
     public const TYPE_SYSTEM_DEPARTMENT = 2;
 
     public const TYPE_TEACHER = 3;
-
-    public const STATUS_RUNNING = 'running';
-
-    public const STATUS_SUCCESS = 'success';
-
-    public const STATUS_FAILED = 'failed';
 
     protected $table = 'syncs';
 
@@ -45,7 +40,7 @@ class Sync extends Model
             'synced_count' => 0,
             'deleted_count' => 0,
             'skipped_count' => 0,
-            'status' => self::STATUS_RUNNING,
+            'status' => Status::RUNNING,
             'error_message' => null,
         ]);
     }
@@ -59,7 +54,7 @@ class Sync extends Model
             'synced_count' => $syncedCount,
             'deleted_count' => $deletedCount,
             'skipped_count' => $skippedCount,
-            'status' => self::STATUS_SUCCESS,
+            'status' => Status::SUCCESS,
             'error_message' => null,
         ]);
 
@@ -69,7 +64,7 @@ class Sync extends Model
     public function markAsFailed(string $errorMessage): self
     {
         $this->update([
-            'status' => self::STATUS_FAILED,
+            'status' => Status::FAILED,
             'error_message' => $errorMessage,
         ]);
 

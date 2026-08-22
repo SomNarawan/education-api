@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Constants\Status;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -64,7 +65,7 @@ class Student extends Model
         return $query->whereHas(
             'studentStatus',
             fn (Builder $statusQuery) => $statusQuery
-                ->where('status_name', StudentStatus::STATUS_STUDYING)
+                ->where('status_name', Status::STUDYING)
         );
     }
 

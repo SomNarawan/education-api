@@ -3,6 +3,7 @@
 namespace App\Services\Students;
 
 use App\Actions\Students\SaveStudent;
+use App\Constants\Status;
 use App\Models\DataImport;
 use App\Models\ImportType;
 use Illuminate\Http\UploadedFile;
@@ -90,7 +91,7 @@ class StudentImportService
     {
         $importType = ImportType::query()
             ->where('type', 'student')
-            ->where('status', ImportType::STATUS_ACTIVE)
+            ->where('status', Status::ACTIVE)
             ->first();
 
         if ($importType === null) {
@@ -102,7 +103,7 @@ class StudentImportService
         $import = DataImport::query()->create([
             'import_type_id' => $importType->id,
             'file_name' => $file->getClientOriginalName(),
-            'status' => 'processing',
+            'status' => Status::PROCESSING,
             'imported_by' => $this->importedBy($claims),
             'started_at' => now(),
         ]);
@@ -183,7 +184,7 @@ class StudentImportService
             ];
         } catch (Throwable $exception) {
             $import->update([
-                'status' => 'failed',
+                'status' => Status::FAILED,
                 'completed_at' => now(),
             ]);
 
@@ -306,7 +307,7 @@ class StudentImportService
         $query = DB::table($table)->select(['id', ...$columns]);
 
         if ($activeOnly) {
-            $query->where('status', 'active');
+            $query->where('status', Status::ACTIVE);
         }
 
         if ($withoutDeleted) {
@@ -510,14 +511,14 @@ class StudentImportService
     private function resultStatus(int $successCount, int $failedCount): string
     {
         if ($failedCount === 0) {
-            return 'completed';
+            return Status::COMPLETED;
         }
 
         if ($successCount === 0) {
-            return 'failed';
+            return Status::FAILED;
         }
 
-        return 'completed_with_errors';
+        return Status::COMPLETED_WITH_ERRORS;
     }
 
     private function headerCell(string $value, string $backgroundColor): string

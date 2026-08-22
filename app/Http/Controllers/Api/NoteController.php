@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Constants\HttpStatus;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Note\ListNotesRequest;
@@ -46,7 +47,7 @@ class NoteController extends Controller
         if ($createdBy === null) {
             return ApiResponse::error(
                 'JWT does not contain name, nontri_id, or sub',
-                422
+                HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }
 
@@ -61,7 +62,7 @@ class NoteController extends Controller
         return ApiResponse::success(
             new NoteListResponse($note),
             'Create note successfully',
-            201
+            HttpStatus::CREATED['code']
         );
     }
 
@@ -73,7 +74,7 @@ class NoteController extends Controller
         $note = Note::query()->find($id);
 
         if ($note === null) {
-            return ApiResponse::error('Note not found', 404);
+            return ApiResponse::error('Note not found', HttpStatus::NOT_FOUND['code']);
         }
 
         $deletedBy = $this->actorFromJwt($request);
@@ -81,7 +82,7 @@ class NoteController extends Controller
         if ($deletedBy === null) {
             return ApiResponse::error(
                 'JWT does not contain name, nontri_id, or sub',
-                422
+                HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }
 

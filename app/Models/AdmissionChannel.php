@@ -6,10 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class AdmissionChannel extends Model
 {
-    public const STATUS_ACTIVE = 'active';
-
-    public const STATUS_INACTIVE = 'inactive';
-
     protected $table = 'admission_channels';
 
     protected $fillable = [

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Constants\HttpStatus;
+use App\Constants\Status;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\HighSchool\HighSchoolWriteRequest;
@@ -40,7 +42,7 @@ class HighSchoolController extends Controller
             ->find($id);
 
         if ($highSchool === null) {
-            return ApiResponse::error('High school not found', 404);
+            return ApiResponse::error('High school not found', HttpStatus::NOT_FOUND['code']);
         }
 
         return ApiResponse::success(
@@ -59,13 +61,13 @@ class HighSchoolController extends Controller
         if ($actor === null) {
             return ApiResponse::error(
                 'JWT does not contain name, nontri_id, or sub',
-                422
+                HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }
 
         $highSchool = HighSchool::query()->create([
             ...$request->validated(),
-            'status' => HighSchool::STATUS_ACTIVE,
+            'status' => Status::ACTIVE,
             'created_by' => $actor,
             'updated_by' => $actor,
         ]);
@@ -75,7 +77,7 @@ class HighSchoolController extends Controller
         return ApiResponse::success(
             (new HighSchoolResponse($highSchool))->resolve(),
             'Create high school successfully',
-            201
+            HttpStatus::CREATED['code']
         );
     }
 
@@ -87,7 +89,7 @@ class HighSchoolController extends Controller
         $highSchool = HighSchool::query()->find($id);
 
         if ($highSchool === null) {
-            return ApiResponse::error('High school not found', 404);
+            return ApiResponse::error('High school not found', HttpStatus::NOT_FOUND['code']);
         }
 
         $actor = $this->actorFromJwt($request);
@@ -95,7 +97,7 @@ class HighSchoolController extends Controller
         if ($actor === null) {
             return ApiResponse::error(
                 'JWT does not contain name, nontri_id, or sub',
-                422
+                HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }
 
@@ -120,7 +122,7 @@ class HighSchoolController extends Controller
         $highSchool = HighSchool::query()->find($id);
 
         if ($highSchool === null) {
-            return ApiResponse::error('High school not found', 404);
+            return ApiResponse::error('High school not found', HttpStatus::NOT_FOUND['code']);
         }
 
         $actor = $this->actorFromJwt($request);
@@ -128,7 +130,7 @@ class HighSchoolController extends Controller
         if ($actor === null) {
             return ApiResponse::error(
                 'JWT does not contain name, nontri_id, or sub',
-                422
+                HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }
 

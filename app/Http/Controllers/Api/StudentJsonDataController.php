@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Constants\HttpStatus;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -18,13 +19,16 @@ class StudentJsonDataController extends Controller
         $path = "data/enrollments/{$studentCode}.json";
 
         if (! Storage::disk('local')->exists($path)) {
-            return ApiResponse::error('Enrollment data not found', 404);
+            return ApiResponse::error('Enrollment data not found', HttpStatus::NOT_FOUND['code']);
         }
 
         try {
             $enrollment = $this->readJson($path);
         } catch (JsonException) {
-            return ApiResponse::error('Enrollment JSON data is invalid', 500);
+            return ApiResponse::error(
+                'Enrollment JSON data is invalid',
+                HttpStatus::INTERNAL_SERVER_ERROR['code']
+            );
         }
 
         return ApiResponse::success([
@@ -112,13 +116,13 @@ class StudentJsonDataController extends Controller
         } catch (JsonException $exception) {
             return ApiResponse::error(
                 'JSON data is invalid',
-                500,
+                HttpStatus::INTERNAL_SERVER_ERROR['code'],
                 ['section' => $exception->getMessage()],
             );
         }
 
         if ($loadedFiles === 0) {
-            return ApiResponse::error($notFoundMessage, 404);
+            return ApiResponse::error($notFoundMessage, HttpStatus::NOT_FOUND['code']);
         }
 
         $data['missing_sections'] = $missingSections;

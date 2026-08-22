@@ -2,19 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Constants\HttpStatus;
 use App\Models\Teacher;
 use App\Services\JwtIssuer;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 
 class MockLoginController extends Controller
 {
     public function __construct()
     {
         abort_unless(
-            config('mock_login.enabled') && !app()->environment('production'),
-            404
+            config('mock_login.enabled') && ! app()->environment('production'),
+            HttpStatus::NOT_FOUND['code']
         );
     }
 
@@ -57,7 +58,11 @@ class MockLoginController extends Controller
     {
         $teacher = Teacher::where('nontri_id', $nontriId)->first();
 
-        abort_unless($teacher, 404, "ไม่พบ teacher nontri_id={$nontriId} — เช็คว่า sync แล้วหรือพิมพ์ผิด");
+        abort_unless(
+            $teacher,
+            HttpStatus::NOT_FOUND['code'],
+            "ไม่พบ teacher nontri_id={$nontriId} — เช็คว่า sync แล้วหรือพิมพ์ผิด"
+        );
 
         $isAdmin = $request->boolean('admin')
             || in_array($teacher->nontri_id, config('mock_login.admin_nontri_ids'), true);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Constants\HttpStatus;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\SyncResponse;
@@ -131,7 +132,7 @@ class SystemDepartmentController extends Controller
 
             return ApiResponse::error(
                 $e->getMessage(),
-                500
+                HttpStatus::INTERNAL_SERVER_ERROR['code']
             );
         }
     }

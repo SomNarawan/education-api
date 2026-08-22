@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Actions\Students\SaveStudent;
 use App\Actions\Students\UpdateStudentAdvisor;
+use App\Constants\HttpStatus;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\ListStudentsRequest;
@@ -94,7 +95,7 @@ class StudentController extends Controller
         $student = $this->studentQuery->detail($id);
 
         if ($student === null) {
-            return ApiResponse::error('Student not found', 404);
+            return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
         }
 
         return ApiResponse::success(
@@ -114,7 +115,7 @@ class StudentController extends Controller
         return ApiResponse::success(
             (new StudentDetailResponse($student))->resolve(),
             'Create student successfully',
-            201
+            HttpStatus::CREATED['code']
         );
     }
 
@@ -126,7 +127,7 @@ class StudentController extends Controller
         $student = Student::query()->find($id);
 
         if ($student === null) {
-            return ApiResponse::error('Student not found', 404);
+            return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
         }
 
         $this->saveStudent->update($student, $request->validated());
@@ -146,7 +147,7 @@ class StudentController extends Controller
         $student = Student::query()->find($id);
 
         if ($student === null) {
-            return ApiResponse::error('Student not found', 404);
+            return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
         }
 
         $student->delete();

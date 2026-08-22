@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Constants\HttpStatus;
+use App\Constants\Status;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Title\TitleWriteRequest;
@@ -37,7 +39,7 @@ class TitleController extends Controller
         $title = Title::query()->find($id);
 
         if ($title === null) {
-            return ApiResponse::error('Title not found', 404);
+            return ApiResponse::error('Title not found', HttpStatus::NOT_FOUND['code']);
         }
 
         return ApiResponse::success(
@@ -56,13 +58,13 @@ class TitleController extends Controller
         if ($actor === null) {
             return ApiResponse::error(
                 'JWT does not contain name, nontri_id, or sub',
-                422
+                HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }
 
         $title = Title::query()->create([
             ...$request->validated(),
-            'status' => Title::STATUS_ACTIVE,
+            'status' => Status::ACTIVE,
             'created_by' => $actor,
             'updated_by' => $actor,
         ]);
@@ -70,7 +72,7 @@ class TitleController extends Controller
         return ApiResponse::success(
             (new TitleResponse($title))->resolve(),
             'Create title successfully',
-            201
+            HttpStatus::CREATED['code']
         );
     }
 
@@ -82,7 +84,7 @@ class TitleController extends Controller
         $title = Title::query()->find($id);
 
         if ($title === null) {
-            return ApiResponse::error('Title not found', 404);
+            return ApiResponse::error('Title not found', HttpStatus::NOT_FOUND['code']);
         }
 
         $actor = $this->actorFromJwt($request);
@@ -90,7 +92,7 @@ class TitleController extends Controller
         if ($actor === null) {
             return ApiResponse::error(
                 'JWT does not contain name, nontri_id, or sub',
-                422
+                HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }
 
@@ -113,7 +115,7 @@ class TitleController extends Controller
         $title = Title::query()->find($id);
 
         if ($title === null) {
-            return ApiResponse::error('Title not found', 404);
+            return ApiResponse::error('Title not found', HttpStatus::NOT_FOUND['code']);
         }
 
         $actor = $this->actorFromJwt($request);
@@ -121,7 +123,7 @@ class TitleController extends Controller
         if ($actor === null) {
             return ApiResponse::error(
                 'JWT does not contain name, nontri_id, or sub',
-                422
+                HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }
 
@@ -134,22 +136,6 @@ class TitleController extends Controller
             (new TitleResponse($title->refresh()))->resolve(),
             'Update title status successfully'
         );
-    }
-
-    /**
-     * API: DELETE /api/titles/{id}
-     */
-    public function destroy(int $id): JsonResponse
-    {
-        $title = Title::query()->find($id);
-
-        if ($title === null) {
-            return ApiResponse::error('Title not found', 404);
-        }
-
-        $title->delete();
-
-        return ApiResponse::success(null, 'Delete title successfully');
     }
 
     private function actorFromJwt(Request $request): ?string
