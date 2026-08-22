@@ -11,7 +11,6 @@ use App\Http\Requests\Title\UpdateTitleStatusRequest;
 use App\Http\Responses\TitleResponse;
 use App\Models\Title;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class TitleController extends Controller
 {
@@ -136,18 +135,5 @@ class TitleController extends Controller
             (new TitleResponse($title->refresh()))->resolve(),
             'Update title status successfully'
         );
-    }
-
-    private function actorFromJwt(Request $request): ?string
-    {
-        $claims = $request->attributes->get('jwt_claims', []);
-        $actor = $claims['name']
-            ?? $claims['nontri_id']
-            ?? $claims['sub']
-            ?? null;
-
-        return is_scalar($actor) && trim((string) $actor) !== ''
-            ? trim((string) $actor)
-            : null;
     }
 }

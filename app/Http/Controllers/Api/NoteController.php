@@ -91,17 +91,4 @@ class NoteController extends Controller
 
         return ApiResponse::success(null, 'Delete note successfully');
     }
-
-    private function actorFromJwt(Request $request): ?string
-    {
-        $claims = $request->attributes->get('jwt_claims', []);
-        $actor = $claims['name']
-            ?? $claims['nontri_id']
-            ?? $claims['sub']
-            ?? null;
-
-        return is_scalar($actor) && trim((string) $actor) !== ''
-            ? trim((string) $actor)
-            : null;
-    }
 }

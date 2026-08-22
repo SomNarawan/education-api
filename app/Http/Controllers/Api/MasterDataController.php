@@ -176,15 +176,4 @@ abstract class MasterDataController extends Controller
             HttpStatus::UNPROCESSABLE_ENTITY['code']
         );
     }
-
-    private function actorFromJwt(Request $request): ?string
-    {
-        $claims = $request->attributes->get('jwt_claims', []);
-        $actor = $claims['nontri_id']
-            ?? null;
-
-        return is_scalar($actor) && trim((string) $actor) !== ''
-            ? trim((string) $actor)
-            : null;
-    }
 }

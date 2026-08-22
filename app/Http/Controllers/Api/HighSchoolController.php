@@ -8,10 +8,10 @@ use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\HighSchool\HighSchoolWriteRequest;
 use App\Http\Requests\HighSchool\UpdateHighSchoolStatusRequest;
+use App\Http\Responses\HighSchoolListResponse;
 use App\Http\Responses\HighSchoolResponse;
 use App\Models\HighSchool;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class HighSchoolController extends Controller
 {
@@ -21,13 +21,21 @@ class HighSchoolController extends Controller
     public function index(): JsonResponse
     {
         $items = HighSchool::query()
-            ->with('subdistrict.district.province')
+            ->select([
+                'id',
+                'school_name',
+                'created_by',
+                'created_at',
+                'updated_by',
+                'updated_at',
+                'status',
+            ])
             ->orderBy('school_name')
             ->orderBy('id')
             ->get();
 
         return ApiResponse::success(
-            HighSchoolResponse::collection($items)->resolve(),
+            HighSchoolListResponse::collection($items)->resolve(),
             'Load high schools successfully'
         );
     }
@@ -145,18 +153,5 @@ class HighSchoolController extends Controller
             (new HighSchoolResponse($highSchool))->resolve(),
             'Update high school status successfully'
         );
-    }
-
-    private function actorFromJwt(Request $request): ?string
-    {
-        $claims = $request->attributes->get('jwt_claims', []);
-        $actor = $claims['name']
-            ?? $claims['nontri_id']
-            ?? $claims['sub']
-            ?? null;
-
-        return is_scalar($actor) && trim((string) $actor) !== ''
-            ? trim((string) $actor)
-            : null;
     }
 }
