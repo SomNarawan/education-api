@@ -61,7 +61,7 @@ abstract class MasterDataController extends Controller
         }
 
         $item = $this->newQuery()->create([
-            ...$this->validateName($request),
+            ...$request->validate($this->writeRules()),
             'status' => Status::ACTIVE,
             'created_by' => $actor,
             'updated_by' => $actor,
@@ -89,7 +89,7 @@ abstract class MasterDataController extends Controller
         }
 
         $item->update([
-            ...$this->validateName($request),
+            ...$request->validate($this->writeRules()),
             'updated_by' => $actor,
         ]);
 
@@ -137,18 +137,18 @@ abstract class MasterDataController extends Controller
         return $this->modelClass::query();
     }
 
-    private function validateName(Request $request): array
+    protected function writeRules(): array
     {
-        return $request->validate([
+        return [
             $this->nameField => [
                 'required',
                 'string',
                 "max:{$this->nameMaxLength}",
             ],
-        ]);
+        ];
     }
 
-    private function responseData(Model $item): array
+    protected function responseData(Model $item): array
     {
         return [
             'id' => (int) $item->getKey(),
