@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Student;
 
+use App\Constants\Status;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -38,7 +39,7 @@ class StudentWriteRequest extends FormRequest
                 'sometimes',
                 'nullable',
                 'integer',
-                Rule::exists('system_teachers', 'id')->whereNull('deleted_at'),
+                Rule::exists('system_teachers', 'id')->where('status', Status::ACTIVE),
             ],
             'student_status_id' => $this->requiredRules(['integer', 'exists:student_statuses,id']),
             'admission_channel_id' => $this->requiredRules(['integer', 'exists:admission_channels,id']),
@@ -47,7 +48,7 @@ class StudentWriteRequest extends FormRequest
             'department_id' => [
                 'sometimes',
                 'integer',
-                Rule::exists('system_departments', 'id')->whereNull('deleted_at'),
+                Rule::exists('system_departments', 'id')->where('status', Status::ACTIVE),
             ],
             'entry_year' => $this->requiredRules(['integer', 'between:1900,2100']),
             'study_year' => ['sometimes', 'integer', 'min:1'],

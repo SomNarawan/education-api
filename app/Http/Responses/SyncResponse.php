@@ -18,7 +18,9 @@ class SyncResponse extends JsonResource
             'status' => $this->status,
             'error_message' => $this->error_message,
             'created_at' => $this->created_at,
+            'created_by' => $this->created_by,
             'updated_at' => $this->updated_at,
+            'updated_by' => $this->updated_by,
         ];
     }
 }

@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasActiveStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SystemTeacher extends Model
 {
-    use SoftDeletes;
+    use HasActiveStatus;
 
     protected $table = 'system_teachers';
 
@@ -18,8 +18,7 @@ class SystemTeacher extends Model
         'department_id',
         'created_by',
         'updated_by',
-        'deleted_at',
-        'deleted_by',
+        'status',
         'sync_id',
     ];
 
@@ -28,7 +27,6 @@ class SystemTeacher extends Model
         'sync_id' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
     ];
 
     public function systemDepartment(): BelongsTo

@@ -22,6 +22,8 @@ class Sync extends Model
         'skipped_count',
         'status',
         'error_message',
+        'created_by',
+        'updated_by',
     ];
 
     protected $casts = [
@@ -33,7 +35,7 @@ class Sync extends Model
         'updated_at' => 'datetime',
     ];
 
-    public static function start(int $syncType): self
+    public static function start(int $syncType, string $actor): self
     {
         return self::create([
             'sync_type' => $syncType,
@@ -42,30 +44,35 @@ class Sync extends Model
             'skipped_count' => 0,
             'status' => Status::RUNNING,
             'error_message' => null,
+            'created_by' => $actor,
+            'updated_by' => $actor,
         ]);
     }
 
     public function markAsSuccess(
         int $syncedCount,
-        int $deletedCount = 0,
-        int $skippedCount = 0
+        int $inactiveCount,
+        int $skippedCount,
+        string $actor
     ): self {
         $this->update([
             'synced_count' => $syncedCount,
-            'deleted_count' => $deletedCount,
+            'deleted_count' => $inactiveCount,
             'skipped_count' => $skippedCount,
             'status' => Status::SUCCESS,
             'error_message' => null,
+            'updated_by' => $actor,
         ]);
 
         return $this->refresh();
     }
 
-    public function markAsFailed(string $errorMessage): self
+    public function markAsFailed(string $errorMessage, string $actor): self
     {
         $this->update([
             'status' => Status::FAILED,
             'error_message' => $errorMessage,
+            'updated_by' => $actor,
         ]);
 
         return $this->refresh();

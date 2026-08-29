@@ -31,7 +31,7 @@ class SystemFacultyController extends Controller
      */
     public function all(): JsonResponse
     {
-        $items = SystemFaculty::withTrashed()
+        $items = SystemFaculty::withInactive()
             ->orderBy('th_name')
             ->orderBy('id')
             ->get();

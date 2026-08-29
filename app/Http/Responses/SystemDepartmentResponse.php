@@ -19,8 +19,7 @@ class SystemDepartmentResponse extends JsonResource
             'created_by' => $this->created_by,
             'updated_at' => $this->updated_at,
             'updated_by' => $this->updated_by,
-            'deleted_at' => $this->deleted_at,
-            'deleted_by' => $this->deleted_by,
+            'status' => $this->status,
             'sync_id' => $this->sync_id,
         ];
     }

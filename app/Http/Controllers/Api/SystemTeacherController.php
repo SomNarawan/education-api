@@ -44,7 +44,7 @@ class SystemTeacherController extends Controller
             'department_id' => ['sometimes', 'integer', 'min:1'],
         ]);
 
-        $items = SystemTeacher::withTrashed()
+        $items = SystemTeacher::withInactive()
             ->when(
                 isset($validated['department_id']),
                 fn ($query) => $query->where('department_id', $validated['department_id'])

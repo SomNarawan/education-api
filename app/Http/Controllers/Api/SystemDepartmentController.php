@@ -31,7 +31,7 @@ class SystemDepartmentController extends Controller
      */
     public function all(): JsonResponse
     {
-        $items = SystemDepartment::withTrashed()
+        $items = SystemDepartment::withInactive()
             ->orderBy('th_name')
             ->orderBy('id')
             ->get();

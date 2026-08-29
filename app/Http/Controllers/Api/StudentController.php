@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Actions\Students\SaveStudent;
 use App\Actions\Students\UpdateStudentAdvisor;
 use App\Constants\HttpStatus;
+use App\Constants\Status;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\ListStudentsRequest;
@@ -18,6 +19,7 @@ use App\Models\Student;
 use App\Services\Students\StudentQueryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class StudentController extends Controller
 {
@@ -59,7 +61,12 @@ class StudentController extends Controller
     public function studyingWithoutAdvisor(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'department_id' => ['required', 'integer', 'min:1', 'exists:system_departments,id'],
+            'department_id' => [
+                'required',
+                'integer',
+                'min:1',
+                Rule::exists('system_departments', 'id')->where('status', Status::ACTIVE),
+            ],
         ]);
 
         $students = Student::query()

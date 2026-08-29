@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasActiveStatus;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SystemFaculty extends Model
 {
-    use SoftDeletes;
+    use HasActiveStatus;
 
     protected $table = 'system_faculties';
 
@@ -18,8 +18,7 @@ class SystemFaculty extends Model
         'en_short_name',
         'created_by',
         'updated_by',
-        'deleted_at',
-        'deleted_by',
+        'status',
         'sync_id',
     ];
 
@@ -27,6 +26,5 @@ class SystemFaculty extends Model
         'sync_id' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
     ];
 }

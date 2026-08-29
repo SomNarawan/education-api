@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Constants\Status;
 use App\Models\Sync;
 use App\Models\SystemDepartment;
 use App\Models\SystemFaculty;
@@ -30,13 +31,13 @@ class SystemMasterDataSyncService
      */
     public function sync(int $syncType, string $actor): Sync
     {
-        $sync = Sync::start($syncType);
+        $sync = Sync::start($syncType, $actor);
 
         try {
             $items = $this->fetchItems($syncType);
 
             return DB::transaction(function () use ($sync, $syncType, $items, $actor): Sync {
-                [$synced, $deleted] = match ($syncType) {
+                [$synced, $inactivated] = match ($syncType) {
                     Sync::TYPE_SYSTEM_FACULTY => $this->syncFaculties($items, $sync, $actor),
                     Sync::TYPE_SYSTEM_DEPARTMENT => $this->syncDepartments($items, $sync, $actor),
                     Sync::TYPE_SYSTEM_TEACHER => $this->syncTeachers($items, $sync, $actor),
@@ -45,11 +46,11 @@ class SystemMasterDataSyncService
 
                 $skipped = max(count($items) - $synced, 0);
 
-                return $sync->markAsSuccess($synced, $deleted, $skipped);
+                return $sync->markAsSuccess($synced, $inactivated, $skipped, $actor);
             });
         } catch (Throwable $exception) {
             try {
-                $sync->markAsFailed($exception->getMessage());
+                $sync->markAsFailed($exception->getMessage(), $actor);
             } catch (Throwable) {
                 // Keep the original sync error for the API response.
             }
@@ -102,7 +103,7 @@ class SystemMasterDataSyncService
             $facultyId = (int) $faculty['id'];
             $activeFacultyIds[] = $facultyId;
 
-            $model = SystemFaculty::withTrashed()->whereKey($facultyId)->first()
+            $model = SystemFaculty::withInactive()->whereKey($facultyId)->first()
                 ?? new SystemFaculty;
 
             if (! $model->exists) {
@@ -121,7 +122,7 @@ class SystemMasterDataSyncService
 
         return [
             $synced,
-            $this->softDeleteMissing(
+            $this->deactivateMissing(
                 SystemFaculty::class,
                 'id',
                 $activeFacultyIds,
@@ -154,7 +155,7 @@ class SystemMasterDataSyncService
             $departmentId = (int) $department['id'];
             $activeDepartmentIds[] = $departmentId;
 
-            $model = SystemDepartment::withTrashed()->whereKey($departmentId)->first()
+            $model = SystemDepartment::withInactive()->whereKey($departmentId)->first()
                 ?? new SystemDepartment;
 
             if (! $model->exists) {
@@ -174,7 +175,7 @@ class SystemMasterDataSyncService
 
         return [
             $synced,
-            $this->softDeleteMissing(
+            $this->deactivateMissing(
                 SystemDepartment::class,
                 'id',
                 $activeDepartmentIds,
@@ -207,7 +208,7 @@ class SystemMasterDataSyncService
             $nontriId = trim($teacher['nontri_id']);
             $activeNontriIds[] = $nontriId;
 
-            $model = SystemTeacher::withTrashed()
+            $model = SystemTeacher::withInactive()
                 ->where('nontri_id', $nontriId)
                 ->first() ?? new SystemTeacher;
 
@@ -222,7 +223,7 @@ class SystemMasterDataSyncService
 
         return [
             $synced,
-            $this->softDeleteMissing(
+            $this->deactivateMissing(
                 SystemTeacher::class,
                 'nontri_id',
                 $activeNontriIds,
@@ -241,8 +242,7 @@ class SystemMasterDataSyncService
         $model->fill([
             ...$attributes,
             'updated_by' => $actor,
-            'deleted_at' => null,
-            'deleted_by' => '',
+            'status' => Status::ACTIVE,
             'sync_id' => $sync->getKey(),
         ])->save();
     }
@@ -250,22 +250,17 @@ class SystemMasterDataSyncService
     /**
      * @param  class-string<Model>  $modelClass
      */
-    private function softDeleteMissing(
+    private function deactivateMissing(
         string $modelClass,
         string $key,
         array $activeValues,
         Sync $sync,
         string $actor
     ): int {
-        if ($activeValues === []) {
-            return 0;
-        }
-
         return $modelClass::query()
             ->whereNotIn($key, array_values(array_unique($activeValues)))
             ->update([
-                'deleted_at' => now(),
-                'deleted_by' => $actor,
+                'status' => Status::INACTIVE,
                 'updated_by' => $actor,
                 'sync_id' => $sync->getKey(),
             ]);

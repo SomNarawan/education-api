@@ -290,7 +290,7 @@ class StudentImportService
         return [
             'titles' => $this->lookup('titles', ['title_abbr_th', 'title_name_th'], true),
             'study_plans' => $this->lookup('curriculum_plans', ['name_th', 'code'], true),
-            'systemTeachers' => $this->lookup('system_teachers', ['full_name_th'], false, true),
+            'systemTeachers' => $this->lookup('system_teachers', ['full_name_th'], true),
             'admission_channels' => $this->lookup('admission_channels', ['channel_name'], true),
             'high_schools' => $this->lookup('high_schools', ['school_name'], true),
             'relationships' => $this->lookup('relationships', ['relationship_name'], true),
@@ -302,16 +302,11 @@ class StudentImportService
         string $table,
         array $columns,
         bool $activeOnly,
-        bool $withoutDeleted = false,
     ): array {
         $query = DB::table($table)->select(['id', ...$columns]);
 
         if ($activeOnly) {
             $query->where('status', Status::ACTIVE);
-        }
-
-        if ($withoutDeleted) {
-            $query->whereNull('deleted_at');
         }
 
         $lookup = [];

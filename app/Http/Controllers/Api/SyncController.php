@@ -69,7 +69,9 @@ class SyncController extends Controller
                 'syncs.status',
                 'syncs.error_message',
                 'syncs.created_at',
+                'syncs.created_by',
                 'syncs.updated_at',
+                'syncs.updated_by',
             ])
             ->orderBy('sync_types.id')
             ->get();
