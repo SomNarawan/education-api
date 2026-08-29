@@ -15,6 +15,7 @@ class SystemDepartmentResponse extends JsonResource
             'th_short_name' => $this->th_short_name,
             'en_short_name' => $this->en_short_name,
             'system_faculty_id' => $this->system_faculty_id,
+            'faculty_name' => $this->systemFaculty?->th_name,
             'created_at' => $this->created_at,
             'created_by' => $this->created_by,
             'updated_at' => $this->updated_at,

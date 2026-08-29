@@ -16,6 +16,7 @@ class SystemDepartmentController extends Controller
     public function index(): JsonResponse
     {
         $items = SystemDepartment::query()
+            ->with('systemFaculty')
             ->orderBy('th_name')
             ->orderBy('id')
             ->get();
@@ -32,6 +33,9 @@ class SystemDepartmentController extends Controller
     public function all(): JsonResponse
     {
         $items = SystemDepartment::withInactive()
+            ->with([
+                'systemFaculty' => fn ($query) => $query->withInactive(),
+            ])
             ->orderBy('th_name')
             ->orderBy('id')
             ->get();
