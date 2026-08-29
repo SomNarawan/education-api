@@ -18,20 +18,15 @@ use Throwable;
 class SystemTeacherController extends Controller
 {
     /**
-     * API: GET /api/system-teachers?department_id={id}&include_deleted={boolean}
+     * API: GET /api/system-teachers?department_id={id}
      */
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'department_id' => ['sometimes', 'integer', 'min:1'],
-            'include_deleted' => ['sometimes', 'in:true,false,1,0'],
         ]);
 
         $items = SystemTeacher::query()
-            ->when(
-                $request->boolean('include_deleted'),
-                fn ($query) => $query->withTrashed()
-            )
             ->when(
                 isset($validated['department_id']),
                 fn ($query) => $query->where('department_id', $validated['department_id'])
@@ -46,9 +41,34 @@ class SystemTeacherController extends Controller
     }
 
     /**
+     * API: GET /api/system-teachers/all?department_id={id}
+     */
+    public function all(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'department_id' => ['sometimes', 'integer', 'min:1'],
+        ]);
+
+        $items = SystemTeacher::withTrashed()
+            ->when(
+                isset($validated['department_id']),
+                fn ($query) => $query->where('department_id', $validated['department_id'])
+            )
+            ->orderBy('full_name_th')
+            ->orderBy('id')
+            ->get();
+
+        return ApiResponse::success(
+            SystemTeacherListResponse::collection($items),
+            'Load all system teachers successfully'
+        );
+    }
+
+    /**
      * API: POST /api/system-teachers/sync
      */
     public function sync(
+        Request $request,
         PersonnelApiService $personnelApiService
     ): JsonResponse {
         $sync = null;
@@ -62,6 +82,7 @@ class SystemTeacherController extends Controller
             $synced = 0;
             $deleted = 0;
             $activeNontriIds = [];
+            $actor = $this->actorFromJwt($request) ?? 'system';
 
             $departmentIds = collect($systemTeachers)
                 ->pluck('department_id')
@@ -105,18 +126,25 @@ class SystemTeacherController extends Controller
 
                 $activeNontriIds[] = $nontriId;
 
-                SystemTeacher::updateOrCreate(
-                    [
-                        'nontri_id' => $nontriId,
-                    ],
-                    [
-                        'full_name_th' => $fullName,
-                        'department_id' => $departmentId,
+                $model = SystemTeacher::withTrashed()
+                    ->where('nontri_id', $nontriId)
+                    ->first() ?? new SystemTeacher;
 
-                        // ถ้าเคยถูกลบ แล้ว API ส่งกลับมาอีก ให้กลับมาใช้งาน
-                        'deleted_at' => null,
-                    ]
-                );
+                if (! $model->exists) {
+                    $model->setAttribute('created_by', $actor);
+                }
+
+                $model->fill([
+                    'nontri_id' => $nontriId,
+                    'full_name_th' => $fullName,
+                    'department_id' => $departmentId,
+                    'updated_by' => $actor,
+
+                    // ถ้าเคยถูกลบ แล้ว API ส่งกลับมาอีก ให้กลับมาใช้งาน
+                    'deleted_at' => null,
+                    'deleted_by' => '',
+                    'sync_id' => $sync->getKey(),
+                ])->save();
 
                 $synced++;
             }
@@ -127,6 +155,9 @@ class SystemTeacherController extends Controller
                     ->whereNotIn('nontri_id', $activeNontriIds)
                     ->update([
                         'deleted_at' => now(),
+                        'deleted_by' => $actor,
+                        'updated_by' => $actor,
+                        'sync_id' => $sync->getKey(),
                     ]);
             }
 

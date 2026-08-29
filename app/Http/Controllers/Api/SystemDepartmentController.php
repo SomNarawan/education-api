@@ -6,11 +6,13 @@ use App\Constants\HttpStatus;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\SyncResponse;
+use App\Http\Responses\SystemDepartmentResponse;
 use App\Models\Sync;
 use App\Models\SystemDepartment;
 use App\Models\SystemFaculty;
 use App\Services\PersonnelApiService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Throwable;
 
 class SystemDepartmentController extends Controller
@@ -21,18 +23,37 @@ class SystemDepartmentController extends Controller
     public function index(): JsonResponse
     {
         $items = SystemDepartment::query()
-            ->where('deleted_at', null)
             ->orderBy('th_name')
             ->orderBy('id')
             ->get();
 
-        return ApiResponse::success($items, 'Load system departments successfully');
+        return ApiResponse::success(
+            SystemDepartmentResponse::collection($items)->resolve(),
+            'Load system departments successfully'
+        );
+    }
+
+    /**
+     * API: GET /api/system-departments/all
+     */
+    public function all(): JsonResponse
+    {
+        $items = SystemDepartment::withTrashed()
+            ->orderBy('th_name')
+            ->orderBy('id')
+            ->get();
+
+        return ApiResponse::success(
+            SystemDepartmentResponse::collection($items)->resolve(),
+            'Load all system departments successfully'
+        );
     }
 
     /**
      * API: POST /api/system-departments/sync
      */
     public function sync(
+        Request $request,
         PersonnelApiService $personnelApiService
     ): JsonResponse {
         $sync = null;
@@ -47,6 +68,7 @@ class SystemDepartmentController extends Controller
             $synced = 0;
             $deleted = 0;
             $activeDepartmentIds = [];
+            $actor = $this->actorFromJwt($request) ?? 'system';
 
             $facultyIds = collect($departments)
                 ->pluck('system_faculty_id')
@@ -88,19 +110,25 @@ class SystemDepartmentController extends Controller
 
                 $activeDepartmentIds[] = $departmentId;
 
-                SystemDepartment::updateOrCreate(
-                    [
-                        'id' => $departmentId,
-                    ],
-                    [
-                        'th_name' => $department['th_name'],
-                        'en_name' => $department['en_name'],
-                        'th_short_name' => $department['th_short_name'],
-                        'en_short_name' => $department['en_short_name'],
-                        'system_faculty_id' => $systemFacultyId,
-                        'deleted_at' => null,
-                    ]
-                );
+                $model = SystemDepartment::withTrashed()->whereKey($departmentId)->first()
+                    ?? new SystemDepartment;
+
+                if (! $model->exists) {
+                    $model->setAttribute('id', $departmentId);
+                    $model->setAttribute('created_by', $actor);
+                }
+
+                $model->fill([
+                    'th_name' => $department['th_name'],
+                    'en_name' => $department['en_name'] ?? '-',
+                    'th_short_name' => $department['th_short_name'] ?? '-',
+                    'en_short_name' => $department['en_short_name'] ?? '-',
+                    'system_faculty_id' => $systemFacultyId,
+                    'updated_by' => $actor,
+                    'deleted_at' => null,
+                    'deleted_by' => '',
+                    'sync_id' => $sync->getKey(),
+                ])->save();
 
                 $synced++;
             }
@@ -111,6 +139,9 @@ class SystemDepartmentController extends Controller
                     ->whereNotIn('id', $activeDepartmentIds)
                     ->update([
                         'deleted_at' => now(),
+                        'deleted_by' => $actor,
+                        'updated_by' => $actor,
+                        'sync_id' => $sync->getKey(),
                     ]);
             }
 

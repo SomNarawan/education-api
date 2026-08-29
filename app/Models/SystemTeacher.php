@@ -16,7 +16,19 @@ class SystemTeacher extends Model
         'nontri_id',
         'full_name_th',
         'department_id',
+        'created_by',
+        'updated_by',
         'deleted_at',
+        'deleted_by',
+        'sync_id',
+    ];
+
+    protected $casts = [
+        'department_id' => 'integer',
+        'sync_id' => 'integer',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     public function systemDepartment(): BelongsTo

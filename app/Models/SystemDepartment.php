@@ -18,7 +18,19 @@ class SystemDepartment extends Model
         'th_short_name',
         'en_short_name',
         'system_faculty_id',
+        'created_by',
+        'updated_by',
         'deleted_at',
+        'deleted_by',
+        'sync_id',
+    ];
+
+    protected $casts = [
+        'system_faculty_id' => 'integer',
+        'sync_id' => 'integer',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     public function systemFaculty(): BelongsTo

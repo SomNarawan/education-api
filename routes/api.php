@@ -109,8 +109,11 @@ Route::prefix('students')->group(function (): void {
     Route::delete('/{id}', [StudentController::class, 'destroy'])->whereNumber('id');
 });
 
-Route::get('/system-teachers', [SystemTeacherController::class, 'index']);
-Route::post('/system-teachers/sync', [SystemTeacherController::class, 'sync']);
+Route::prefix('system-teachers')->group(function (): void {
+    Route::get('/', [SystemTeacherController::class, 'index']);
+    Route::get('/all', [SystemTeacherController::class, 'all']);
+    Route::post('/sync', [SystemTeacherController::class, 'sync']);
+});
 
 Route::get('/notes', [NoteController::class, 'index']);
 Route::post('/notes', [NoteController::class, 'store']);
@@ -118,8 +121,14 @@ Route::delete('/notes/{id}', [NoteController::class, 'destroy'])->whereNumber('i
 
 Route::get('/syncs', [SyncController::class, 'index']);
 
-Route::get('/system-departments', [SystemDepartmentController::class, 'index']);
-Route::post('/system-departments/sync', [SystemDepartmentController::class, 'sync']);
+Route::prefix('system-departments')->group(function (): void {
+    Route::get('/', [SystemDepartmentController::class, 'index']);
+    Route::get('/all', [SystemDepartmentController::class, 'all']);
+    Route::post('/sync', [SystemDepartmentController::class, 'sync']);
+});
 
-Route::get('/system-faculties', [SystemFacultyController::class, 'index']);
-Route::post('/system-faculties/sync', [SystemFacultyController::class, 'sync']);
+Route::prefix('system-faculties')->group(function (): void {
+    Route::get('/', [SystemFacultyController::class, 'index']);
+    Route::get('/all', [SystemFacultyController::class, 'all']);
+    Route::post('/sync', [SystemFacultyController::class, 'sync']);
+});

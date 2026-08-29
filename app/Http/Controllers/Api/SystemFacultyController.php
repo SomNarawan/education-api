@@ -6,10 +6,12 @@ use App\Constants\HttpStatus;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\SyncResponse;
+use App\Http\Responses\SystemFacultyResponse;
 use App\Models\Sync;
 use App\Models\SystemFaculty;
 use App\Services\PersonnelApiService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Throwable;
 
 class SystemFacultyController extends Controller
@@ -20,18 +22,37 @@ class SystemFacultyController extends Controller
     public function index(): JsonResponse
     {
         $items = SystemFaculty::query()
-            ->where('deleted_at', null)
             ->orderBy('th_name')
             ->orderBy('id')
             ->get();
 
-        return ApiResponse::success($items, 'Load system faculties successfully');
+        return ApiResponse::success(
+            SystemFacultyResponse::collection($items)->resolve(),
+            'Load system faculties successfully'
+        );
+    }
+
+    /**
+     * API: GET /api/system-faculties/all
+     */
+    public function all(): JsonResponse
+    {
+        $items = SystemFaculty::withTrashed()
+            ->orderBy('th_name')
+            ->orderBy('id')
+            ->get();
+
+        return ApiResponse::success(
+            SystemFacultyResponse::collection($items)->resolve(),
+            'Load all system faculties successfully'
+        );
     }
 
     /**
      * API: POST /api/system-faculties/sync
      */
     public function sync(
+        Request $request,
         PersonnelApiService $personnelApiService
     ): JsonResponse {
         $sync = null;
@@ -46,6 +67,7 @@ class SystemFacultyController extends Controller
             $synced = 0;
             $deleted = 0;
             $activeFacultyIds = [];
+            $actor = $this->actorFromJwt($request) ?? 'system';
 
             foreach ($faculties as $faculty) {
                 if (
@@ -58,18 +80,24 @@ class SystemFacultyController extends Controller
                 $facultyId = (int) $faculty['id'];
                 $activeFacultyIds[] = $facultyId;
 
-                SystemFaculty::updateOrCreate(
-                    [
-                        'id' => $facultyId,
-                    ],
-                    [
-                        'th_name' => $faculty['th_name'],
-                        'en_name' => $faculty['en_name'] ?? '-',
-                        'th_short_name' => $faculty['th_short_name'] ?? '-',
-                        'en_short_name' => $faculty['en_short_name'] ?? '-',
-                        'deleted_at' => null,
-                    ]
-                );
+                $model = SystemFaculty::withTrashed()->whereKey($facultyId)->first()
+                    ?? new SystemFaculty;
+
+                if (! $model->exists) {
+                    $model->setAttribute('id', $facultyId);
+                    $model->setAttribute('created_by', $actor);
+                }
+
+                $model->fill([
+                    'th_name' => $faculty['th_name'],
+                    'en_name' => $faculty['en_name'] ?? '-',
+                    'th_short_name' => $faculty['th_short_name'] ?? '-',
+                    'en_short_name' => $faculty['en_short_name'] ?? '-',
+                    'updated_by' => $actor,
+                    'deleted_at' => null,
+                    'deleted_by' => '',
+                    'sync_id' => $sync->getKey(),
+                ])->save();
 
                 $synced++;
             }
@@ -80,6 +108,9 @@ class SystemFacultyController extends Controller
                     ->whereNotIn('id', $activeFacultyIds)
                     ->update([
                         'deleted_at' => now(),
+                        'deleted_by' => $actor,
+                        'updated_by' => $actor,
+                        'sync_id' => $sync->getKey(),
                     ]);
             }
 
