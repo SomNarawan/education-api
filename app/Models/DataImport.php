@@ -25,6 +25,7 @@ class DataImport extends Model
     protected function casts(): array
     {
         return [
+            'import_type_id' => 'integer',
             'total_count' => 'integer',
             'success_count' => 'integer',
             'failed_count' => 'integer',

@@ -15,25 +15,23 @@ class StudentWriteRequest extends FormRequest
         return [
             'student_code' => $this->requiredRules([
                 'string',
-                'max:20',
+                'max:10',
                 Rule::unique('students', 'student_code')
-                    ->ignore($studentId)
-                    ->whereNull('deleted_at'),
+                    ->ignore($studentId),
             ]),
             'student_id_card' => $this->requiredRules([
                 'string',
-                'max:20',
+                'max:13',
                 Rule::unique('students', 'student_id_card')
-                    ->ignore($studentId)
-                    ->whereNull('deleted_at'),
+                    ->ignore($studentId),
             ]),
             'title_id' => $this->requiredRules(['integer', 'exists:titles,id']),
-            'first_name_th' => $this->requiredRules(['string', 'max:255']),
-            'last_name_th' => $this->requiredRules(['string', 'max:255']),
-            'first_name_en' => $this->requiredRules(['string', 'max:255']),
-            'last_name_en' => $this->requiredRules(['string', 'max:255']),
-            'phone' => $this->requiredRules(['string', 'max:50']),
-            'email' => $this->requiredRules(['email', 'max:255']),
+            'first_name_th' => $this->requiredRules(['string', 'max:50']),
+            'last_name_th' => $this->requiredRules(['string', 'max:50']),
+            'first_name_en' => $this->requiredRules(['string', 'max:50']),
+            'last_name_en' => $this->requiredRules(['string', 'max:50']),
+            'phone' => $this->requiredRules(['string', 'max:10']),
+            'email' => $this->requiredRules(['email', 'max:50']),
 
             'teacher_id' => [
                 'sometimes',
@@ -50,20 +48,15 @@ class StudentWriteRequest extends FormRequest
                 'integer',
                 Rule::exists('system_departments', 'id')->where('status', Status::ACTIVE),
             ],
-            'entry_year' => $this->requiredRules(['integer', 'between:1900,2100']),
+            'entry_year' => $this->requiredRules(['integer', 'between:1901,2155']),
             'study_year' => ['sometimes', 'integer', 'min:1'],
             'study_semester' => ['sometimes', 'integer', 'between:1,3'],
-            'study_period' => ['sometimes', 'string', 'max:255'],
-            'gpa' => $this->requiredRules(['numeric', 'between:0,4']),
-            'passed_credits' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'not_passed_credits' => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'overed_credits' => ['sometimes', 'nullable', 'integer', 'min:0'],
-
+            'study_period' => ['sometimes', 'string', 'max:100'],
             'guardian_title_id' => $this->requiredRules(['integer', 'exists:titles,id']),
-            'guardian_first_name_th' => $this->requiredRules(['string', 'max:255']),
-            'guardian_last_name_th' => $this->requiredRules(['string', 'max:255']),
+            'guardian_first_name_th' => $this->requiredRules(['string', 'max:50']),
+            'guardian_last_name_th' => $this->requiredRules(['string', 'max:50']),
             'guardian_relationship_id' => $this->requiredRules(['integer', 'exists:relationships,id']),
-            'guardian_phone' => $this->requiredRules(['string', 'max:50']),
+            'guardian_phone' => $this->requiredRules(['string', 'max:10']),
         ];
     }
 

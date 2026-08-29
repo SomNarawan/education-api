@@ -49,6 +49,13 @@ class Student extends Model
     ];
 
     protected $casts = [
+        'title_id' => 'integer',
+        'teacher_id' => 'integer',
+        'student_status_id' => 'integer',
+        'admission_channel_id' => 'integer',
+        'high_school_id' => 'integer',
+        'study_plan_id' => 'integer',
+        'system_department_id' => 'integer',
         'entry_year' => 'integer',
         'study_year' => 'integer',
         'study_semester' => 'integer',
@@ -57,6 +64,8 @@ class Student extends Model
         'passed_credits' => 'integer',
         'not_passed_credits' => 'integer',
         'overed_credits' => 'integer',
+        'guardian_title_id' => 'integer',
+        'guardian_relationship_id' => 'integer',
         'deleted_at' => 'datetime',
     ];
 

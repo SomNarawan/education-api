@@ -9,6 +9,14 @@ use Illuminate\Support\Arr;
 
 class SaveStudent
 {
+    private const MANAGED_ACADEMIC_FIELDS = [
+        'gpa',
+        'gpax',
+        'passed_credits',
+        'not_passed_credits',
+        'overed_credits',
+    ];
+
     public function __construct(
         private readonly StudentDepartmentResolver $departmentResolver,
         private readonly AcademicStandingCalculator $standingCalculator,
@@ -18,9 +26,12 @@ class SaveStudent
     {
         $attributes['system_department_id'] = $this->departmentResolver->resolve($attributes);
         $attributes = $this->addAcademicStanding($attributes);
-        $attributes = $this->addCreditDefaults($attributes);
 
-        return Student::query()->create($this->databaseAttributes($attributes));
+        $student = new Student;
+        $student->fill($this->databaseAttributes($attributes));
+        $student->save();
+
+        return $student->refresh();
     }
 
     public function update(Student $student, array $attributes): Student
@@ -52,17 +63,11 @@ class SaveStudent
         return $attributes + $this->standingCalculator->calculate((int) $attributes['entry_year']);
     }
 
-    private function addCreditDefaults(array $attributes): array
-    {
-        foreach (['passed_credits', 'not_passed_credits', 'overed_credits'] as $field) {
-            $attributes[$field] ??= 0;
-        }
-
-        return $attributes;
-    }
-
     private function databaseAttributes(array $attributes): array
     {
-        return Arr::except($attributes, ['department_id']);
+        return Arr::except($attributes, [
+            'department_id',
+            ...self::MANAGED_ACADEMIC_FIELDS,
+        ]);
     }
 }

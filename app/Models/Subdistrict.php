@@ -11,6 +11,16 @@ class Subdistrict extends Model
 
     public $timestamps = false;
 
+    protected $fillable = [
+        'subdistrict_name',
+        'postal_code',
+        'district_id',
+    ];
+
+    protected $casts = [
+        'district_id' => 'integer',
+    ];
+
     public function district(): BelongsTo
     {
         return $this->belongsTo(District::class, 'district_id');

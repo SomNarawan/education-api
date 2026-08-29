@@ -13,12 +13,4 @@ class SyncType extends Model
     protected $fillable = [
         'sync_type',
     ];
-
-    protected $casts = [
-        'synced_count' => 'integer',
-        'deleted_count' => 'integer',
-        'skipped_count' => 'integer',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-    ];
 }

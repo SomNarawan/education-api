@@ -63,11 +63,11 @@ class StudentDetailResponse extends JsonResource
             'faculty_id' => $this->systemDepartment?->system_faculty_id,
             'faculty_name' => $this->systemDepartment?->systemFaculty?->th_name,
             'required_credits' => $this->curriculumPlan?->curriculum?->total_credits_min,
-            'passed_credits' => (int) ($this->passed_credits ?? 0),
-            'not_passed_credits' => (int) ($this->not_passed_credits ?? 0),
-            'overed_credits' => (int) ($this->overed_credits ?? 0),
-            'gpa' => (float) $this->gpa,
-            'gpax' => (float) $this->gpax,
+            'passed_credits' => $this->passed_credits === null ? null : (int) $this->passed_credits,
+            'not_passed_credits' => $this->not_passed_credits === null ? null : (int) $this->not_passed_credits,
+            'overed_credits' => $this->overed_credits === null ? null : (int) $this->overed_credits,
+            'gpa' => $this->gpa === null ? null : (float) $this->gpa,
+            'gpax' => $this->gpax === null ? null : (float) $this->gpax,
         ];
     }
 }

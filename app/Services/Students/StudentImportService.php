@@ -39,11 +39,6 @@ class StudentImportService
         '',
         '',
         'สถานะปัจจุบัน',
-        'ผลการเรียนล่าสุด',
-        '',
-        '',
-        '',
-        '',
     ];
 
     private const HEADERS = [
@@ -67,22 +62,16 @@ class StudentImportService
         'ความสัมพันธ์',
         'เบอร์โทรผู้ปกครอง',
         'สถานะปัจจุบัน',
-        'GPA',
-        'GPAX',
-        'จำนวนหน่วยกิตที่ผ่าน',
-        'จำนวนหน่วยกิตที่ไม่ผ่าน',
-        'จำนวนหน่วยกิตที่เกิน',
     ];
 
     private const REQUIRED_HEADER_INDEXES = [
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19,
     ];
 
     private const HEADER_MERGES = [
         'B1:I1',
         'J1:K1',
         'O1:S1',
-        'U1:Y1',
     ];
 
     public function __construct(private readonly SaveStudent $saveStudent) {}
@@ -277,11 +266,6 @@ class StudentImportService
             'guardian_relationship_id' => $relationshipId,
             'guardian_phone' => $this->phone($row[18]),
             'student_status_id' => $studentStatusId,
-            'gpa' => $row[20],
-            'gpax' => $row[21],
-            'passed_credits' => $this->nullableValue($row[22]),
-            'not_passed_credits' => $this->nullableValue($row[23]),
-            'overed_credits' => $this->nullableValue($row[24]),
         ], $masterErrors];
     }
 
@@ -357,7 +341,7 @@ class StudentImportService
                 'required',
                 'string',
                 'max:10',
-                Rule::unique('students', 'student_code')->whereNull('deleted_at'),
+                Rule::unique('students', 'student_code'),
             ],
             'student_id_card' => ['required', 'string', 'max:13', Rule::unique('students', 'student_id_card')],
             'title_id' => ['nullable', 'integer'],
@@ -378,11 +362,6 @@ class StudentImportService
             'guardian_relationship_id' => ['nullable', 'integer'],
             'guardian_phone' => ['required', 'string', 'max:10'],
             'student_status_id' => ['nullable', 'integer'],
-            'gpa' => ['required', 'numeric', 'between:0,4'],
-            'gpax' => ['required', 'numeric', 'between:0,4'],
-            'passed_credits' => ['nullable', 'integer', 'min:0'],
-            'not_passed_credits' => ['nullable', 'integer', 'min:0'],
-            'overed_credits' => ['nullable', 'integer', 'min:0'],
         ];
     }
 
@@ -416,11 +395,6 @@ class StudentImportService
             'guardian_first_name_th' => 'ชื่อผู้ปกครอง',
             'guardian_last_name_th' => 'นามสกุลผู้ปกครอง',
             'guardian_phone' => 'เบอร์โทรผู้ปกครอง',
-            'gpa' => 'GPA',
-            'gpax' => 'GPAX',
-            'passed_credits' => 'จำนวนหน่วยกิตที่ผ่าน',
-            'not_passed_credits' => 'จำนวนหน่วยกิตที่ไม่ผ่าน',
-            'overed_credits' => 'จำนวนหน่วยกิตที่เกิน',
         ];
     }
 
@@ -539,11 +513,6 @@ class StudentImportService
         }
 
         return trim((string) $value);
-    }
-
-    private function nullableValue(string $value): mixed
-    {
-        return $value === '' ? null : $value;
     }
 
     private function entryYear(string $value): mixed
