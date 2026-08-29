@@ -131,188 +131,153 @@ class SystemMasterDataSyncService
 
     private function syncFaculties(array $faculties, Sync $sync, string $actor): array
     {
-        $counts = $this->emptyCounts();
-        $validFaculties = [];
-
-        foreach ($faculties as $faculty) {
-            if (! is_array($faculty) || empty($faculty['id']) || empty($faculty['th_name'])) {
-                $counts['skipped']++;
-
-                continue;
-            }
-
-            $facultyId = (int) $faculty['id'];
-
-            if (array_key_exists($facultyId, $validFaculties)) {
-                $counts['skipped']++;
-            }
-
-            $validFaculties[$facultyId] = [
-                'th_name' => $faculty['th_name'],
-                'en_name' => $faculty['en_name'] ?? '-',
-                'th_short_name' => $faculty['th_short_name'] ?? '-',
-                'en_short_name' => $faculty['en_short_name'] ?? '-',
-            ];
-        }
-
-        foreach ($validFaculties as $facultyId => $attributes) {
-
-            $model = SystemFaculty::withInactive()->whereKey($facultyId)->first()
-                ?? new SystemFaculty;
-
-            if (! $model->exists) {
-                $model->setAttribute('id', $facultyId);
-            }
-
-            $result = $this->saveModel($model, $attributes, $sync, $actor);
-
-            $counts[$result]++;
-        }
-
-        if ($faculties !== [] && $validFaculties === []) {
-            throw new UnexpectedValueException(
-                'Personnel API returned faculties, but none could be mapped.'
-            );
-        }
-
-        $counts['inactivated'] = $this->deactivateMissing(
+        return $this->syncRecords(
+            $faculties,
             SystemFaculty::class,
             'id',
-            array_keys($validFaculties),
-            $sync,
-            $actor
-        );
+            static function (mixed $faculty): ?array {
+                if (! is_array($faculty) || empty($faculty['id']) || empty($faculty['th_name'])) {
+                    return null;
+                }
 
-        return $counts;
+                return [(int) $faculty['id'], [
+                    'th_name' => $faculty['th_name'],
+                    'en_name' => $faculty['en_name'] ?? '-',
+                    'th_short_name' => $faculty['th_short_name'] ?? '-',
+                    'en_short_name' => $faculty['en_short_name'] ?? '-',
+                ]];
+            },
+            $sync,
+            $actor,
+            'Personnel API returned faculties, but none could be mapped.'
+        );
     }
 
     private function syncDepartments(array $departments, Sync $sync, string $actor): array
     {
-        $counts = $this->emptyCounts();
-        $validDepartments = [];
         $existingFacultyIds = $this->existingIds(
             SystemFaculty::class,
             collect($departments)->pluck('system_faculty_id')->all()
         );
 
-        foreach ($departments as $department) {
-            if (empty($department['id']) || empty($department['th_name'])) {
-                $counts['skipped']++;
-
-                continue;
-            }
-
-            $systemFacultyId = $this->positiveInteger($department['system_faculty_id'] ?? null);
-
-            if ($systemFacultyId === null || ! isset($existingFacultyIds[$systemFacultyId])) {
-                $counts['skipped']++;
-
-                continue;
-            }
-
-            $departmentId = (int) $department['id'];
-
-            if (array_key_exists($departmentId, $validDepartments)) {
-                $counts['skipped']++;
-            }
-
-            $validDepartments[$departmentId] = [
-                'th_name' => $department['th_name'],
-                'en_name' => $department['en_name'] ?? '-',
-                'th_short_name' => $department['th_short_name'] ?? '-',
-                'en_short_name' => $department['en_short_name'] ?? '-',
-                'system_faculty_id' => $systemFacultyId,
-            ];
-        }
-
-        foreach ($validDepartments as $departmentId => $attributes) {
-
-            $model = SystemDepartment::withInactive()->whereKey($departmentId)->first()
-                ?? new SystemDepartment;
-
-            if (! $model->exists) {
-                $model->setAttribute('id', $departmentId);
-            }
-
-            $result = $this->saveModel($model, $attributes, $sync, $actor);
-
-            $counts[$result]++;
-        }
-
-        if ($departments !== [] && $validDepartments === []) {
-            throw new UnexpectedValueException(
-                'Personnel API returned departments, but none could be mapped to an active system faculty.'
-            );
-        }
-
-        $counts['inactivated'] = $this->deactivateMissing(
+        return $this->syncRecords(
+            $departments,
             SystemDepartment::class,
             'id',
-            array_keys($validDepartments),
-            $sync,
-            $actor
-        );
+            function (mixed $department) use ($existingFacultyIds): ?array {
+                if (! is_array($department) || empty($department['id']) || empty($department['th_name'])) {
+                    return null;
+                }
 
-        return $counts;
+                $facultyId = $this->positiveInteger($department['system_faculty_id'] ?? null);
+
+                if ($facultyId === null || ! isset($existingFacultyIds[$facultyId])) {
+                    return null;
+                }
+
+                return [(int) $department['id'], [
+                    'th_name' => $department['th_name'],
+                    'en_name' => $department['en_name'] ?? '-',
+                    'th_short_name' => $department['th_short_name'] ?? '-',
+                    'en_short_name' => $department['en_short_name'] ?? '-',
+                    'system_faculty_id' => $facultyId,
+                ]];
+            },
+            $sync,
+            $actor,
+            'Personnel API returned departments, but none could be mapped to an active system faculty.'
+        );
     }
 
     private function syncTeachers(array $teachers, Sync $sync, string $actor): array
     {
-        $counts = $this->emptyCounts();
-        $validTeachers = [];
         $existingDepartmentIds = $this->existingIds(
             SystemDepartment::class,
             collect($teachers)->pluck('department_id')->all()
         );
 
-        foreach ($teachers as $teacher) {
-            if (empty($teacher['nontri_id']) || empty($teacher['full_name'])) {
+        return $this->syncRecords(
+            $teachers,
+            SystemTeacher::class,
+            'nontri_id',
+            function (mixed $teacher) use ($existingDepartmentIds): ?array {
+                if (! is_array($teacher) || empty($teacher['nontri_id']) || empty($teacher['full_name'])) {
+                    return null;
+                }
+
+                $departmentId = $this->positiveInteger($teacher['department_id'] ?? null);
+
+                if ($departmentId === null || ! isset($existingDepartmentIds[$departmentId])) {
+                    return null;
+                }
+
+                $nontriId = trim($teacher['nontri_id']);
+
+                return [$nontriId, [
+                    'full_name_th' => trim($teacher['full_name']),
+                    'department_id' => $departmentId,
+                ]];
+            },
+            $sync,
+            $actor,
+            'Personnel API returned system teachers, but none could be mapped to an active system department.'
+        );
+    }
+
+    /**
+     * @param  class-string<Model>  $modelClass
+     * @param  callable(mixed): ?array{0: int|string, 1: array<string, mixed>}  $mapItem
+     */
+    private function syncRecords(
+        array $items,
+        string $modelClass,
+        string $keyColumn,
+        callable $mapItem,
+        Sync $sync,
+        string $actor,
+        string $emptyMessage
+    ): array {
+        $counts = $this->emptyCounts();
+        $records = [];
+
+        foreach ($items as $item) {
+            $mapped = $mapItem($item);
+
+            if ($mapped === null) {
                 $counts['skipped']++;
 
                 continue;
             }
 
-            $departmentId = $this->positiveInteger($teacher['department_id'] ?? null);
+            [$key, $attributes] = $mapped;
+            $index = (string) $key;
 
-            if ($departmentId === null || ! isset($existingDepartmentIds[$departmentId])) {
-                $counts['skipped']++;
-
-                continue;
-            }
-
-            $nontriId = trim($teacher['nontri_id']);
-
-            if (array_key_exists($nontriId, $validTeachers)) {
+            if (array_key_exists($index, $records)) {
                 $counts['skipped']++;
             }
 
-            $validTeachers[$nontriId] = [
-                'nontri_id' => $nontriId,
-                'full_name_th' => trim($teacher['full_name']),
-                'department_id' => $departmentId,
-            ];
+            $records[$index] = compact('key', 'attributes');
         }
 
-        foreach ($validTeachers as $nontriId => $attributes) {
-            $model = SystemTeacher::withInactive()
-                ->where('nontri_id', $nontriId)
-                ->first() ?? new SystemTeacher;
-
-            $result = $this->saveModel($model, $attributes, $sync, $actor);
-
-            $counts[$result]++;
+        if ($items !== [] && $records === []) {
+            throw new UnexpectedValueException($emptyMessage);
         }
 
-        if ($teachers !== [] && $validTeachers === []) {
-            throw new UnexpectedValueException(
-                'Personnel API returned system teachers, but none could be mapped to an active system department.'
-            );
+        foreach ($records as ['key' => $key, 'attributes' => $attributes]) {
+            $model = $modelClass::withInactive()->where($keyColumn, $key)->first()
+                ?? new $modelClass;
+
+            if (! $model->exists) {
+                $model->setAttribute($keyColumn, $key);
+            }
+
+            $counts[$this->saveModel($model, $attributes, $sync, $actor)]++;
         }
 
         $counts['inactivated'] = $this->deactivateMissing(
-            SystemTeacher::class,
-            'nontri_id',
-            array_keys($validTeachers),
+            $modelClass,
+            $keyColumn,
+            array_column($records, 'key'),
             $sync,
             $actor
         );
