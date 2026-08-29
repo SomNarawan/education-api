@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Throwable;
+use UnexpectedValueException;
 
 class SystemMasterDataSyncService
 {
@@ -37,16 +38,20 @@ class SystemMasterDataSyncService
             $items = $this->fetchItems($syncType);
 
             return DB::transaction(function () use ($sync, $syncType, $items, $actor): Sync {
-                [$synced, $inactivated] = match ($syncType) {
+                $counts = match ($syncType) {
                     Sync::TYPE_SYSTEM_FACULTY => $this->syncFaculties($items, $sync, $actor),
                     Sync::TYPE_SYSTEM_DEPARTMENT => $this->syncDepartments($items, $sync, $actor),
                     Sync::TYPE_SYSTEM_TEACHER => $this->syncTeachers($items, $sync, $actor),
                     default => throw new InvalidArgumentException('Unsupported sync type'),
                 };
 
-                $skipped = max(count($items) - $synced, 0);
-
-                return $sync->markAsSuccess($synced, $inactivated, $skipped, $actor);
+                return $sync->markAsSuccess(
+                    $counts['inserted'],
+                    $counts['updated'],
+                    $counts['inactivated'],
+                    $counts['skipped'],
+                    $actor
+                );
             });
         } catch (Throwable $exception) {
             try {
@@ -80,7 +85,41 @@ class SystemMasterDataSyncService
     {
         $response = $this->personnelApiService->getDepartments();
 
-        return $response['departments'] ?? $response;
+        $items = $response['departments'] ?? $response;
+        $departments = [];
+
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            if (! array_key_exists('departments', $item)) {
+                $departments[] = $item;
+
+                continue;
+            }
+
+            if (! is_array($item['departments'])) {
+                continue;
+            }
+
+            $facultyId = $item['faculty_id'] ?? $item['system_faculty_id'] ?? null;
+
+            foreach ($item['departments'] as $department) {
+                if (! is_array($department)) {
+                    continue;
+                }
+
+                $departments[] = [
+                    ...$department,
+                    'system_faculty_id' => $department['system_faculty_id']
+                        ?? $department['faculty_id']
+                        ?? $facultyId,
+                ];
+            }
+        }
+
+        return $departments;
     }
 
     private function teacherItems(): array
@@ -92,16 +131,31 @@ class SystemMasterDataSyncService
 
     private function syncFaculties(array $faculties, Sync $sync, string $actor): array
     {
-        $synced = 0;
-        $activeFacultyIds = [];
+        $counts = $this->emptyCounts();
+        $validFaculties = [];
 
         foreach ($faculties as $faculty) {
-            if (empty($faculty['id']) || empty($faculty['th_name'])) {
+            if (! is_array($faculty) || empty($faculty['id']) || empty($faculty['th_name'])) {
+                $counts['skipped']++;
+
                 continue;
             }
 
             $facultyId = (int) $faculty['id'];
-            $activeFacultyIds[] = $facultyId;
+
+            if (array_key_exists($facultyId, $validFaculties)) {
+                $counts['skipped']++;
+            }
+
+            $validFaculties[$facultyId] = [
+                'th_name' => $faculty['th_name'],
+                'en_name' => $faculty['en_name'] ?? '-',
+                'th_short_name' => $faculty['th_short_name'] ?? '-',
+                'en_short_name' => $faculty['en_short_name'] ?? '-',
+            ];
+        }
+
+        foreach ($validFaculties as $facultyId => $attributes) {
 
             $model = SystemFaculty::withInactive()->whereKey($facultyId)->first()
                 ?? new SystemFaculty;
@@ -110,32 +164,32 @@ class SystemMasterDataSyncService
                 $model->setAttribute('id', $facultyId);
             }
 
-            $this->saveModel($model, [
-                'th_name' => $faculty['th_name'],
-                'en_name' => $faculty['en_name'] ?? '-',
-                'th_short_name' => $faculty['th_short_name'] ?? '-',
-                'en_short_name' => $faculty['en_short_name'] ?? '-',
-            ], $sync, $actor);
+            $result = $this->saveModel($model, $attributes, $sync, $actor);
 
-            $synced++;
+            $counts[$result]++;
         }
 
-        return [
-            $synced,
-            $this->deactivateMissing(
-                SystemFaculty::class,
-                'id',
-                $activeFacultyIds,
-                $sync,
-                $actor
-            ),
-        ];
+        if ($faculties !== [] && $validFaculties === []) {
+            throw new UnexpectedValueException(
+                'Personnel API returned faculties, but none could be mapped.'
+            );
+        }
+
+        $counts['inactivated'] = $this->deactivateMissing(
+            SystemFaculty::class,
+            'id',
+            array_keys($validFaculties),
+            $sync,
+            $actor
+        );
+
+        return $counts;
     }
 
     private function syncDepartments(array $departments, Sync $sync, string $actor): array
     {
-        $synced = 0;
-        $activeDepartmentIds = [];
+        $counts = $this->emptyCounts();
+        $validDepartments = [];
         $existingFacultyIds = $this->existingIds(
             SystemFaculty::class,
             collect($departments)->pluck('system_faculty_id')->all()
@@ -143,17 +197,35 @@ class SystemMasterDataSyncService
 
         foreach ($departments as $department) {
             if (empty($department['id']) || empty($department['th_name'])) {
+                $counts['skipped']++;
+
                 continue;
             }
 
             $systemFacultyId = $this->positiveInteger($department['system_faculty_id'] ?? null);
 
             if ($systemFacultyId === null || ! isset($existingFacultyIds[$systemFacultyId])) {
+                $counts['skipped']++;
+
                 continue;
             }
 
             $departmentId = (int) $department['id'];
-            $activeDepartmentIds[] = $departmentId;
+
+            if (array_key_exists($departmentId, $validDepartments)) {
+                $counts['skipped']++;
+            }
+
+            $validDepartments[$departmentId] = [
+                'th_name' => $department['th_name'],
+                'en_name' => $department['en_name'] ?? '-',
+                'th_short_name' => $department['th_short_name'] ?? '-',
+                'en_short_name' => $department['en_short_name'] ?? '-',
+                'system_faculty_id' => $systemFacultyId,
+            ];
+        }
+
+        foreach ($validDepartments as $departmentId => $attributes) {
 
             $model = SystemDepartment::withInactive()->whereKey($departmentId)->first()
                 ?? new SystemDepartment;
@@ -162,33 +234,32 @@ class SystemMasterDataSyncService
                 $model->setAttribute('id', $departmentId);
             }
 
-            $this->saveModel($model, [
-                'th_name' => $department['th_name'],
-                'en_name' => $department['en_name'] ?? '-',
-                'th_short_name' => $department['th_short_name'] ?? '-',
-                'en_short_name' => $department['en_short_name'] ?? '-',
-                'system_faculty_id' => $systemFacultyId,
-            ], $sync, $actor);
+            $result = $this->saveModel($model, $attributes, $sync, $actor);
 
-            $synced++;
+            $counts[$result]++;
         }
 
-        return [
-            $synced,
-            $this->deactivateMissing(
-                SystemDepartment::class,
-                'id',
-                $activeDepartmentIds,
-                $sync,
-                $actor
-            ),
-        ];
+        if ($departments !== [] && $validDepartments === []) {
+            throw new UnexpectedValueException(
+                'Personnel API returned departments, but none could be mapped to an active system faculty.'
+            );
+        }
+
+        $counts['inactivated'] = $this->deactivateMissing(
+            SystemDepartment::class,
+            'id',
+            array_keys($validDepartments),
+            $sync,
+            $actor
+        );
+
+        return $counts;
     }
 
     private function syncTeachers(array $teachers, Sync $sync, string $actor): array
     {
-        $synced = 0;
-        $activeNontriIds = [];
+        $counts = $this->emptyCounts();
+        $validTeachers = [];
         $existingDepartmentIds = $this->existingIds(
             SystemDepartment::class,
             collect($teachers)->pluck('department_id')->all()
@@ -196,55 +267,92 @@ class SystemMasterDataSyncService
 
         foreach ($teachers as $teacher) {
             if (empty($teacher['nontri_id']) || empty($teacher['full_name'])) {
+                $counts['skipped']++;
+
                 continue;
             }
 
             $departmentId = $this->positiveInteger($teacher['department_id'] ?? null);
 
             if ($departmentId === null || ! isset($existingDepartmentIds[$departmentId])) {
+                $counts['skipped']++;
+
                 continue;
             }
 
             $nontriId = trim($teacher['nontri_id']);
-            $activeNontriIds[] = $nontriId;
 
+            if (array_key_exists($nontriId, $validTeachers)) {
+                $counts['skipped']++;
+            }
+
+            $validTeachers[$nontriId] = [
+                'nontri_id' => $nontriId,
+                'full_name_th' => trim($teacher['full_name']),
+                'department_id' => $departmentId,
+            ];
+        }
+
+        foreach ($validTeachers as $nontriId => $attributes) {
             $model = SystemTeacher::withInactive()
                 ->where('nontri_id', $nontriId)
                 ->first() ?? new SystemTeacher;
 
-            $this->saveModel($model, [
-                'nontri_id' => $nontriId,
-                'full_name_th' => trim($teacher['full_name']),
-                'department_id' => $departmentId,
-            ], $sync, $actor);
+            $result = $this->saveModel($model, $attributes, $sync, $actor);
 
-            $synced++;
+            $counts[$result]++;
         }
 
-        return [
-            $synced,
-            $this->deactivateMissing(
-                SystemTeacher::class,
-                'nontri_id',
-                $activeNontriIds,
-                $sync,
-                $actor
-            ),
-        ];
+        if ($teachers !== [] && $validTeachers === []) {
+            throw new UnexpectedValueException(
+                'Personnel API returned system teachers, but none could be mapped to an active system department.'
+            );
+        }
+
+        $counts['inactivated'] = $this->deactivateMissing(
+            SystemTeacher::class,
+            'nontri_id',
+            array_keys($validTeachers),
+            $sync,
+            $actor
+        );
+
+        return $counts;
     }
 
-    private function saveModel(Model $model, array $attributes, Sync $sync, string $actor): void
+    private function saveModel(Model $model, array $attributes, Sync $sync, string $actor): string
     {
-        if (! $model->exists) {
+        $isInsert = ! $model->exists;
+
+        $model->fill([
+            ...$attributes,
+            'status' => Status::ACTIVE,
+        ]);
+
+        if (! $isInsert && ! $model->isDirty()) {
+            return 'skipped';
+        }
+
+        if ($isInsert) {
             $model->setAttribute('created_by', $actor);
         }
 
         $model->fill([
-            ...$attributes,
             'updated_by' => $actor,
-            'status' => Status::ACTIVE,
             'sync_id' => $sync->getKey(),
         ])->save();
+
+        return $isInsert ? 'inserted' : 'updated';
+    }
+
+    private function emptyCounts(): array
+    {
+        return [
+            'inserted' => 0,
+            'updated' => 0,
+            'inactivated' => 0,
+            'skipped' => 0,
+        ];
     }
 
     /**

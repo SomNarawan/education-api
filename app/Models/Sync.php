@@ -17,8 +17,9 @@ class Sync extends Model
 
     protected $fillable = [
         'sync_type',
-        'synced_count',
-        'deleted_count',
+        'inserted_count',
+        'updated_count',
+        'inactivated_count',
         'skipped_count',
         'status',
         'error_message',
@@ -28,8 +29,9 @@ class Sync extends Model
 
     protected $casts = [
         'sync_type' => 'integer',
-        'synced_count' => 'integer',
-        'deleted_count' => 'integer',
+        'inserted_count' => 'integer',
+        'updated_count' => 'integer',
+        'inactivated_count' => 'integer',
         'skipped_count' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -39,8 +41,9 @@ class Sync extends Model
     {
         return self::create([
             'sync_type' => $syncType,
-            'synced_count' => 0,
-            'deleted_count' => 0,
+            'inserted_count' => 0,
+            'updated_count' => 0,
+            'inactivated_count' => 0,
             'skipped_count' => 0,
             'status' => Status::RUNNING,
             'error_message' => null,
@@ -50,14 +53,16 @@ class Sync extends Model
     }
 
     public function markAsSuccess(
-        int $syncedCount,
-        int $inactiveCount,
+        int $insertedCount,
+        int $updatedCount,
+        int $inactivatedCount,
         int $skippedCount,
         string $actor
     ): self {
         $this->update([
-            'synced_count' => $syncedCount,
-            'deleted_count' => $inactiveCount,
+            'inserted_count' => $insertedCount,
+            'updated_count' => $updatedCount,
+            'inactivated_count' => $inactivatedCount,
             'skipped_count' => $skippedCount,
             'status' => Status::SUCCESS,
             'error_message' => null,
