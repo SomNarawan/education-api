@@ -112,7 +112,7 @@ Route::prefix('students')->group(function (): void {
 Route::prefix('system-teachers')->group(function (): void {
     Route::get('/', [SystemTeacherController::class, 'index']);
     Route::get('/all', [SystemTeacherController::class, 'all']);
-    Route::post('/sync', [SystemTeacherController::class, 'sync']);
+    Route::post('/sync', [SyncController::class, 'systemTeachers']);
 });
 
 Route::get('/notes', [NoteController::class, 'index']);
@@ -124,11 +124,11 @@ Route::get('/syncs', [SyncController::class, 'index']);
 Route::prefix('system-departments')->group(function (): void {
     Route::get('/', [SystemDepartmentController::class, 'index']);
     Route::get('/all', [SystemDepartmentController::class, 'all']);
-    Route::post('/sync', [SystemDepartmentController::class, 'sync']);
+    Route::post('/sync', [SyncController::class, 'systemDepartments']);
 });
 
 Route::prefix('system-faculties')->group(function (): void {
     Route::get('/', [SystemFacultyController::class, 'index']);
     Route::get('/all', [SystemFacultyController::class, 'all']);
-    Route::post('/sync', [SystemFacultyController::class, 'sync']);
+    Route::post('/sync', [SyncController::class, 'systemFaculties']);
 });

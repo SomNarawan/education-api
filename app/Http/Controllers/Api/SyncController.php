@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Constants\HttpStatus;
 use App\Constants\Status;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\SyncResponse;
 use App\Models\Sync;
 use App\Models\SyncType;
+use App\Services\SystemMasterDataSyncService;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 class SyncController extends Controller
 {
@@ -75,5 +78,68 @@ class SyncController extends Controller
             SyncResponse::collection($items),
             'Load syncs successfully'
         );
+    }
+
+    /**
+     * API: POST /api/system-faculties/sync
+     */
+    public function systemFaculties(
+        Request $request,
+        SystemMasterDataSyncService $syncService
+    ): JsonResponse {
+        return $this->runSystemSync(
+            $request,
+            $syncService,
+            Sync::TYPE_SYSTEM_FACULTY
+        );
+    }
+
+    /**
+     * API: POST /api/system-departments/sync
+     */
+    public function systemDepartments(
+        Request $request,
+        SystemMasterDataSyncService $syncService
+    ): JsonResponse {
+        return $this->runSystemSync(
+            $request,
+            $syncService,
+            Sync::TYPE_SYSTEM_DEPARTMENT
+        );
+    }
+
+    /**
+     * API: POST /api/system-teachers/sync
+     */
+    public function systemTeachers(
+        Request $request,
+        SystemMasterDataSyncService $syncService
+    ): JsonResponse {
+        return $this->runSystemSync(
+            $request,
+            $syncService,
+            Sync::TYPE_SYSTEM_TEACHER
+        );
+    }
+
+    private function runSystemSync(
+        Request $request,
+        SystemMasterDataSyncService $syncService,
+        int $syncType
+    ): JsonResponse {
+        try {
+            $actor = $this->actorFromJwt($request) ?? 'system';
+            $sync = $syncService->sync($syncType, $actor);
+
+            return ApiResponse::success(
+                new SyncResponse($sync),
+                'Sync successfully'
+            );
+        } catch (Throwable $exception) {
+            return ApiResponse::error(
+                $exception->getMessage(),
+                HttpStatus::INTERNAL_SERVER_ERROR['code']
+            );
+        }
     }
 }
