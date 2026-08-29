@@ -7,70 +7,24 @@ use Illuminate\Support\Facades\Http;
 
 class PersonnelApiService
 {
-    private function getApiUrl(string $endpoint): string
-    {
-        $baseUrl = config('services.personnel_api.url');
-        $basePath = config('services.personnel_api.base_path');
-
-        if (!$baseUrl || !$basePath || !$endpoint) {
-            throw new Exception('Personnel API config is missing');
-        }
-
-        return rtrim($baseUrl, '/')
-            . '/'
-            . trim($basePath, '/')
-            . '/'
-            . ltrim($endpoint, '/');
-    }
-
     public function getTeachers(): array
     {
-        $endpoint = config('services.personnel_api.endpoints.all_user');
-        $url = $this->getApiUrl($endpoint);
-
-        $response = Http::withOptions([
-            'verify' => false,
-        ])
-            ->timeout(15)
-            ->get($url);
-
-        if (!$response->successful()) {
-            throw new Exception(
-                'Cannot sync teachers from external API. Status: ' . $response->status()
-            );
-        }
-
-        $teachers = $response->json();
-
-        return $teachers['data'] ?? $teachers ?? [];
+        return $this->get('all_user', 'teachers');
     }
 
     public function getDepartments(): array
     {
-        $endpoint = config('services.personnel_api.endpoints.all_department');
-        $url = $this->getApiUrl($endpoint);
-
-        $response = Http::withOptions([
-            'verify' => false,
-        ])
-            ->timeout(15)
-            ->get($url);
-
-        if (!$response->successful()) {
-            throw new Exception(
-                'Cannot sync departments from external API. Status: ' . $response->status()
-            );
-        }
-
-        $departments = $response->json();
-
-        return $departments['data'] ?? $departments ?? [];
+        return $this->get('all_department', 'departments');
     }
 
     public function getFaculties(): array
     {
-        $endpoint = config('services.personnel_api.endpoints.all_faculty');
-        $url = $this->getApiUrl($endpoint);
+        return $this->get('all_faculty', 'faculties');
+    }
+
+    private function get(string $endpointKey, string $resource): array
+    {
+        $url = $this->getApiUrl(config("services.personnel_api.endpoints.{$endpointKey}"));
 
         $response = Http::withOptions([
             'verify' => false,
@@ -78,14 +32,31 @@ class PersonnelApiService
             ->timeout(15)
             ->get($url);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             throw new Exception(
-                'Cannot sync faculties from external API. Status: ' . $response->status()
+                "Cannot sync {$resource} from external API. Status: {$response->status()}"
             );
         }
 
-        $faculties = $response->json();
+        $data = $response->json();
 
-        return $faculties['data'] ?? $faculties ?? [];
+        return $data['data'] ?? $data ?? [];
+    }
+
+    private function getApiUrl(mixed $endpoint): string
+    {
+        $baseUrl = config('services.personnel_api.url');
+        $basePath = config('services.personnel_api.base_path');
+
+        if (! is_string($baseUrl) || ! is_string($basePath) || ! is_string($endpoint)
+            || $baseUrl === '' || $basePath === '' || $endpoint === '') {
+            throw new Exception('Personnel API config is missing');
+        }
+
+        return implode('/', [
+            rtrim($baseUrl, '/'),
+            trim($basePath, '/'),
+            ltrim($endpoint, '/'),
+        ]);
     }
 }
