@@ -33,10 +33,10 @@
 
         async function search(q) {
             const res = await fetch('/api/mock-login/search?q=' + encodeURIComponent(q));
-            const teachers = await res.json();
+            const systemTeachers = await res.json();
 
-            results.innerHTML = teachers.map(t =>
-                `<li><a href="/api/mock-login/teacher/${encodeURIComponent(t.nontri_id)}">${t.full_name_th} <span class="muted">(${t.nontri_id}${t.is_admin ? ' — admin+teacher' : ''})</span></a></li>`
+            results.innerHTML = systemTeachers.map(systemTeacher =>
+                `<li><a href="/api/mock-login/system-teacher/${encodeURIComponent(systemTeacher.nontri_id)}">${systemTeacher.full_name_th} <span class="muted">(${systemTeacher.nontri_id}${systemTeacher.is_admin ? ' — admin+teacher' : ''})</span></a></li>`
             ).join('');
         }
 

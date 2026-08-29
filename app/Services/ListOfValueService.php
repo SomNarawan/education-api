@@ -15,7 +15,7 @@ use App\Models\StudentStatus;
 use App\Models\Subdistrict;
 use App\Models\SystemDepartment;
 use App\Models\SystemFaculty;
-use App\Models\Teacher;
+use App\Models\SystemTeacher;
 use App\Models\Title;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -67,7 +67,7 @@ class ListOfValueService
                 Subdistrict::query()->where('district_id', $filters['district_id']),
                 'subdistrict_name'
             ),
-            ListOfValueType::Teachers => $this->teachers($filters),
+            ListOfValueType::SystemTeachers => $this->systemTeachers($filters),
             ListOfValueType::SystemDepartments => $this->options(
                 SystemDepartment::query(),
                 'th_name',
@@ -81,9 +81,9 @@ class ListOfValueService
         };
     }
 
-    private function teachers(array $filters): Collection
+    private function systemTeachers(array $filters): Collection
     {
-        $query = Teacher::query()
+        $query = SystemTeacher::query()
             ->when(
                 isset($filters['department_id']),
                 fn (Builder $query) => $query->where('department_id', $filters['department_id'])

@@ -34,7 +34,7 @@ class StudentDetailResponse extends JsonResource
             'current_year' => (int) $this->study_year,
             'current_semester' => (int) $this->study_semester,
             'teacher_id' => $this->teacher_id,
-            'teacher_full_name_th' => $this->teacher?->full_name_th,
+            'teacher_full_name_th' => $this->systemTeacher?->full_name_th,
             'student_status_id' => $this->student_status_id,
             'student_status_name' => $this->studentStatus?->status_name,
             'admission_channel_id' => $this->admission_channel_id,

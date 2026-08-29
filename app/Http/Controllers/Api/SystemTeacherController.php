@@ -6,19 +6,19 @@ use App\Constants\HttpStatus;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\SyncResponse;
-use App\Http\Responses\TeacherListResponse;
+use App\Http\Responses\SystemTeacherListResponse;
 use App\Models\Sync;
 use App\Models\SystemDepartment;
-use App\Models\Teacher;
+use App\Models\SystemTeacher;
 use App\Services\PersonnelApiService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Throwable;
 
-class TeacherController extends Controller
+class SystemTeacherController extends Controller
 {
     /**
-     * API: GET /api/teachers?department_id={id}&include_deleted={boolean}
+     * API: GET /api/system-teachers?department_id={id}&include_deleted={boolean}
      */
     public function index(Request $request): JsonResponse
     {
@@ -27,7 +27,7 @@ class TeacherController extends Controller
             'include_deleted' => ['sometimes', 'in:true,false,1,0'],
         ]);
 
-        $items = Teacher::query()
+        $items = SystemTeacher::query()
             ->when(
                 $request->boolean('include_deleted'),
                 fn ($query) => $query->withTrashed()
@@ -40,13 +40,13 @@ class TeacherController extends Controller
             ->orderBy('id')
             ->get();
 
-        $data = TeacherListResponse::collection($items);
+        $data = SystemTeacherListResponse::collection($items);
 
-        return ApiResponse::success($data, 'Load teachers successfully');
+        return ApiResponse::success($data, 'Load system teachers successfully');
     }
 
     /**
-     * API: POST /api/teachers/sync
+     * API: POST /api/system-teachers/sync
      */
     public function sync(
         PersonnelApiService $personnelApiService
@@ -54,16 +54,16 @@ class TeacherController extends Controller
         $sync = null;
 
         try {
-            $sync = Sync::start(Sync::TYPE_TEACHER);
+            $sync = Sync::start(Sync::TYPE_SYSTEM_TEACHER);
 
-            $response = $personnelApiService->getTeachers();
-            $teachers = $response['users'] ?? $response;
+            $response = $personnelApiService->getSystemTeachers();
+            $systemTeachers = $response['users'] ?? $response;
 
             $synced = 0;
             $deleted = 0;
             $activeNontriIds = [];
 
-            $departmentIds = collect($teachers)
+            $departmentIds = collect($systemTeachers)
                 ->pluck('department_id')
                 ->filter(fn ($departmentId) => is_numeric($departmentId) && (int) $departmentId > 0)
                 ->map(fn ($departmentId) => (int) $departmentId)
@@ -78,34 +78,34 @@ class TeacherController extends Controller
                 ->mapWithKeys(fn ($departmentId) => [(int) $departmentId => true])
                 ->all();
 
-            foreach ($teachers as $teacher) {
+            foreach ($systemTeachers as $systemTeacher) {
                 if (
-                    empty($teacher['nontri_id']) ||
-                    empty($teacher['full_name'])
+                    empty($systemTeacher['nontri_id']) ||
+                    empty($systemTeacher['full_name'])
                 ) {
                     continue;
                 }
 
                 if (
-                    ! isset($teacher['department_id']) ||
-                    ! is_numeric($teacher['department_id']) ||
-                    (int) $teacher['department_id'] <= 0
+                    ! isset($systemTeacher['department_id']) ||
+                    ! is_numeric($systemTeacher['department_id']) ||
+                    (int) $systemTeacher['department_id'] <= 0
                 ) {
                     continue;
                 }
 
-                $departmentId = (int) $teacher['department_id'];
+                $departmentId = (int) $systemTeacher['department_id'];
 
                 if (! isset($existingDepartmentIds[$departmentId])) {
                     continue;
                 }
 
-                $nontriId = trim($teacher['nontri_id']);
-                $fullName = trim($teacher['full_name']);
+                $nontriId = trim($systemTeacher['nontri_id']);
+                $fullName = trim($systemTeacher['full_name']);
 
                 $activeNontriIds[] = $nontriId;
 
-                Teacher::updateOrCreate(
+                SystemTeacher::updateOrCreate(
                     [
                         'nontri_id' => $nontriId,
                     ],
@@ -122,7 +122,7 @@ class TeacherController extends Controller
             }
 
             if (! empty($activeNontriIds)) {
-                $deleted = Teacher::query()
+                $deleted = SystemTeacher::query()
                     ->where('deleted_at', null)
                     ->whereNotIn('nontri_id', $activeNontriIds)
                     ->update([
@@ -130,7 +130,7 @@ class TeacherController extends Controller
                     ]);
             }
 
-            $skipped = max(count($teachers) - $synced, 0);
+            $skipped = max(count($systemTeachers) - $synced, 0);
             $sync->markAsSuccess($synced, $deleted, $skipped);
 
             return ApiResponse::success(

@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\Http;
 
 class PersonnelApiService
 {
-    public function getTeachers(): array
+    public function getSystemTeachers(): array
     {
-        return $this->get('all_user', 'teachers');
+        return $this->get('all_user', 'system teachers');
     }
 
     public function getDepartments(): array

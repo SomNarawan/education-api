@@ -14,7 +14,7 @@ class UpdateStudentAdvisorRequest extends FormRequest
             'teacher_id' => [
                 'required',
                 'integer',
-                Rule::exists('teachers', 'id')->whereNull('deleted_at'),
+                Rule::exists('system_teachers', 'id')->whereNull('deleted_at'),
             ],
             'assign_student_ids' => ['present', 'array'],
             'assign_student_ids.*' => [

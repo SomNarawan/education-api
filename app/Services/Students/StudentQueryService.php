@@ -54,7 +54,7 @@ class StudentQueryService
     {
         return Student::query()->with([
             'title',
-            'teacher',
+            'systemTeacher',
             'studentStatus',
             'systemDepartment.systemFaculty',
             'curriculumPlan.curriculum',
@@ -65,7 +65,7 @@ class StudentQueryService
     {
         return Student::query()->with([
             'title',
-            'teacher',
+            'systemTeacher',
             'studentStatus',
             'admissionChannel',
             'highSchool.subdistrict.district.province',

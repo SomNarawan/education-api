@@ -6,11 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Teacher extends Model
+class SystemTeacher extends Model
 {
     use SoftDeletes;
 
-    protected $table = 'teachers';
+    protected $table = 'system_teachers';
 
     protected $fillable = [
         'nontri_id',

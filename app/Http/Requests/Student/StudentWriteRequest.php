@@ -38,7 +38,7 @@ class StudentWriteRequest extends FormRequest
                 'sometimes',
                 'nullable',
                 'integer',
-                Rule::exists('teachers', 'id')->whereNull('deleted_at'),
+                Rule::exists('system_teachers', 'id')->whereNull('deleted_at'),
             ],
             'student_status_id' => $this->requiredRules(['integer', 'exists:student_statuses,id']),
             'admission_channel_id' => $this->requiredRules(['integer', 'exists:admission_channels,id']),

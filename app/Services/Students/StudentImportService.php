@@ -249,7 +249,7 @@ class StudentImportService
         $masterErrors = [];
         $titleId = $this->masterId($row[2], $masterData['titles'], 'คำนำหน้า', true, $masterErrors);
         $studyPlanId = $this->masterId($row[9], $masterData['study_plans'], 'แผนการเรียน', true, $masterErrors);
-        $teacherId = $this->masterId($row[11], $masterData['teachers'], 'อาจารย์ที่ปรึกษา', false, $masterErrors);
+        $systemTeacherId = $this->masterId($row[11], $masterData['systemTeachers'], 'อาจารย์ที่ปรึกษา', false, $masterErrors);
         $admissionChannelId = $this->masterId($row[12], $masterData['admission_channels'], 'ช่องทางรับเข้า', true, $masterErrors);
         $highSchoolId = $this->masterId($row[13], $masterData['high_schools'], 'โรงเรียน ม.ปลาย', true, $masterErrors);
         $guardianTitleId = $this->masterId($row[14], $masterData['titles'], 'คำนำหน้าผู้ปกครอง', true, $masterErrors);
@@ -268,7 +268,7 @@ class StudentImportService
             'email' => $row[8],
             'study_plan_id' => $studyPlanId,
             'entry_year' => $this->entryYear($row[10]),
-            'teacher_id' => $teacherId,
+            'teacher_id' => $systemTeacherId,
             'admission_channel_id' => $admissionChannelId,
             'high_school_id' => $highSchoolId,
             'guardian_title_id' => $guardianTitleId,
@@ -290,7 +290,7 @@ class StudentImportService
         return [
             'titles' => $this->lookup('titles', ['title_abbr_th', 'title_name_th'], true),
             'study_plans' => $this->lookup('curriculum_plans', ['name_th', 'code'], true),
-            'teachers' => $this->lookup('teachers', ['full_name_th'], false, true),
+            'systemTeachers' => $this->lookup('system_teachers', ['full_name_th'], false, true),
             'admission_channels' => $this->lookup('admission_channels', ['channel_name'], true),
             'high_schools' => $this->lookup('high_schools', ['school_name'], true),
             'relationships' => $this->lookup('relationships', ['relationship_name'], true),

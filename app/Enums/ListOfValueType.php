@@ -14,7 +14,7 @@ enum ListOfValueType: string
     case Provinces = 'provinces';
     case Districts = 'districts';
     case Subdistricts = 'subdistricts';
-    case Teachers = 'teachers';
+    case SystemTeachers = 'system-teachers';
     case SystemDepartments = 'system-departments';
     case SystemFaculties = 'system-faculties';
 }

@@ -84,9 +84,9 @@ class Student extends Model
         return $this->belongsTo(Relationship::class, 'guardian_relationship_id');
     }
 
-    public function teacher(): BelongsTo
+    public function systemTeacher(): BelongsTo
     {
-        return $this->belongsTo(Teacher::class, 'teacher_id');
+        return $this->belongsTo(SystemTeacher::class, 'teacher_id');
     }
 
     public function studentStatus(): BelongsTo

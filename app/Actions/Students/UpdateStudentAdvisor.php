@@ -11,7 +11,7 @@ class UpdateStudentAdvisor
     public function execute(array $attributes): array
     {
         return DB::transaction(function () use ($attributes): array {
-            $teacherId = (int) $attributes['teacher_id'];
+            $systemTeacherId = (int) $attributes['teacher_id'];
             $assignIds = $attributes['assign_student_ids'];
             $removeIds = $attributes['remove_student_ids'];
             $students = Student::query()
@@ -21,10 +21,10 @@ class UpdateStudentAdvisor
                 ->keyBy('id');
 
             $conflictingIds = collect($assignIds)
-                ->filter(function (int $studentId) use ($students, $teacherId): bool {
+                ->filter(function (int $studentId) use ($students, $systemTeacherId): bool {
                     $advisorId = $students->get($studentId)?->teacher_id;
 
-                    return $advisorId !== null && (int) $advisorId !== $teacherId;
+                    return $advisorId !== null && (int) $advisorId !== $systemTeacherId;
                 })
                 ->values()
                 ->all();
@@ -39,17 +39,17 @@ class UpdateStudentAdvisor
                 ? 0
                 : Student::query()
                     ->whereIn('id', $assignIds)
-                    ->update(['teacher_id' => $teacherId]);
+                    ->update(['teacher_id' => $systemTeacherId]);
 
             $removedCount = $removeIds === []
                 ? 0
                 : Student::query()
                     ->whereIn('id', $removeIds)
-                    ->where('teacher_id', $teacherId)
+                    ->where('teacher_id', $systemTeacherId)
                     ->update(['teacher_id' => null]);
 
             return [
-                'teacher_id' => $teacherId,
+                'teacher_id' => $systemTeacherId,
                 'assign_student_ids' => $assignIds,
                 'remove_student_ids' => $removeIds,
                 'assigned_count' => $assignedCount,

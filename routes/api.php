@@ -18,7 +18,7 @@ use App\Http\Controllers\Api\StudentStatusController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\SystemDepartmentController;
 use App\Http\Controllers\Api\SystemFacultyController;
-use App\Http\Controllers\Api\TeacherController;
+use App\Http\Controllers\Api\SystemTeacherController;
 use App\Http\Controllers\Api\TitleController;
 use App\Http\Controllers\MockLoginController;
 use App\Http\Middleware\AuthenticateJwt;
@@ -28,7 +28,7 @@ Route::prefix('mock-login')->withoutMiddleware(AuthenticateJwt::class)->group(fu
     Route::get('/', [MockLoginController::class, 'picker']);
     Route::get('/search', [MockLoginController::class, 'search']);
     Route::get('/admin', [MockLoginController::class, 'issueAdmin']);
-    Route::get('/teacher/{nontriId}', [MockLoginController::class, 'issueTeacher']);
+    Route::get('/system-teacher/{nontriId}', [MockLoginController::class, 'issueSystemTeacher']);
 });
 
 Route::get('/me', [MeController::class, 'show']);
@@ -109,8 +109,8 @@ Route::prefix('students')->group(function (): void {
     Route::delete('/{id}', [StudentController::class, 'destroy'])->whereNumber('id');
 });
 
-Route::get('/teachers', [TeacherController::class, 'index']);
-Route::post('/teachers/sync', [TeacherController::class, 'sync']);
+Route::get('/system-teachers', [SystemTeacherController::class, 'index']);
+Route::post('/system-teachers/sync', [SystemTeacherController::class, 'sync']);
 
 Route::get('/notes', [NoteController::class, 'index']);
 Route::post('/notes', [NoteController::class, 'store']);

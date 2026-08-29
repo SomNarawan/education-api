@@ -19,7 +19,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Dual-role teachers
+    | Dual-role system teachers
     |--------------------------------------------------------------------------
     |
     | nontri_id list (comma separated in .env) that should always be issued
