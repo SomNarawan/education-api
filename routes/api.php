@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AdmissionChannelController;
 use App\Http\Controllers\Api\CurriculumCategoryController;
+use App\Http\Controllers\Api\CurriculumController;
 use App\Http\Controllers\Api\CurriculumPlanController;
 use App\Http\Controllers\Api\DataImportController;
 use App\Http\Controllers\Api\HighSchoolController;
@@ -84,6 +85,7 @@ Route::prefix('import-types')->group(function (): void {
     Route::match(['put', 'patch'], '/{id}', [ImportTypeController::class, 'update'])->whereNumber('id');
     Route::patch('/{id}/status', [ImportTypeController::class, 'updateStatus'])->whereNumber('id');
 });
+Route::get('/curriculums', [CurriculumController::class, 'index']);
 Route::get('/study-plans', [CurriculumPlanController::class, 'index']);
 Route::get('/curriculum-categories', [CurriculumCategoryController::class, 'index']);
 Route::get('/imports', [DataImportController::class, 'index']);

@@ -11,6 +11,10 @@ class DataImport extends Model
 
     protected $fillable = [
         'import_type_id',
+        'curriculum_id',
+        'curriculum_name_th',
+        'curriculum_plan_id',
+        'curriculum_plan_name_th',
         'file_name',
         'file_result_path',
         'total_count',
@@ -27,6 +31,8 @@ class DataImport extends Model
     {
         return [
             'import_type_id' => 'integer',
+            'curriculum_id' => 'integer',
+            'curriculum_plan_id' => 'integer',
             'total_count' => 'integer',
             'success_count' => 'integer',
             'failed_count' => 'integer',

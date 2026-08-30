@@ -81,7 +81,12 @@ class StudentImportService
         private readonly CurriculumApi $curriculumApi,
     ) {}
 
-    public function import(UploadedFile $file, array $claims): array
+    public function import(
+        UploadedFile $file,
+        int $curriculumId,
+        int $studyPlanId,
+        array $claims,
+    ): array
     {
         $importType = ImportType::query()
             ->where('type', 'student')
@@ -94,8 +99,46 @@ class StudentImportService
             ]);
         }
 
+        $studyPlan = $this->curriculumApi->findStudyPlan($studyPlanId);
+
+        if ($studyPlan === null) {
+            throw ValidationException::withMessages([
+                'study_plan_id' => 'แผนการเรียนไม่ถูกต้อง',
+            ]);
+        }
+
+        if ((int) ($studyPlan['curriculum_id'] ?? 0) !== $curriculumId) {
+            throw ValidationException::withMessages([
+                'study_plan_id' => 'แผนการเรียนไม่อยู่ในหลักสูตรที่เลือก',
+            ]);
+        }
+
+        $curriculum = collect($this->curriculumApi->getCurriculums())
+            ->firstWhere('id', $curriculumId);
+
+        if ($curriculum === null) {
+            throw ValidationException::withMessages([
+                'curriculum_id' => 'หลักสูตรไม่ถูกต้อง',
+            ]);
+        }
+
+        $curriculumName = mb_substr(
+            trim((string) ($curriculum['name_th'] ?? $curriculum['code'] ?? $curriculumId)),
+            0,
+            255,
+        );
+        $studyPlanName = mb_substr(
+            trim((string) ($studyPlan['name_th'] ?? $studyPlan['code'] ?? $studyPlanId)),
+            0,
+            255,
+        );
+
         $import = DataImport::query()->create([
             'import_type_id' => $importType->id,
+            'curriculum_id' => $curriculumId,
+            'curriculum_name_th' => $curriculumName,
+            'curriculum_plan_id' => $studyPlanId,
+            'curriculum_plan_name_th' => $studyPlanName,
             'file_name' => $file->getClientOriginalName(),
             'status' => Status::PROCESSING,
             'imported_by' => $this->importedBy($claims),
@@ -123,9 +166,14 @@ class StudentImportService
 
             foreach ($dataRows as $index => $row) {
                 $sourceRow = $this->sourceRow($row);
+                $sourceRow[9] = $studyPlanName;
 
                 $rowNumber = $index + 1;
-                [$attributes, $masterErrors] = $this->attributes($sourceRow, $masterData);
+                [$attributes, $masterErrors] = $this->attributes(
+                    $sourceRow,
+                    $masterData,
+                    $studyPlanId,
+                );
                 $validator = Validator::make(
                     $attributes,
                     $this->studentRules(),
@@ -240,11 +288,10 @@ class StudentImportService
         return array_map(fn (mixed $value) => $this->cellValue($value), $row);
     }
 
-    private function attributes(array $row, array $masterData): array
+    private function attributes(array $row, array $masterData, int $studyPlanId): array
     {
         $masterErrors = [];
         $titleId = $this->masterId($row[2], $masterData['titles'], 'คำนำหน้า', true, $masterErrors);
-        $studyPlanId = $this->masterId($row[9], $masterData['study_plans'], 'แผนการเรียน', true, $masterErrors);
         $systemTeacherId = $this->masterId($row[11], $masterData['systemTeachers'], 'อาจารย์ที่ปรึกษา', false, $masterErrors);
         $admissionChannelId = $this->masterId($row[12], $masterData['admission_channels'], 'ช่องทางรับเข้า', true, $masterErrors);
         $highSchoolId = $this->masterId($row[13], $masterData['high_schools'], 'โรงเรียน ม.ปลาย', true, $masterErrors);
@@ -280,30 +327,12 @@ class StudentImportService
     {
         return [
             'titles' => $this->lookup('titles', ['title_abbr_th', 'title_name_th']),
-            'study_plans' => $this->studyPlanLookup(),
             'systemTeachers' => $this->lookup('system_teachers', ['full_name_th']),
             'admission_channels' => $this->lookup('admission_channels', ['channel_name']),
             'high_schools' => $this->lookup('high_schools', ['school_name']),
             'relationships' => $this->lookup('relationships', ['relationship_name']),
             'student_statuses' => $this->lookup('student_statuses', ['status_name']),
         ];
-    }
-
-    private function studyPlanLookup(): array
-    {
-        $lookup = [];
-
-        foreach ($this->curriculumApi->getStudyPlans() as $studyPlan) {
-            foreach (['name_th', 'code'] as $column) {
-                $key = $this->normalizedKey($studyPlan[$column] ?? null);
-
-                if ($key !== '') {
-                    $lookup[$key] ??= (int) $studyPlan['id'];
-                }
-            }
-        }
-
-        return $lookup;
     }
 
     private function lookup(string $table, array $columns): array
@@ -368,7 +397,7 @@ class StudentImportService
             'last_name_en' => ['required', 'string', 'max:50'],
             'phone' => ['required', 'string', 'max:10'],
             'email' => ['required', 'email', 'max:50'],
-            'study_plan_id' => ['nullable', 'integer', new ValidStudyPlan($this->curriculumApi)],
+            'study_plan_id' => ['required', 'integer', new ValidStudyPlan($this->curriculumApi)],
             'entry_year' => ['required', 'integer', 'between:1901,2155'],
             'teacher_id' => ['nullable', 'integer', Rule::exists('system_teachers', 'id')],
             'admission_channel_id' => ['nullable', 'integer', Rule::exists('admission_channels', 'id')],

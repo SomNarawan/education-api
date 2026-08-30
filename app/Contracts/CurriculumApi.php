@@ -4,7 +4,9 @@ namespace App\Contracts;
 
 interface CurriculumApi
 {
-    public function getStudyPlans(): array;
+    public function getCurriculums(): array;
+
+    public function getStudyPlans(?int $curriculumId = null): array;
 
     public function findStudyPlan(int $studyPlanId): ?array;
 

@@ -17,8 +17,11 @@ class StudentImportController extends Controller
         ImportStudentsRequest $request,
         StudentImportService $studentImport,
     ): BinaryFileResponse {
+        $validated = $request->validated();
         $result = $studentImport->import(
             $request->file('file'),
+            (int) $validated['curriculum_id'],
+            (int) $validated['study_plan_id'],
             $request->attributes->get('jwt_claims', []),
         );
 

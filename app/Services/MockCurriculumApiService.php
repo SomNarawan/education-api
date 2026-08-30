@@ -7,9 +7,20 @@ use Illuminate\Validation\ValidationException;
 
 class MockCurriculumApiService implements CurriculumApi
 {
-    public function getStudyPlans(): array
+    public function getCurriculums(): array
     {
-        return config('curriculum_api.mock.study_plans', []);
+        return config('curriculum_api.mock.curriculums', []);
+    }
+
+    public function getStudyPlans(?int $curriculumId = null): array
+    {
+        $studyPlans = collect(config('curriculum_api.mock.study_plans', []));
+
+        if ($curriculumId !== null) {
+            $studyPlans = $studyPlans->where('curriculum_id', $curriculumId);
+        }
+
+        return $studyPlans->values()->all();
     }
 
     public function findStudyPlan(int $studyPlanId): ?array

@@ -8,11 +8,21 @@ use Illuminate\Support\Facades\Http;
 
 class CurriculumApiService implements CurriculumApi
 {
-    private ?array $studyPlans = null;
+    private array $studyPlans = [];
 
-    public function getStudyPlans(): array
+    public function getCurriculums(): array
     {
-        return $this->studyPlans ??= $this->get('study_plans');
+        return $this->get('curriculums');
+    }
+
+    public function getStudyPlans(?int $curriculumId = null): array
+    {
+        $cacheKey = $curriculumId ?? 'all';
+
+        return $this->studyPlans[$cacheKey] ??= $this->get(
+            'study_plans',
+            $curriculumId === null ? [] : ['curriculum_id' => $curriculumId],
+        );
     }
 
     public function findStudyPlan(int $studyPlanId): ?array

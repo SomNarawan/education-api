@@ -1,6 +1,15 @@
 <?php
 
 return [
+    'curriculums' => [
+        [
+            'id' => 4,
+            'code' => 'CPE-2565',
+            'name_th' => 'หลักสูตรวิศวกรรมศาสตรบัณฑิต สาขาวิชาวิศวกรรมคอมพิวเตอร์',
+            'name_en' => 'Bachelor of Engineering Program in Computer Engineering',
+            'status' => 'activate',
+        ],
+    ],
     'study_plans' => [
         [
             'id' => 8,
