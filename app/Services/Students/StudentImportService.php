@@ -272,26 +272,19 @@ class StudentImportService
     private function masterData(): array
     {
         return [
-            'titles' => $this->lookup('titles', ['title_abbr_th', 'title_name_th'], true),
-            'study_plans' => $this->lookup('curriculum_plans', ['name_th', 'code'], true),
-            'systemTeachers' => $this->lookup('system_teachers', ['full_name_th'], true),
-            'admission_channels' => $this->lookup('admission_channels', ['channel_name'], true),
-            'high_schools' => $this->lookup('high_schools', ['school_name'], true),
-            'relationships' => $this->lookup('relationships', ['relationship_name'], true),
-            'student_statuses' => $this->lookup('student_statuses', ['status_name'], true),
+            'titles' => $this->lookup('titles', ['title_abbr_th', 'title_name_th']),
+            'study_plans' => $this->lookup('curriculum_plans', ['name_th', 'code']),
+            'systemTeachers' => $this->lookup('system_teachers', ['full_name_th']),
+            'admission_channels' => $this->lookup('admission_channels', ['channel_name']),
+            'high_schools' => $this->lookup('high_schools', ['school_name']),
+            'relationships' => $this->lookup('relationships', ['relationship_name']),
+            'student_statuses' => $this->lookup('student_statuses', ['status_name']),
         ];
     }
 
-    private function lookup(
-        string $table,
-        array $columns,
-        bool $activeOnly,
-    ): array {
+    private function lookup(string $table, array $columns): array
+    {
         $query = DB::table($table)->select(['id', ...$columns]);
-
-        if ($activeOnly) {
-            $query->where('status', Status::ACTIVE);
-        }
 
         $lookup = [];
 
@@ -326,7 +319,7 @@ class StudentImportService
         }
 
         if (! isset($lookup[$key])) {
-            $errors[] = "ไม่พบ {$label} \"{$value}\" ในข้อมูล master ที่เปิดใช้งาน";
+            $errors[] = "ไม่พบ {$label} \"{$value}\" ในฐานข้อมูล";
 
             return null;
         }
@@ -344,24 +337,24 @@ class StudentImportService
                 Rule::unique('students', 'student_code'),
             ],
             'student_id_card' => ['required', 'string', 'max:13', Rule::unique('students', 'student_id_card')],
-            'title_id' => ['nullable', 'integer'],
+            'title_id' => ['nullable', 'integer', Rule::exists('titles', 'id')],
             'first_name_th' => ['required', 'string', 'max:50'],
             'last_name_th' => ['required', 'string', 'max:50'],
             'first_name_en' => ['required', 'string', 'max:50'],
             'last_name_en' => ['required', 'string', 'max:50'],
             'phone' => ['required', 'string', 'max:10'],
             'email' => ['required', 'email', 'max:50'],
-            'study_plan_id' => ['nullable', 'integer'],
+            'study_plan_id' => ['nullable', 'integer', Rule::exists('curriculum_plans', 'id')],
             'entry_year' => ['required', 'integer', 'between:1901,2155'],
-            'teacher_id' => ['nullable', 'integer'],
-            'admission_channel_id' => ['nullable', 'integer'],
-            'high_school_id' => ['nullable', 'integer'],
-            'guardian_title_id' => ['nullable', 'integer'],
+            'teacher_id' => ['nullable', 'integer', Rule::exists('system_teachers', 'id')],
+            'admission_channel_id' => ['nullable', 'integer', Rule::exists('admission_channels', 'id')],
+            'high_school_id' => ['nullable', 'integer', Rule::exists('high_schools', 'id')],
+            'guardian_title_id' => ['nullable', 'integer', Rule::exists('titles', 'id')],
             'guardian_first_name_th' => ['required', 'string', 'max:50'],
             'guardian_last_name_th' => ['required', 'string', 'max:50'],
-            'guardian_relationship_id' => ['nullable', 'integer'],
+            'guardian_relationship_id' => ['nullable', 'integer', Rule::exists('relationships', 'id')],
             'guardian_phone' => ['required', 'string', 'max:10'],
-            'student_status_id' => ['nullable', 'integer'],
+            'student_status_id' => ['nullable', 'integer', Rule::exists('student_statuses', 'id')],
         ];
     }
 
