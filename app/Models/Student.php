@@ -113,11 +113,6 @@ class Student extends Model
         return $this->belongsTo(HighSchool::class, 'high_school_id');
     }
 
-    public function curriculumPlan(): BelongsTo
-    {
-        return $this->belongsTo(CurriculumPlan::class, 'study_plan_id');
-    }
-
     public function systemDepartment(): BelongsTo
     {
         return $this->belongsTo(SystemDepartment::class, 'system_department_id');

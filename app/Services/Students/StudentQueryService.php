@@ -2,15 +2,18 @@
 
 namespace App\Services\Students;
 
+use App\Contracts\CurriculumApi;
 use App\Models\Student;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class StudentQueryService
 {
+    public function __construct(private readonly CurriculumApi $curriculumApi) {}
+
     public function list(array $filters): Collection
     {
-        return $this->listQuery()
+        $students = $this->listQuery()
             ->when(
                 isset($filters['teacher_id']),
                 fn (Builder $query) => $query
@@ -43,11 +46,17 @@ class StudentQueryService
             )
             ->orderBy('id')
             ->get();
+
+        $students->each(fn (Student $student) => $this->attachStudyPlan($student));
+
+        return $students;
     }
 
     public function detail(int $id): ?Student
     {
-        return $this->detailQuery()->find($id);
+        $student = $this->detailQuery()->find($id);
+
+        return $student === null ? null : $this->attachStudyPlan($student);
     }
 
     private function listQuery(): Builder
@@ -57,7 +66,6 @@ class StudentQueryService
             'systemTeacher',
             'studentStatus',
             'systemDepartment.systemFaculty',
-            'curriculumPlan.curriculum',
         ]);
     }
 
@@ -70,10 +78,20 @@ class StudentQueryService
             'admissionChannel',
             'highSchool.subdistrict.district.province',
             'systemDepartment.systemFaculty',
-            'curriculumPlan.curriculum',
             'guardianTitle',
             'guardianRelationship',
         ]);
+    }
+
+    private function attachStudyPlan(Student $student): Student
+    {
+        $studyPlan = $student->study_plan_id === null
+            ? null
+            : $this->curriculumApi->findStudyPlan((int) $student->study_plan_id);
+
+        $student->setAttribute('study_plan_data', $studyPlan);
+
+        return $student;
     }
 
     private function applyTextSearch(Builder $query, string $searchText): void

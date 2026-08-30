@@ -4,8 +4,10 @@ namespace App\Services\Students;
 
 use App\Actions\Students\SaveStudent;
 use App\Constants\Status;
+use App\Contracts\CurriculumApi;
 use App\Models\DataImport;
 use App\Models\ImportType;
+use App\Rules\ValidStudyPlan;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -74,7 +76,10 @@ class StudentImportService
         'O1:S1',
     ];
 
-    public function __construct(private readonly SaveStudent $saveStudent) {}
+    public function __construct(
+        private readonly SaveStudent $saveStudent,
+        private readonly CurriculumApi $curriculumApi,
+    ) {}
 
     public function import(UploadedFile $file, array $claims): array
     {
@@ -275,13 +280,30 @@ class StudentImportService
     {
         return [
             'titles' => $this->lookup('titles', ['title_abbr_th', 'title_name_th']),
-            'study_plans' => $this->lookup('curriculum_plans', ['name_th', 'code']),
+            'study_plans' => $this->studyPlanLookup(),
             'systemTeachers' => $this->lookup('system_teachers', ['full_name_th']),
             'admission_channels' => $this->lookup('admission_channels', ['channel_name']),
             'high_schools' => $this->lookup('high_schools', ['school_name']),
             'relationships' => $this->lookup('relationships', ['relationship_name']),
             'student_statuses' => $this->lookup('student_statuses', ['status_name']),
         ];
+    }
+
+    private function studyPlanLookup(): array
+    {
+        $lookup = [];
+
+        foreach ($this->curriculumApi->getStudyPlans() as $studyPlan) {
+            foreach (['name_th', 'code'] as $column) {
+                $key = $this->normalizedKey($studyPlan[$column] ?? null);
+
+                if ($key !== '') {
+                    $lookup[$key] ??= (int) $studyPlan['id'];
+                }
+            }
+        }
+
+        return $lookup;
     }
 
     private function lookup(string $table, array $columns): array
@@ -346,7 +368,7 @@ class StudentImportService
             'last_name_en' => ['required', 'string', 'max:50'],
             'phone' => ['required', 'string', 'max:10'],
             'email' => ['required', 'email', 'max:50'],
-            'study_plan_id' => ['nullable', 'integer', Rule::exists('curriculum_plans', 'id')],
+            'study_plan_id' => ['nullable', 'integer', new ValidStudyPlan($this->curriculumApi)],
             'entry_year' => ['required', 'integer', 'between:1901,2155'],
             'teacher_id' => ['nullable', 'integer', Rule::exists('system_teachers', 'id')],
             'admission_channel_id' => ['nullable', 'integer', Rule::exists('admission_channels', 'id')],

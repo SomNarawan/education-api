@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Student;
 
 use App\Constants\Status;
+use App\Rules\ValidStudyPlan;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -42,7 +43,7 @@ class StudentWriteRequest extends FormRequest
             'student_status_id' => $this->requiredRules(['integer', 'exists:student_statuses,id']),
             'admission_channel_id' => $this->requiredRules(['integer', 'exists:admission_channels,id']),
             'high_school_id' => $this->requiredRules(['integer', 'exists:high_schools,id']),
-            'study_plan_id' => $this->requiredRules(['integer', 'exists:curriculum_plans,id']),
+            'study_plan_id' => $this->requiredRules(['integer', app(ValidStudyPlan::class)]),
             'department_id' => [
                 'sometimes',
                 'integer',

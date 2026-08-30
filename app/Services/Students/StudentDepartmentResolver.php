@@ -2,8 +2,7 @@
 
 namespace App\Services\Students;
 
-use App\Models\CurriculumPlan;
-use App\Models\Department;
+use App\Contracts\CurriculumApi;
 use App\Models\SystemDepartment;
 use App\Models\SystemTeacher;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +11,8 @@ use Illuminate\Validation\ValidationException;
 
 class StudentDepartmentResolver
 {
+    public function __construct(private readonly CurriculumApi $curriculumApi) {}
+
     public function resolve(array $attributes): int
     {
         if (isset($attributes['department_id'])) {
@@ -28,12 +29,8 @@ class StudentDepartmentResolver
             }
         }
 
-        $curriculumDepartmentId = CurriculumPlan::query()
-            ->whereKey($attributes['study_plan_id'])
-            ->with('curriculum:id,department_id')
-            ->first()
-            ?->curriculum
-            ?->department_id;
+        $studyPlan = $this->curriculumApi->findStudyPlan((int) $attributes['study_plan_id']);
+        $curriculumDepartmentId = $studyPlan['department_id'] ?? null;
 
         if ($curriculumDepartmentId !== null) {
             $mappedDepartmentId = $this->mappedDepartmentId((int) $curriculumDepartmentId);
@@ -42,7 +39,9 @@ class StudentDepartmentResolver
                 return $mappedDepartmentId;
             }
 
-            $matchedDepartmentId = $this->matchDepartmentByName((int) $curriculumDepartmentId);
+            $matchedDepartmentId = $this->matchDepartmentByName(
+                $studyPlan['department_name_th'] ?? ''
+            );
 
             if ($matchedDepartmentId !== null) {
                 return $matchedDepartmentId;
@@ -75,13 +74,9 @@ class StudentDepartmentResolver
                 : null;
     }
 
-    private function matchDepartmentByName(int $curriculumDepartmentId): ?int
+    private function matchDepartmentByName(string $name): ?int
     {
-        $name = Department::query()
-            ->whereKey($curriculumDepartmentId)
-            ->value('name_th');
-
-        if (! is_string($name) || trim($name) === '') {
+        if (trim($name) === '') {
             return null;
         }
 
