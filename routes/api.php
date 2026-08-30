@@ -94,6 +94,7 @@ Route::prefix('students')->group(function (): void {
     Route::get('/studying', [StudentController::class, 'studying']);
     Route::get('/studying/without-advisor', [StudentController::class, 'studyingWithoutAdvisor']);
     Route::patch('/advisor', [StudentController::class, 'updateAdvisor']);
+    Route::get('/import/template', [StudentImportController::class, 'downloadTemplate']);
     Route::post('/import', StudentImportController::class);
 
     Route::get('/{studentCode}/enrollments', [StudentJsonDataController::class, 'enrollments'])
