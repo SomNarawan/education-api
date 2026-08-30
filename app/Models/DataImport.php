@@ -17,6 +17,7 @@ class DataImport extends Model
         'success_count',
         'failed_count',
         'status',
+        'error_message',
         'imported_by',
         'started_at',
         'completed_at',

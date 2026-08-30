@@ -17,6 +17,7 @@ class DataImportResponse extends JsonResource
             'total_count' => $this->total_count,
             'success_count' => $this->success_count,
             'failed_count' => $this->failed_count,
+            'error_message' => $this->error_message,
             'imported_by' => $this->imported_by,
             'started_at' => $this->started_at,
             'completed_at' => $this->completed_at,

@@ -163,6 +163,7 @@ class StudentImportService
                 'success_count' => $successCount,
                 'failed_count' => $failedCount,
                 'status' => $this->resultStatus($successCount, $failedCount),
+                'error_message' => null,
                 'completed_at' => now(),
             ]);
 
@@ -174,6 +175,7 @@ class StudentImportService
         } catch (Throwable $exception) {
             $import->update([
                 'status' => Status::FAILED,
+                'error_message' => $this->errorMessage($exception),
                 'completed_at' => now(),
             ]);
 
@@ -545,5 +547,15 @@ class StudentImportService
         $errors = array_values(array_unique(array_filter($errors)));
 
         return "แถว {$rowNumber}: ".implode('; ', $errors);
+    }
+
+    private function errorMessage(Throwable $exception): string
+    {
+        $messages = $exception instanceof ValidationException
+            ? $exception->validator->errors()->all()
+            : [$exception->getMessage()];
+        $message = implode('; ', array_values(array_unique(array_filter($messages))));
+
+        return mb_substr($message !== '' ? $message : 'ไม่สามารถนำเข้าข้อมูลได้', 0, 10000);
     }
 }
