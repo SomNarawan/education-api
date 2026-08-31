@@ -18,7 +18,10 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [env('FRONTEND_URL', 'https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd')],
+    'allowed_origins' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('FRONTEND_URL', 'https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd'))
+    ))),
 
     'allowed_origins_patterns' => [],
 
