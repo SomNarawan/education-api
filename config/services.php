@@ -40,7 +40,6 @@ return [
         'base_path' => '/kukps-eng-personnel-api/api/portal-student-map',
 
         'endpoints' => [
-            'all_user' => '/all-user',
             'all_department' => '/all-department',
             'all_faculty' => '/all-faculty',
         ],

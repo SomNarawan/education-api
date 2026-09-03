@@ -41,6 +41,10 @@ class SyncController extends Controller
             ->groupBy('sync_type');
 
         $items = SyncType::query()
+            ->whereIn('sync_types.id', [
+                Sync::TYPE_SYSTEM_FACULTY,
+                Sync::TYPE_SYSTEM_DEPARTMENT,
+            ])
             ->leftJoinSub(
                 $latestSyncIds,
                 'latest_syncs',
@@ -108,20 +112,6 @@ class SyncController extends Controller
             $request,
             $syncService,
             Sync::TYPE_SYSTEM_DEPARTMENT
-        );
-    }
-
-    /**
-     * API: POST /api/system-teachers/sync
-     */
-    public function systemTeachers(
-        Request $request,
-        SystemMasterDataSyncService $syncService
-    ): JsonResponse {
-        return $this->runSystemSync(
-            $request,
-            $syncService,
-            Sync::TYPE_SYSTEM_TEACHER
         );
     }
 

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Actions\Students\SaveStudent;
 use App\Actions\Students\UpdateStudentAdvisor;
 use App\Constants\HttpStatus;
-use App\Constants\Status;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\ListStudentsRequest;
@@ -16,10 +15,10 @@ use App\Http\Responses\StudentDetailResponse;
 use App\Http\Responses\StudentListResponse;
 use App\Http\Responses\StudentWithoutAdvisorResponse;
 use App\Models\Student;
+use App\Rules\ValidStudyPlan;
 use App\Services\Students\StudentQueryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class StudentController extends Controller
 {
@@ -43,7 +42,7 @@ class StudentController extends Controller
     }
 
     /**
-     * API: GET /api/students/studying?teacher_id={id}
+     * API: GET /api/students/studying?teacher_id={id}&study_plan_id={id}
      */
     public function studying(ListStudyingStudentsRequest $request): JsonResponse
     {
@@ -56,23 +55,22 @@ class StudentController extends Controller
     }
 
     /**
-     * API: GET /api/students/studying/without-advisor?department_id={id}
+     * API: GET /api/students/studying/without-advisor?study_plan_id={id}
      */
     public function studyingWithoutAdvisor(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'department_id' => [
+            'study_plan_id' => [
                 'required',
                 'integer',
-                'min:1',
-                Rule::exists('system_departments', 'id')->where('status', Status::ACTIVE),
+                app(ValidStudyPlan::class),
             ],
         ]);
 
         $students = Student::query()
             ->with('title')
             ->studying()
-            ->where('system_department_id', $validated['department_id'])
+            ->where('study_plan_id', $validated['study_plan_id'])
             ->whereNull('teacher_id')
             ->orderBy('student_code')
             ->get();

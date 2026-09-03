@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Student;
 
 use App\Constants\Status;
+use App\Rules\ValidStudyPlan;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -12,6 +13,11 @@ class UpdateStudentAdvisorRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'study_plan_id' => [
+                'required',
+                'integer',
+                app(ValidStudyPlan::class),
+            ],
             'teacher_id' => [
                 'required',
                 'integer',

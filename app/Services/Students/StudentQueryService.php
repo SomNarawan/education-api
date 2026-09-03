@@ -25,6 +25,10 @@ class StudentQueryService
                 fn (Builder $query) => $query->where('system_department_id', $filters['department_id'])
             )
             ->when(
+                isset($filters['study_plan_id']),
+                fn (Builder $query) => $query->where('study_plan_id', $filters['study_plan_id'])
+            )
+            ->when(
                 isset($filters['faculty_id']),
                 fn (Builder $query) => $query->whereHas(
                     'systemDepartment',

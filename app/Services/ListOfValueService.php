@@ -17,12 +17,17 @@ use App\Models\SystemDepartment;
 use App\Models\SystemFaculty;
 use App\Models\SystemTeacher;
 use App\Models\Title;
+use App\Services\Students\StudentDepartmentResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 class ListOfValueService
 {
+    public function __construct(
+        private readonly StudentDepartmentResolver $departmentResolver
+    ) {}
+
     public function get(ListOfValueType $type, array $filters = []): Collection
     {
         return match ($type) {
@@ -83,10 +88,16 @@ class ListOfValueService
 
     private function systemTeachers(array $filters): Collection
     {
+        $departmentId = isset($filters['study_plan_id'])
+            ? $this->departmentResolver->resolve([
+                'study_plan_id' => $filters['study_plan_id'],
+            ])
+            : ($filters['department_id'] ?? null);
+
         $query = SystemTeacher::query()
             ->when(
-                isset($filters['department_id']),
-                fn (Builder $query) => $query->where('department_id', $filters['department_id'])
+                $departmentId !== null,
+                fn (Builder $query) => $query->where('department_id', $departmentId)
             );
 
         return $this->options($query, 'full_name_th');

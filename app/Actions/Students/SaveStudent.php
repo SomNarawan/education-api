@@ -66,6 +66,7 @@ class SaveStudent
     private function databaseAttributes(array $attributes): array
     {
         return Arr::except($attributes, [
+            'curriculum_id',
             'department_id',
             ...self::MANAGED_ACADEMIC_FIELDS,
         ]);

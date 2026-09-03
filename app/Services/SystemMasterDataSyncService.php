@@ -6,7 +6,6 @@ use App\Constants\Status;
 use App\Models\Sync;
 use App\Models\SystemDepartment;
 use App\Models\SystemFaculty;
-use App\Models\SystemTeacher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -23,12 +22,10 @@ class SystemMasterDataSyncService
      * API paths:
      * POST /api/system-faculties/sync
      * POST /api/system-departments/sync
-     * POST /api/system-teachers/sync
      *
      * Sync types:
      * 1 = system faculties
      * 2 = system departments
-     * 3 = system teachers
      */
     public function sync(int $syncType, string $actor): Sync
     {
@@ -41,7 +38,6 @@ class SystemMasterDataSyncService
                 $counts = match ($syncType) {
                     Sync::TYPE_SYSTEM_FACULTY => $this->syncFaculties($items, $sync, $actor),
                     Sync::TYPE_SYSTEM_DEPARTMENT => $this->syncDepartments($items, $sync, $actor),
-                    Sync::TYPE_SYSTEM_TEACHER => $this->syncTeachers($items, $sync, $actor),
                     default => throw new InvalidArgumentException('Unsupported sync type'),
                 };
 
@@ -69,7 +65,6 @@ class SystemMasterDataSyncService
         return match ($syncType) {
             Sync::TYPE_SYSTEM_FACULTY => $this->facultyItems(),
             Sync::TYPE_SYSTEM_DEPARTMENT => $this->departmentItems(),
-            Sync::TYPE_SYSTEM_TEACHER => $this->teacherItems(),
             default => throw new InvalidArgumentException('Unsupported sync type'),
         };
     }
@@ -120,13 +115,6 @@ class SystemMasterDataSyncService
         }
 
         return $departments;
-    }
-
-    private function teacherItems(): array
-    {
-        $response = $this->personnelApiService->getSystemTeachers();
-
-        return $response['users'] ?? $response;
     }
 
     private function syncFaculties(array $faculties, Sync $sync, string $actor): array
@@ -186,41 +174,6 @@ class SystemMasterDataSyncService
             $sync,
             $actor,
             'Personnel API returned departments, but none could be mapped to an active system faculty.'
-        );
-    }
-
-    private function syncTeachers(array $teachers, Sync $sync, string $actor): array
-    {
-        $existingDepartmentIds = $this->existingIds(
-            SystemDepartment::class,
-            collect($teachers)->pluck('department_id')->all()
-        );
-
-        return $this->syncRecords(
-            $teachers,
-            SystemTeacher::class,
-            'nontri_id',
-            function (mixed $teacher) use ($existingDepartmentIds): ?array {
-                if (! is_array($teacher) || empty($teacher['nontri_id']) || empty($teacher['full_name'])) {
-                    return null;
-                }
-
-                $departmentId = $this->positiveInteger($teacher['department_id'] ?? null);
-
-                if ($departmentId === null || ! isset($existingDepartmentIds[$departmentId])) {
-                    return null;
-                }
-
-                $nontriId = trim($teacher['nontri_id']);
-
-                return [$nontriId, [
-                    'full_name_th' => trim($teacher['full_name']),
-                    'department_id' => $departmentId,
-                ]];
-            },
-            $sync,
-            $actor,
-            'Personnel API returned system teachers, but none could be mapped to an active system department.'
         );
     }
 

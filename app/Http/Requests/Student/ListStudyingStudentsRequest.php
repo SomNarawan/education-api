@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Student;
 
+use App\Rules\ValidStudyPlan;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ListStudyingStudentsRequest extends FormRequest
@@ -10,6 +11,11 @@ class ListStudyingStudentsRequest extends FormRequest
     {
         return [
             'teacher_id' => ['required', 'integer', 'min:1'],
+            'study_plan_id' => [
+                'required',
+                'integer',
+                app(ValidStudyPlan::class),
+            ],
         ];
     }
 }

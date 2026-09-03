@@ -115,7 +115,6 @@ Route::prefix('students')->group(function (): void {
 Route::prefix('system-teachers')->group(function (): void {
     Route::get('/', [SystemTeacherController::class, 'index']);
     Route::get('/all', [SystemTeacherController::class, 'all']);
-    Route::post('/sync', [SyncController::class, 'systemTeachers']);
 });
 
 Route::get('/notes', [NoteController::class, 'index']);

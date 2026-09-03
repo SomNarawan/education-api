@@ -55,6 +55,7 @@ class StudentDetailResponse extends JsonResource
                 $province?->province_name,
                 $subdistrict?->postal_code,
             ),
+            'curriculum_id' => (int) ($studyPlan['curriculum_id'] ?? 0),
             'study_plan_id' => $this->study_plan_id,
             'curriculum_type' => $studyPlan['curriculum_type'] ?? null,
             'study_plan_name' => $studyPlan['name_th'] ?? null,

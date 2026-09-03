@@ -31,6 +31,12 @@ class ListOfValueRequest extends FormRequest
                 'integer',
                 'min:1',
             ],
+            'study_plan_id' => [
+                Rule::prohibitedIf($type !== ListOfValueType::SystemTeachers),
+                'sometimes',
+                'integer',
+                'min:1',
+            ],
         ];
     }
 
