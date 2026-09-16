@@ -116,6 +116,17 @@ FRONTEND_URL=http://localhost:5173
 VITE_API_URL=http://localhost:8000/api
 ```
 
+ถ้ารันผ่าน Docker Compose ในเครื่อง ค่า URL จะต้องตรงกับ port mapping ของ compose:
+
+```env
+APP_URL=http://localhost:3009
+FRONTEND_URL=http://localhost:3008,http://localhost:5173
+VITE_API_URL=http://localhost:3009/api
+MOCK_LOGIN_ENABLED=true
+```
+
+`FRONTEND_URL` รองรับหลาย origin คั่นด้วย comma เพื่อให้ทดสอบได้ทั้งหน้า Docker (`3008`) และ Vite dev server (`5173`) โดย mock-login redirect จะใช้ URL ตัวแรกเป็นหลัก
+
 เมื่อต้อง deploy บน server ให้ใช้ไฟล์ env production แทน default ของ compose:
 
 ```bash

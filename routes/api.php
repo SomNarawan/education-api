@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ListOfValueController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\NoteTypeController;
+use App\Http\Controllers\Api\PortalMainStudentController;
 use App\Http\Controllers\Api\RelationshipController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\StudentImportController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\Api\SystemTeacherController;
 use App\Http\Controllers\Api\TitleController;
 use App\Http\Controllers\MockLoginController;
 use App\Http\Middleware\AuthenticateJwt;
+use App\Http\Middleware\AuthenticatePortalMainApiKey;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('mock-login')->withoutMiddleware(AuthenticateJwt::class)->group(function (): void {
@@ -31,6 +33,17 @@ Route::prefix('mock-login')->withoutMiddleware(AuthenticateJwt::class)->group(fu
     Route::get('/admin', [MockLoginController::class, 'issueAdmin']);
     Route::get('/system-teacher/{nontriId}', [MockLoginController::class, 'issueSystemTeacher']);
 });
+
+Route::prefix('portal-main-student')
+    ->withoutMiddleware(AuthenticateJwt::class)
+    ->middleware(AuthenticatePortalMainApiKey::class)
+    ->group(function (): void {
+        Route::get('/check-user/{nontriId}', [PortalMainStudentController::class, 'checkUser']);
+        Route::get('/get-user-data-by-nontri/{nontriId}', [PortalMainStudentController::class, 'getUserDataByNontri']);
+        Route::post('/get-user-data-list-by-nontri', [PortalMainStudentController::class, 'getUserDataListByNontri']);
+        Route::get('/search-nontri-by-any', [PortalMainStudentController::class, 'searchNontriByAny']);
+        Route::get('/search-nontri', [PortalMainStudentController::class, 'searchNontri']);
+    });
 
 Route::get('/me', [MeController::class, 'show']);
 
