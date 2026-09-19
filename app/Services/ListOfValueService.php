@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Constants\Status;
 use App\Contracts\CmisApi;
-use App\Contracts\TeacherApi;
 use App\Enums\ListOfValueType;
 use App\Models\AdmissionChannel;
 use App\Models\District;
@@ -21,14 +20,10 @@ use App\Models\Title;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
-use Illuminate\Validation\ValidationException;
-use RuntimeException;
-use Throwable;
 
 class ListOfValueService
 {
     public function __construct(
-        private readonly TeacherApi $teacherApi,
         private readonly CmisApi $cmisApi,
     ) {}
 
@@ -97,7 +92,6 @@ class ListOfValueService
                 null,
                 $includeIds,
             ),
-            ListOfValueType::SystemTeachers => $this->systemTeachers($filters),
             ListOfValueType::SystemDepartments => $this->options(
                 SystemDepartment::query(),
                 'th_name',
@@ -114,6 +108,9 @@ class ListOfValueService
             ListOfValueType::StudyPlans => $this->studyPlanOptions(
                 (int) $filters['curriculum_id'],
                 $includeIds,
+            ),
+            ListOfValueType::CurriculumPersonnel => $this->curriculumPersonnelOptions(
+                (int) $filters['curriculum_id'],
             ),
         };
     }
@@ -149,50 +146,20 @@ class ListOfValueService
             ->values();
     }
 
-    private function systemTeachers(array $filters): Collection
+    private function curriculumPersonnelOptions(int $curriculumId): Collection
     {
-        if (isset($filters['study_plan_id'])) {
-            return $this->curriculumPersonnelOptions((int) $filters['study_plan_id']);
-        }
-
-        return $this->teacherOptions($this->teacherApi->getTeachers());
+        return $this->personnelOptions(
+            $this->cmisApi->getCurriculumPersonnel($curriculumId),
+        );
     }
 
-    private function curriculumPersonnelOptions(int $studyPlanId): Collection
+    private function personnelOptions(array $personnel): Collection
     {
-        $studyPlan = $this->cmisApi->findStudyPlan($studyPlanId);
-        $curriculumId = $studyPlan['curriculum_id'] ?? null;
-
-        if (! is_numeric($curriculumId)) {
-            throw ValidationException::withMessages([
-                'study_plan_id' => 'The selected study plan does not have a curriculum.',
-            ]);
-        }
-
-        try {
-            $payload = $this->cmisApi->getCurriculumPersonnel((int) $curriculumId);
-            $personnel = $payload['data'] ?? null;
-
-            if (! is_array($personnel)) {
-                throw new RuntimeException('CMIS curriculum personnel response does not contain a valid data array.');
-            }
-        } catch (Throwable $exception) {
-            throw new RuntimeException(
-                'Unable to load curriculum personnel from CMIS.',
-                previous: $exception,
-            );
-        }
-
-        return $this->teacherOptions($personnel);
-    }
-
-    private function teacherOptions(array $teachers): Collection
-    {
-        return collect($teachers)
-            ->filter(fn (mixed $teacher): bool => is_array($teacher))
-            ->map(function (array $teacher): ?array {
-                $id = $teacher['personnel_id'] ?? $teacher['id'] ?? null;
-                $nameTh = $teacher['full_name'] ?? $teacher['full_name_th'] ?? null;
+        return collect($personnel)
+            ->filter(fn (mixed $person): bool => is_array($person))
+            ->map(function (array $person): ?array {
+                $id = $person['personnel_id'] ?? $person['id'] ?? null;
+                $nameTh = $person['full_name'] ?? $person['full_name_th'] ?? null;
 
                 if (! is_numeric($id) || ! is_scalar($nameTh) || trim((string) $nameTh) === '') {
                     return null;
@@ -201,8 +168,8 @@ class ListOfValueService
                 return [
                     'id' => (int) $id,
                     'name_th' => (string) $nameTh,
-                    'name_en' => isset($teacher['full_name_en']) && is_scalar($teacher['full_name_en'])
-                        ? (string) $teacher['full_name_en']
+                    'name_en' => isset($person['full_name_en']) && is_scalar($person['full_name_en'])
+                        ? (string) $person['full_name_en']
                         : null,
                 ];
             })

@@ -25,7 +25,7 @@ interface CmisApi
     public function findStudyPlan(int $studyPlanId): ?array;
 
     /**
-     * Return the complete curriculum personnel response envelope from CMIS.
+     * Return only the curriculum personnel from the CMIS response data field.
      */
     public function getCurriculumPersonnel(int $curriculumId): array;
 }

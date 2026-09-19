@@ -49,7 +49,7 @@ class CmisService implements CmisApi
     {
         return $this->get('curriculum_personnel', [
             'curriculum_id' => $curriculumId,
-        ]);
+        ])['data'];
     }
 
     private function get(string $endpointKey, array $query): array

@@ -25,15 +25,15 @@ class ListOfValueRequest extends FormRequest
                 'integer',
                 'exists:districts,id',
             ],
-            'study_plan_id' => [
-                Rule::prohibitedIf($type !== ListOfValueType::SystemTeachers),
-                'sometimes',
-                'integer',
-                'min:1',
-            ],
             'curriculum_id' => [
-                Rule::requiredIf($type === ListOfValueType::StudyPlans),
-                Rule::prohibitedIf($type !== ListOfValueType::StudyPlans),
+                Rule::requiredIf(in_array($type, [
+                    ListOfValueType::StudyPlans,
+                    ListOfValueType::CurriculumPersonnel,
+                ], true)),
+                Rule::prohibitedIf(! in_array($type, [
+                    ListOfValueType::StudyPlans,
+                    ListOfValueType::CurriculumPersonnel,
+                ], true)),
                 'integer',
                 'min:1',
             ],
