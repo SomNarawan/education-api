@@ -2,14 +2,14 @@
 
 namespace App\Services\Students;
 
-use App\Contracts\CurriculumApi;
+use App\Contracts\CmisApi;
 use App\Models\Student;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class StudentQueryService
 {
-    public function __construct(private readonly CurriculumApi $curriculumApi) {}
+    public function __construct(private readonly CmisApi $cmisApi) {}
 
     public function list(array $filters): Collection
     {
@@ -91,7 +91,7 @@ class StudentQueryService
     {
         $studyPlan = $student->study_plan_id === null
             ? null
-            : $this->curriculumApi->findStudyPlan((int) $student->study_plan_id);
+            : $this->cmisApi->findStudyPlan((int) $student->study_plan_id);
 
         $student->setAttribute('study_plan_data', $studyPlan);
 

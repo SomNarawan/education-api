@@ -4,7 +4,7 @@ namespace App\Services\Students;
 
 use App\Actions\Students\SaveStudent;
 use App\Constants\Status;
-use App\Contracts\CurriculumApi;
+use App\Contracts\CmisApi;
 use App\Models\DataImport;
 use App\Models\ImportType;
 use App\Rules\ValidStudyPlan;
@@ -78,7 +78,7 @@ class StudentImportService
 
     public function __construct(
         private readonly SaveStudent $saveStudent,
-        private readonly CurriculumApi $curriculumApi,
+        private readonly CmisApi $cmisApi,
     ) {}
 
     public function import(
@@ -86,8 +86,7 @@ class StudentImportService
         int $curriculumId,
         int $studyPlanId,
         array $claims,
-    ): array
-    {
+    ): array {
         $importType = ImportType::query()
             ->where('type', 'student')
             ->where('status', Status::ACTIVE)
@@ -99,7 +98,7 @@ class StudentImportService
             ]);
         }
 
-        $studyPlan = $this->curriculumApi->findStudyPlan($studyPlanId);
+        $studyPlan = $this->cmisApi->findStudyPlan($studyPlanId);
 
         if ($studyPlan === null) {
             throw ValidationException::withMessages([
@@ -113,7 +112,7 @@ class StudentImportService
             ]);
         }
 
-        $curriculum = collect($this->curriculumApi->getCurriculums())
+        $curriculum = collect($this->cmisApi->getCurriculums())
             ->firstWhere('id', $curriculumId);
 
         if ($curriculum === null) {
@@ -397,7 +396,7 @@ class StudentImportService
             'last_name_en' => ['required', 'string', 'max:50'],
             'phone' => ['required', 'string', 'max:10'],
             'email' => ['required', 'email', 'max:50'],
-            'study_plan_id' => ['required', 'integer', new ValidStudyPlan($this->curriculumApi)],
+            'study_plan_id' => ['required', 'integer', new ValidStudyPlan($this->cmisApi)],
             'entry_year' => ['required', 'integer', 'between:1901,2155'],
             'teacher_id' => ['nullable', 'integer', Rule::exists('system_teachers', 'id')],
             'admission_channel_id' => ['nullable', 'integer', Rule::exists('admission_channels', 'id')],

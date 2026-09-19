@@ -2,15 +2,15 @@
 
 namespace App\Providers;
 
-use App\Contracts\CurriculumApi;
-use App\Services\CurriculumApiService;
-use App\Services\MockCurriculumApiService;
+use App\Contracts\CmisApi;
+use App\Contracts\TeacherApi;
+use App\Services\CmisService;
+use App\Services\TeacherApiService;
 use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
-use InvalidArgumentException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,13 +19,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->scoped(CurriculumApi::class, function () {
-            return match (config('curriculum_api.driver')) {
-                'mock' => new MockCurriculumApiService,
-                'http' => new CurriculumApiService,
-                default => throw new InvalidArgumentException('Unsupported curriculum API driver'),
-            };
-        });
+        $this->app->scoped(CmisApi::class, CmisService::class);
+
+        $this->app->scoped(TeacherApi::class, TeacherApiService::class);
     }
 
     /**

@@ -2,7 +2,7 @@
 
 namespace App\Services\Students;
 
-use App\Contracts\CurriculumApi;
+use App\Contracts\CmisApi;
 use App\Models\SystemDepartment;
 use App\Models\SystemTeacher;
 use Illuminate\Support\Facades\DB;
@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 class StudentDepartmentResolver
 {
-    public function __construct(private readonly CurriculumApi $curriculumApi) {}
+    public function __construct(private readonly CmisApi $cmisApi) {}
 
     public function resolve(array $attributes): int
     {
@@ -29,7 +29,7 @@ class StudentDepartmentResolver
             }
         }
 
-        $studyPlan = $this->curriculumApi->findStudyPlan((int) $attributes['study_plan_id']);
+        $studyPlan = $this->cmisApi->findStudyPlan((int) $attributes['study_plan_id']);
         $curriculumDepartmentId = $studyPlan['department_id'] ?? null;
 
         if ($curriculumDepartmentId !== null) {

@@ -3,19 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\CmisApi;
-use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class CurriculumPlanController extends Controller
+class CurriculumPersonnelController extends Controller
 {
     public function __construct(
         private readonly CmisApi $cmisApi,
     ) {}
 
     /**
-     * API: GET /api/study-plans
+     * API: GET /api/curriculum-personnel?curriculum_id={id}
      */
     public function index(Request $request): JsonResponse
     {
@@ -23,9 +22,9 @@ class CurriculumPlanController extends Controller
             'curriculum_id' => ['required', 'integer'],
         ]);
 
-        return ApiResponse::success(
-            $this->cmisApi->getCurriculumPlans((int) $validated['curriculum_id']),
-            'Load curriculum plans successfully'
+        return response()->json(
+            $this->cmisApi->getCurriculumPersonnel((int) $validated['curriculum_id']),
+            options: JSON_UNESCAPED_UNICODE,
         );
     }
 }

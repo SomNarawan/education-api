@@ -25,12 +25,6 @@ class ListOfValueRequest extends FormRequest
                 'integer',
                 'exists:districts,id',
             ],
-            'department_id' => [
-                Rule::prohibitedIf($type !== ListOfValueType::SystemTeachers),
-                'sometimes',
-                'integer',
-                'min:1',
-            ],
             'study_plan_id' => [
                 Rule::prohibitedIf($type !== ListOfValueType::SystemTeachers),
                 'sometimes',

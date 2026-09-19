@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Constants\Status;
+use App\Contracts\CmisApi;
+use App\Contracts\TeacherApi;
 use App\Enums\ListOfValueType;
 use App\Models\AdmissionChannel;
 use App\Models\District;
@@ -15,17 +17,19 @@ use App\Models\StudentStatus;
 use App\Models\Subdistrict;
 use App\Models\SystemDepartment;
 use App\Models\SystemFaculty;
-use App\Models\SystemTeacher;
 use App\Models\Title;
-use App\Services\Students\StudentDepartmentResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
+use Throwable;
 
 class ListOfValueService
 {
     public function __construct(
-        private readonly StudentDepartmentResolver $departmentResolver
+        private readonly TeacherApi $teacherApi,
+        private readonly CmisApi $cmisApi,
     ) {}
 
     public function get(ListOfValueType $type, array $filters = []): Collection
@@ -88,19 +92,63 @@ class ListOfValueService
 
     private function systemTeachers(array $filters): Collection
     {
-        $departmentId = isset($filters['study_plan_id'])
-            ? $this->departmentResolver->resolve([
-                'study_plan_id' => $filters['study_plan_id'],
-            ])
-            : ($filters['department_id'] ?? null);
+        if (isset($filters['study_plan_id'])) {
+            return $this->curriculumPersonnelOptions((int) $filters['study_plan_id']);
+        }
 
-        $query = SystemTeacher::query()
-            ->when(
-                $departmentId !== null,
-                fn (Builder $query) => $query->where('department_id', $departmentId)
+        return $this->teacherOptions($this->teacherApi->getTeachers());
+    }
+
+    private function curriculumPersonnelOptions(int $studyPlanId): Collection
+    {
+        $studyPlan = $this->cmisApi->findStudyPlan($studyPlanId);
+        $curriculumId = $studyPlan['curriculum_id'] ?? null;
+
+        if (! is_numeric($curriculumId)) {
+            throw ValidationException::withMessages([
+                'study_plan_id' => 'The selected study plan does not have a curriculum.',
+            ]);
+        }
+
+        try {
+            $payload = $this->cmisApi->getCurriculumPersonnel((int) $curriculumId);
+            $personnel = $payload['data'] ?? null;
+
+            if (! is_array($personnel)) {
+                throw new RuntimeException('CMIS curriculum personnel response does not contain a valid data array.');
+            }
+        } catch (Throwable $exception) {
+            throw new RuntimeException(
+                'Unable to load curriculum personnel from CMIS.',
+                previous: $exception,
             );
+        }
 
-        return $this->options($query, 'full_name_th');
+        return $this->teacherOptions($personnel);
+    }
+
+    private function teacherOptions(array $teachers): Collection
+    {
+        return collect($teachers)
+            ->filter(fn (mixed $teacher): bool => is_array($teacher))
+            ->map(function (array $teacher): ?array {
+                $id = $teacher['personnel_id'] ?? $teacher['id'] ?? null;
+                $nameTh = $teacher['full_name'] ?? $teacher['full_name_th'] ?? null;
+
+                if (! is_numeric($id) || ! is_scalar($nameTh) || trim((string) $nameTh) === '') {
+                    return null;
+                }
+
+                return [
+                    'id' => (int) $id,
+                    'name_th' => (string) $nameTh,
+                    'name_en' => isset($teacher['full_name_en']) && is_scalar($teacher['full_name_en'])
+                        ? (string) $teacher['full_name_en']
+                        : null,
+                ];
+            })
+            ->filter()
+            ->values();
     }
 
     private function options(

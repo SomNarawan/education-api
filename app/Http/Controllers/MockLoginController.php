@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Constants\HttpStatus;
-use App\Models\SystemTeacher;
 use App\Services\JwtIssuer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use JsonException;
 
 class MockLoginController extends Controller
 {
@@ -28,17 +28,13 @@ class MockLoginController extends Controller
     {
         $q = trim((string) $request->query('q', ''));
 
-        $systemTeachers = SystemTeacher::query()
-            ->when($q !== '', fn ($query) => $query
-                ->where('nontri_id', 'like', "%{$q}%")
-                ->orWhere('full_name_th', 'like', "%{$q}%"))
-            ->orderBy('full_name_th')
-            ->limit(20)
-            ->get(['nontri_id', 'full_name_th', 'department_id'])
-            ->map(fn ($systemTeacher) => [
-                ...$systemTeacher->toArray(),
-                'is_admin' => in_array($systemTeacher->nontri_id, config('mock_login.admin_nontri_ids'), true),
-            ]);
+        $systemTeachers = collect($this->mockUsers())
+            ->filter(fn (array $systemTeacher) => $q === ''
+                || str_contains(mb_strtolower($systemTeacher['nontri_id']), mb_strtolower($q))
+                || str_contains(mb_strtolower($systemTeacher['full_name_th']), mb_strtolower($q)))
+            ->sortBy('full_name_th')
+            ->take(20)
+            ->values();
 
         return response()->json($systemTeachers);
     }
@@ -50,32 +46,63 @@ class MockLoginController extends Controller
             'name' => 'Mock Admin',
             'role' => ['admin'],
             'current_role' => 'admin',
+            'teacher_id' => null,
             'department_id' => null,
+            'faculty_id' => null,
         ]);
     }
 
     public function issueSystemTeacher(Request $request, string $nontriId, JwtIssuer $issuer): RedirectResponse
     {
-        $systemTeacher = SystemTeacher::where('nontri_id', $nontriId)->first();
+        $systemTeacher = collect($this->mockUsers())->firstWhere('nontri_id', $nontriId);
 
         abort_unless(
             $systemTeacher,
             HttpStatus::NOT_FOUND['code'],
-            "ไม่พบ system teacher nontri_id={$nontriId} — เช็คว่า sync แล้วหรือพิมพ์ผิด"
+            "ไม่พบ mock user nontri_id={$nontriId} — เช็คไฟล์ resources/mocks/mock-login.json"
         );
 
         $isAdmin = $request->boolean('admin')
-            || in_array($systemTeacher->nontri_id, config('mock_login.admin_nontri_ids'), true);
+            || $systemTeacher['is_admin'];
 
         $role = $isAdmin ? ['teacher', 'admin'] : ['teacher'];
 
         return $this->redirectWithToken($issuer, [
-            'nontri_id' => $systemTeacher->nontri_id,
-            'name' => $systemTeacher->full_name_th,
+            'nontri_id' => $systemTeacher['nontri_id'],
+            'name' => $systemTeacher['full_name_th'],
             'role' => $role,
             'current_role' => 'teacher',
-            'department_id' => $systemTeacher->department_id,
+            'teacher_id' => $systemTeacher['teacher_id'],
+            'department_id' => $systemTeacher['department_id'],
+            'faculty_id' => $systemTeacher['faculty_id'],
         ]);
+    }
+
+    /**
+    * @return array<int, array{nontri_id: string, full_name_th: string, teacher_id: int|null, department_id: int|null, faculty_id: int|null, is_admin: bool}>
+     */
+    private function mockUsers(): array
+    {
+        $content = file_get_contents(resource_path('mocks/mock-login.json'));
+
+        if ($content === false) {
+            abort(500, 'ไม่สามารถอ่านไฟล์ resources/mocks/mock-login.json ได้');
+        }
+
+        try {
+            $users = json_decode(
+                $content,
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+        } catch (JsonException|\ValueError $exception) {
+            abort(500, 'ไม่สามารถอ่านไฟล์ resources/mocks/mock-login.json ได้');
+        }
+
+        abort_unless(is_array($users), 500, 'รูปแบบไฟล์ resources/mocks/mock-login.json ไม่ถูกต้อง');
+
+        return $users;
     }
 
     private function redirectWithToken(JwtIssuer $issuer, array $claims): RedirectResponse

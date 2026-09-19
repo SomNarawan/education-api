@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Student;
 
 use App\Constants\Status;
-use App\Contracts\CurriculumApi;
+use App\Contracts\CmisApi;
 use App\Rules\ValidStudyPlan;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -48,7 +48,7 @@ class StudentWriteRequest extends FormRequest
             'study_plan_id' => $this->requiredRules([
                 'integer',
                 new ValidStudyPlan(
-                    app(CurriculumApi::class),
+                    app(CmisApi::class),
                     $this->filled('curriculum_id')
                         ? (int) $this->input('curriculum_id')
                         : null,

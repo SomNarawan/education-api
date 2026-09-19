@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AdmissionChannelController;
 use App\Http\Controllers\Api\CurriculumCategoryController;
 use App\Http\Controllers\Api\CurriculumController;
+use App\Http\Controllers\Api\CurriculumPersonnelController;
 use App\Http\Controllers\Api\CurriculumPlanController;
 use App\Http\Controllers\Api\DataImportController;
 use App\Http\Controllers\Api\HighSchoolController;
@@ -20,7 +21,6 @@ use App\Http\Controllers\Api\StudentStatusController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\SystemDepartmentController;
 use App\Http\Controllers\Api\SystemFacultyController;
-use App\Http\Controllers\Api\SystemTeacherController;
 use App\Http\Controllers\Api\TitleController;
 use App\Http\Controllers\MockLoginController;
 use App\Http\Middleware\AuthenticateJwt;
@@ -100,6 +100,7 @@ Route::prefix('import-types')->group(function (): void {
 });
 Route::get('/curriculums', [CurriculumController::class, 'index']);
 Route::get('/study-plans', [CurriculumPlanController::class, 'index']);
+Route::get('/curriculum-personnel', [CurriculumPersonnelController::class, 'index']);
 Route::get('/curriculum-categories', [CurriculumCategoryController::class, 'index']);
 Route::get('/imports', [DataImportController::class, 'index']);
 Route::get('/imports/{id}/result', [DataImportController::class, 'downloadResult'])->whereNumber('id');
@@ -123,11 +124,6 @@ Route::prefix('students')->group(function (): void {
     Route::get('/{id}', [StudentController::class, 'show'])->whereNumber('id');
     Route::match(['put', 'patch'], '/{id}', [StudentController::class, 'update'])->whereNumber('id');
     Route::delete('/{id}', [StudentController::class, 'destroy'])->whereNumber('id');
-});
-
-Route::prefix('system-teachers')->group(function (): void {
-    Route::get('/', [SystemTeacherController::class, 'index']);
-    Route::get('/all', [SystemTeacherController::class, 'all']);
 });
 
 Route::get('/notes', [NoteController::class, 'index']);
