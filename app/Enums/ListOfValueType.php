@@ -18,4 +18,5 @@ enum ListOfValueType: string
     case SystemDepartments = 'system-departments';
     case SystemFaculties = 'system-faculties';
     case Curriculums = 'curriculums';
+    case StudyPlans = 'study-plans';
 }

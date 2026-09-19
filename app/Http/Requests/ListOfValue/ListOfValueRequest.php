@@ -31,6 +31,12 @@ class ListOfValueRequest extends FormRequest
                 'integer',
                 'min:1',
             ],
+            'curriculum_id' => [
+                Rule::requiredIf($type === ListOfValueType::StudyPlans),
+                Rule::prohibitedIf($type !== ListOfValueType::StudyPlans),
+                'integer',
+                'min:1',
+            ],
             'include_ids' => [
                 'sometimes',
                 'array',

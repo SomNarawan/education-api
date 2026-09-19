@@ -111,7 +111,26 @@ class ListOfValueService
                 $includeIds,
             ),
             ListOfValueType::Curriculums => $this->curriculumOptions($filters),
+            ListOfValueType::StudyPlans => $this->studyPlanOptions(
+                (int) $filters['curriculum_id'],
+                $includeIds,
+            ),
         };
+    }
+
+    private function studyPlanOptions(int $curriculumId, array $includeIds = []): Collection
+    {
+        return collect($this->cmisApi->getCurriculumPlans($curriculumId))
+            ->filter(fn (mixed $studyPlan): bool => is_array($studyPlan))
+            ->filter(fn (array $studyPlan): bool => ($studyPlan['status'] ?? null) === 'activate'
+                || in_array((int) ($studyPlan['id'] ?? 0), $includeIds, true))
+            ->map(fn (array $studyPlan): array => [
+                'id' => (int) ($studyPlan['id'] ?? 0),
+                'name_th' => $studyPlan['name_th'] ?? null,
+                'name_en' => $studyPlan['name_en'] ?? null,
+            ])
+            ->filter(fn (array $studyPlan): bool => $studyPlan['id'] > 0)
+            ->values();
     }
 
     private function curriculumOptions(array $filters): Collection
