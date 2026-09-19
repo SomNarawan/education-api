@@ -31,6 +31,14 @@ class ListOfValueRequest extends FormRequest
                 'integer',
                 'min:1',
             ],
+            'include_ids' => [
+                'sometimes',
+                'array',
+            ],
+            'include_ids.*' => [
+                'integer',
+                'min:1',
+            ],
         ];
     }
 

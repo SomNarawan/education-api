@@ -34,60 +34,100 @@ class ListOfValueService
 
     public function get(ListOfValueType $type, array $filters = []): Collection
     {
+        $includeIds = array_map('intval', $filters['include_ids'] ?? []);
+
         return match ($type) {
             ListOfValueType::Titles => $this->options(
                 Title::query()->where('status', Status::ACTIVE),
                 'title_name_th',
-                'title_name_en'
+                'title_name_en',
+                $includeIds,
             ),
             ListOfValueType::AdmissionChannels => $this->options(
                 AdmissionChannel::query()->where('status', Status::ACTIVE),
-                'channel_name'
+                'channel_name',
+                null,
+                $includeIds,
             ),
             ListOfValueType::Relationships => $this->options(
                 Relationship::query()->where('status', Status::ACTIVE),
-                'relationship_name'
+                'relationship_name',
+                null,
+                $includeIds,
             ),
             ListOfValueType::StudentStatuses => $this->options(
                 StudentStatus::query()->where('status', Status::ACTIVE),
-                'status_name'
+                'status_name',
+                null,
+                $includeIds,
             ),
             ListOfValueType::NoteTypes => $this->options(
                 NoteType::query()->where('status', Status::ACTIVE),
-                'note'
+                'note',
+                null,
+                $includeIds,
             ),
             ListOfValueType::ImportTypes => $this->options(
                 ImportType::query()->where('status', Status::ACTIVE),
-                'type'
+                'type',
+                null,
+                $includeIds,
             ),
             ListOfValueType::HighSchools => $this->options(
                 HighSchool::query()->where('status', Status::ACTIVE),
-                'school_name'
+                'school_name',
+                null,
+                $includeIds,
             ),
             ListOfValueType::Provinces => $this->options(
                 Province::query(),
-                'province_name'
+                'province_name',
+                null,
+                $includeIds,
             ),
             ListOfValueType::Districts => $this->options(
                 District::query()->where('province_id', $filters['province_id']),
-                'district_name'
+                'district_name',
+                null,
+                $includeIds,
             ),
             ListOfValueType::Subdistricts => $this->options(
                 Subdistrict::query()->where('district_id', $filters['district_id']),
-                'subdistrict_name'
+                'subdistrict_name',
+                null,
+                $includeIds,
             ),
             ListOfValueType::SystemTeachers => $this->systemTeachers($filters),
             ListOfValueType::SystemDepartments => $this->options(
                 SystemDepartment::query(),
                 'th_name',
-                'en_name'
+                'en_name',
+                $includeIds,
             ),
             ListOfValueType::SystemFaculties => $this->options(
                 SystemFaculty::query(),
                 'th_name',
-                'en_name'
+                'en_name',
+                $includeIds,
             ),
+            ListOfValueType::Curriculums => $this->curriculumOptions($filters),
         };
+    }
+
+    private function curriculumOptions(array $filters): Collection
+    {
+        $includeIds = array_map('intval', $filters['include_ids'] ?? []);
+
+        return collect($this->cmisApi->getCurriculums())
+            ->filter(fn (mixed $curriculum): bool => is_array($curriculum)
+                && (($curriculum['status'] ?? null) === 'published'
+                    || in_array((int) ($curriculum['id'] ?? 0), $includeIds, true)))
+            ->map(fn (array $curriculum): array => [
+                'id' => (int) ($curriculum['id'] ?? 0),
+                'name_th' => $curriculum['name_th'] ?? null,
+                'name_en' => $curriculum['name_en'] ?? null,
+            ])
+            ->values();
     }
 
     private function systemTeachers(array $filters): Collection
@@ -154,7 +194,8 @@ class ListOfValueService
     private function options(
         Builder $query,
         string $nameThField,
-        ?string $nameEnField = null
+        ?string $nameEnField = null,
+        array $includeIds = [],
     ): Collection {
         $columns = ['id', $nameThField];
 
@@ -162,10 +203,24 @@ class ListOfValueService
             $columns[] = $nameEnField;
         }
 
-        return $query
+        $items = $query
             ->orderBy($nameThField)
             ->orderBy('id')
-            ->get($columns)
+            ->get($columns);
+
+        if ($includeIds !== []) {
+            $items = $items->merge(
+                $query->getModel()::query()
+                    ->whereKey($includeIds)
+                    ->get($columns)
+            )->unique(fn (Model $item): mixed => $item->getKey());
+        }
+
+        return $items
+            ->sortBy([
+                [$nameThField, 'asc'],
+                ['id', 'asc'],
+            ])
             ->map(fn (Model $item): array => [
                 'id' => (int) $item->getKey(),
                 'name_th' => $item->getAttribute($nameThField),
