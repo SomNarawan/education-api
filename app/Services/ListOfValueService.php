@@ -158,15 +158,16 @@ class ListOfValueService
         return collect($personnel)
             ->filter(fn (mixed $person): bool => is_array($person))
             ->map(function (array $person): ?array {
-                $id = $person['personnel_id'] ?? $person['id'] ?? null;
+                $id = $person['external_id'] ?? null;
                 $nameTh = $person['full_name'] ?? $person['full_name_th'] ?? null;
 
-                if (! is_numeric($id) || ! is_scalar($nameTh) || trim((string) $nameTh) === '') {
+                if (! is_scalar($id) || trim((string) $id) === ''
+                    || ! is_scalar($nameTh) || trim((string) $nameTh) === '') {
                     return null;
                 }
 
                 return [
-                    'id' => (int) $id,
+                    'id' => (string) $id,
                     'name_th' => (string) $nameTh,
                     'name_en' => isset($person['full_name_en']) && is_scalar($person['full_name_en'])
                         ? (string) $person['full_name_en']

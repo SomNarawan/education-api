@@ -38,9 +38,10 @@ class StudentWriteRequest extends FormRequest
             'teacher_id' => [
                 'sometimes',
                 'nullable',
-                'integer',
-                Rule::exists('system_teachers', 'id')->where('status', Status::ACTIVE),
+                'string',
+                'max:50',
             ],
+            'teacher_full_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'student_status_id' => $this->requiredRules(['integer', 'exists:student_statuses,id']),
             'admission_channel_id' => $this->requiredRules(['integer', 'exists:admission_channels,id']),
             'high_school_id' => $this->requiredRules(['integer', 'exists:high_schools,id']),

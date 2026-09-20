@@ -46,7 +46,6 @@ class MockLoginController extends Controller
             'name' => 'Mock Admin',
             'role' => ['admin'],
             'current_role' => 'admin',
-            'teacher_id' => null,
             'department_id' => null,
             'faculty_id' => null,
         ]);
@@ -72,14 +71,13 @@ class MockLoginController extends Controller
             'name' => $systemTeacher['full_name_th'],
             'role' => $role,
             'current_role' => 'teacher',
-            'teacher_id' => $systemTeacher['teacher_id'],
             'department_id' => $systemTeacher['department_id'],
             'faculty_id' => $systemTeacher['faculty_id'],
         ]);
     }
 
     /**
-    * @return array<int, array{nontri_id: string, full_name_th: string, teacher_id: int|null, department_id: int|null, faculty_id: int|null, is_admin: bool}>
+    * @return array<int, array{nontri_id: string, full_name_th: string, department_id: int|null, faculty_id: int|null, is_admin: bool}>
      */
     private function mockUsers(): array
     {

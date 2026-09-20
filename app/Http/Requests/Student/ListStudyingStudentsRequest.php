@@ -10,7 +10,7 @@ class ListStudyingStudentsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'teacher_id' => ['required', 'integer', 'min:1'],
+            'teacher_id' => ['required', 'string', 'max:50'],
             'study_plan_id' => [
                 'required',
                 'integer',

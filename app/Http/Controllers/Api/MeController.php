@@ -21,7 +21,6 @@ class MeController extends Controller
 
         return ApiResponse::success([
             'nontri_id' => $claims['nontri_id'] ?? null,
-            'teacher_id' => $claims['teacher_id'] ?? null,
             'name' => $claims['name'] ?? ($claims['given_name'] ?? null),
             'role' => $roles,
             'current_role' => $claims['current_role'] ?? ($roles[0] ?? null),

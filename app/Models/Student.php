@@ -26,6 +26,7 @@ class Student extends Model
         'phone',
         'email',
         'teacher_id',
+        'teacher_full_name',
         'student_status_id',
         'admission_channel_id',
         'high_school_id',
@@ -50,7 +51,7 @@ class Student extends Model
 
     protected $casts = [
         'title_id' => 'integer',
-        'teacher_id' => 'integer',
+        'teacher_id' => 'string',
         'student_status_id' => 'integer',
         'admission_channel_id' => 'integer',
         'high_school_id' => 'integer',
@@ -91,11 +92,6 @@ class Student extends Model
     public function guardianRelationship(): BelongsTo
     {
         return $this->belongsTo(Relationship::class, 'guardian_relationship_id');
-    }
-
-    public function systemTeacher(): BelongsTo
-    {
-        return $this->belongsTo(SystemTeacher::class, 'teacher_id');
     }
 
     public function studentStatus(): BelongsTo

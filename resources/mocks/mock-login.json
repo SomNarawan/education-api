@@ -2,24 +2,21 @@
     {
         "nontri_id": "fengame",
         "full_name_th": "Mock Teacher Fengame",
-        "teacher_id": 1001,
-        "department_id": 10,
+        "department_id": 1,
         "faculty_id": 1,
         "is_admin": true
     },
     {
         "nontri_id": "fengvry",
         "full_name_th": "Mock Teacher Fengvry",
-        "teacher_id": 1002,
-        "department_id": 10,
+        "department_id": 1,
         "faculty_id": 1,
         "is_admin": true
     },
     {
         "nontri_id": "mock-teacher",
         "full_name_th": "Mock Teacher",
-        "teacher_id": 1003,
-        "department_id": 20,
+        "department_id": 1,
         "faculty_id": 2,
         "is_admin": false
     }

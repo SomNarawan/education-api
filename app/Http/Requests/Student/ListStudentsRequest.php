@@ -9,7 +9,7 @@ class ListStudentsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'teacher_id' => ['sometimes', 'integer', 'min:1'],
+            'teacher_id' => ['sometimes', 'string', 'max:50'],
             'department_id' => ['sometimes', 'integer', 'min:1'],
             'faculty_id' => ['sometimes', 'integer', 'min:1'],
             'student_status_id' => ['sometimes', 'integer', 'min:1'],
