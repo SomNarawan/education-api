@@ -15,12 +15,16 @@ class ValidStudyPlan implements ValidationRule
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $studyPlan = $this->cmisApi->findStudyPlan((int) $value);
+        $payload = $this->cmisApi->getCurriculumCategories((int) $value);
+        $studyPlan = data_get($payload, 'meta.study_plan');
+        $curriculumId = is_array($studyPlan)
+            ? ($studyPlan['curriculum_id'] ?? data_get($payload, 'meta.curriculum.id'))
+            : null;
 
         if (
-            $studyPlan === null
+            ! is_array($studyPlan)
             || ($this->curriculumId !== null
-                && (int) ($studyPlan['curriculum_id'] ?? 0) !== $this->curriculumId)
+                && (int) $curriculumId !== $this->curriculumId)
         ) {
             $fail('The selected :attribute is invalid.');
         }

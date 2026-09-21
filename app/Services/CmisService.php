@@ -28,23 +28,6 @@ class CmisService implements CmisApi
         ])['data'];
     }
 
-    public function findStudyPlan(int $studyPlanId): ?array
-    {
-        $payload = $this->getCurriculumCategories($studyPlanId);
-        $studyPlan = data_get($payload, 'meta.study_plan');
-
-        if (! is_array($studyPlan)) {
-            return null;
-        }
-
-        $curriculum = data_get($payload, 'meta.curriculum');
-
-        return $this->normalizeStudyPlan(
-            $studyPlan,
-            is_array($curriculum) ? $curriculum : [],
-        );
-    }
-
     public function getCurriculumPersonnel(int $curriculumId): array
     {
         return $this->get('curriculum_personnel', [
@@ -78,24 +61,6 @@ class CmisService implements CmisApi
         }
 
         return $payload;
-    }
-
-    private function normalizeStudyPlan(array $studyPlan, array $curriculum): array
-    {
-        return [
-            ...$studyPlan,
-            'curriculum_id' => $studyPlan['curriculum_id']
-                ?? $curriculum['id']
-                ?? null,
-            'required_credits' => $studyPlan['required_credits']
-                ?? $curriculum['total_credits_min']
-                ?? null,
-            'department_id' => $studyPlan['department_id']
-                ?? $curriculum['department_id']
-                ?? data_get($curriculum, 'department.id'),
-            'department_name_th' => $studyPlan['department_name_th']
-                ?? data_get($curriculum, 'department.name_th'),
-        ];
     }
 
     private function apiUrl(string $endpointKey): string

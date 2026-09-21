@@ -29,8 +29,10 @@ class StudentDepartmentResolver
             }
         }
 
-        $studyPlan = $this->cmisApi->findStudyPlan((int) $attributes['study_plan_id']);
-        $curriculumDepartmentId = $studyPlan['department_id'] ?? null;
+        $payload = $this->cmisApi->getCurriculumCategories((int) $attributes['study_plan_id']);
+        $curriculumDepartmentId = data_get($payload, 'meta.study_plan.department_id')
+            ?? data_get($payload, 'meta.curriculum.department_id')
+            ?? data_get($payload, 'meta.curriculum.department.id');
 
         if ($curriculumDepartmentId !== null) {
             $mappedDepartmentId = $this->mappedDepartmentId((int) $curriculumDepartmentId);
@@ -40,7 +42,9 @@ class StudentDepartmentResolver
             }
 
             $matchedDepartmentId = $this->matchDepartmentByName(
-                $studyPlan['department_name_th'] ?? ''
+                data_get($payload, 'meta.study_plan.department_name_th')
+                    ?? data_get($payload, 'meta.curriculum.department.name_th')
+                    ?? ''
             );
 
             if ($matchedDepartmentId !== null) {

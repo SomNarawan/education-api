@@ -20,11 +20,6 @@ interface CmisApi
     public function getCurriculumPlans(int $curriculumId): array;
 
     /**
-     * Find a study plan with the curriculum context required by student flows.
-     */
-    public function findStudyPlan(int $studyPlanId): ?array;
-
-    /**
      * Return only the curriculum personnel from the CMIS response data field.
      */
     public function getCurriculumPersonnel(int $curriculumId): array;

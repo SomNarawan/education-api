@@ -7,7 +7,6 @@ use App\Constants\Status;
 use App\Contracts\CmisApi;
 use App\Models\DataImport;
 use App\Models\ImportType;
-use App\Rules\ValidStudyPlan;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -30,7 +29,6 @@ class StudentImportService
         '',
         '',
         '',
-        'แผนการเรียน',
         '',
         'อาจารย์ที่ปรึกษา',
         'ช่องทางรับเข้า',
@@ -53,7 +51,6 @@ class StudentImportService
         'นามสกุลภาษาอังกฤษ',
         'เบอร์โทร',
         'อีเมล',
-        'แผนการเรียน',
         'ปีเข้าเรียน (พ.ศ.)',
         'อาจารย์ที่ปรึกษา',
         'ช่องทางรับเข้า',
@@ -67,13 +64,12 @@ class StudentImportService
     ];
 
     private const REQUIRED_HEADER_INDEXES = [
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19,
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18,
     ];
 
     private const HEADER_MERGES = [
         'B1:I1',
-        'J1:K1',
-        'O1:S1',
+        'N1:R1',
     ];
 
     public function __construct(
@@ -98,17 +94,15 @@ class StudentImportService
             ]);
         }
 
-        $studyPlan = $this->cmisApi->findStudyPlan($studyPlanId);
+        $studyPlan = collect($this->cmisApi->getCurriculumPlans($curriculumId))
+            ->first(
+                fn (mixed $plan): bool => is_array($plan)
+                    && (int) ($plan['id'] ?? 0) === $studyPlanId
+            );
 
         if ($studyPlan === null) {
             throw ValidationException::withMessages([
                 'study_plan_id' => 'แผนการเรียนไม่ถูกต้อง',
-            ]);
-        }
-
-        if ((int) ($studyPlan['curriculum_id'] ?? 0) !== $curriculumId) {
-            throw ValidationException::withMessages([
-                'study_plan_id' => 'แผนการเรียนไม่อยู่ในหลักสูตรที่เลือก',
             ]);
         }
 
@@ -165,8 +159,6 @@ class StudentImportService
 
             foreach ($dataRows as $index => $row) {
                 $sourceRow = $this->sourceRow($row);
-                $sourceRow[9] = $studyPlanName;
-
                 $rowNumber = $index + 1;
                 [$attributes, $masterErrors] = $this->attributes(
                     $sourceRow,
@@ -300,12 +292,12 @@ class StudentImportService
     ): array {
         $masterErrors = [];
         $titleId = $this->masterId($row[2], $masterData['titles'], 'คำนำหน้า', true, $masterErrors);
-        $systemTeacherId = $this->masterId($row[11], $masterData['systemTeachers'], 'อาจารย์ที่ปรึกษา', false, $masterErrors);
-        $admissionChannelId = $this->masterId($row[12], $masterData['admission_channels'], 'ช่องทางรับเข้า', true, $masterErrors);
-        $highSchoolId = $this->masterId($row[13], $masterData['high_schools'], 'โรงเรียน ม.ปลาย', true, $masterErrors);
-        $guardianTitleId = $this->masterId($row[14], $masterData['titles'], 'คำนำหน้าผู้ปกครอง', true, $masterErrors);
-        $relationshipId = $this->masterId($row[17], $masterData['relationships'], 'ความสัมพันธ์', true, $masterErrors);
-        $studentStatusId = $this->masterId($row[19], $masterData['student_statuses'], 'สถานะปัจจุบัน', true, $masterErrors);
+        $systemTeacherId = $this->masterId($row[10], $masterData['systemTeachers'], 'อาจารย์ที่ปรึกษา', false, $masterErrors);
+        $admissionChannelId = $this->masterId($row[11], $masterData['admission_channels'], 'ช่องทางรับเข้า', true, $masterErrors);
+        $highSchoolId = $this->masterId($row[12], $masterData['high_schools'], 'โรงเรียน ม.ปลาย', true, $masterErrors);
+        $guardianTitleId = $this->masterId($row[13], $masterData['titles'], 'คำนำหน้าผู้ปกครอง', true, $masterErrors);
+        $relationshipId = $this->masterId($row[16], $masterData['relationships'], 'ความสัมพันธ์', true, $masterErrors);
+        $studentStatusId = $this->masterId($row[18], $masterData['student_statuses'], 'สถานะปัจจุบัน', true, $masterErrors);
 
         return [[
             'student_code' => $row[0],
@@ -321,15 +313,15 @@ class StudentImportService
             'curriculum_name_th' => $curriculumName,
             'study_plan_id' => $studyPlanId,
             'study_plan_name_th' => $studyPlanName,
-            'entry_year' => $this->entryYear($row[10]),
+            'entry_year' => $this->entryYear($row[9]),
             'teacher_id' => $systemTeacherId,
             'admission_channel_id' => $admissionChannelId,
             'high_school_id' => $highSchoolId,
             'guardian_title_id' => $guardianTitleId,
-            'guardian_first_name_th' => $row[15],
-            'guardian_last_name_th' => $row[16],
+            'guardian_first_name_th' => $row[14],
+            'guardian_last_name_th' => $row[15],
             'guardian_relationship_id' => $relationshipId,
-            'guardian_phone' => $this->phone($row[18]),
+            'guardian_phone' => $this->phone($row[17]),
             'student_status_id' => $studentStatusId,
         ], $masterErrors];
     }
@@ -410,7 +402,7 @@ class StudentImportService
             'email' => ['required', 'email', 'max:50'],
             'curriculum_id' => ['required', 'integer', 'min:1'],
             'curriculum_name_th' => ['required', 'string', 'max:255'],
-            'study_plan_id' => ['required', 'integer', new ValidStudyPlan($this->cmisApi)],
+            'study_plan_id' => ['required', 'integer', 'min:1'],
             'study_plan_name_th' => ['required', 'string', 'max:255'],
             'entry_year' => ['required', 'integer', 'between:1901,2155'],
             'teacher_id' => ['nullable', 'integer', Rule::exists('system_teachers', 'id')],
@@ -470,14 +462,14 @@ class StudentImportService
 
         $workbook
             ->addSheet([...$successHeaders, ...$this->excelRows($successRows)], 'Success')
-            ->setColWidth('A:Y', 18)
+            ->setColWidth('A:S', 18)
             ->freezePanes('A3');
         $this->mergeGroupHeaders($workbook);
 
         $workbook
             ->addSheet([...$failedHeaders, ...$this->excelRows($failedRows)], 'Fail')
-            ->setColWidth('A:Y', 18)
-            ->setColWidth('Z', 60)
+            ->setColWidth('A:S', 18)
+            ->setColWidth('T', 60)
             ->freezePanes('A3');
         $this->mergeGroupHeaders($workbook);
 
