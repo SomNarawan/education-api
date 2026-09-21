@@ -2,15 +2,12 @@
 
 namespace App\Services\Students;
 
-use App\Contracts\CmisApi;
 use App\Models\Student;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class StudentQueryService
 {
-    public function __construct(private readonly CmisApi $cmisApi) {}
-
     public function list(array $filters): Collection
     {
         $students = $this->listQuery()
@@ -51,8 +48,6 @@ class StudentQueryService
             ->orderBy('id')
             ->get();
 
-        $students->each(fn (Student $student) => $this->attachStudyPlan($student));
-
         return $students;
     }
 
@@ -60,7 +55,7 @@ class StudentQueryService
     {
         $student = $this->detailQuery()->find($id);
 
-        return $student === null ? null : $this->attachStudyPlan($student);
+        return $student;
     }
 
     private function listQuery(): Builder
@@ -83,17 +78,6 @@ class StudentQueryService
             'guardianTitle',
             'guardianRelationship',
         ]);
-    }
-
-    private function attachStudyPlan(Student $student): Student
-    {
-        $studyPlan = $student->study_plan_id === null
-            ? null
-            : $this->cmisApi->findStudyPlan((int) $student->study_plan_id);
-
-        $student->setAttribute('study_plan_data', $studyPlan);
-
-        return $student;
     }
 
     private function applyTextSearch(Builder $query, string $searchText): void

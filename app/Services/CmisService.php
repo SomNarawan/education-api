@@ -87,9 +87,6 @@ class CmisService implements CmisApi
             'curriculum_id' => $studyPlan['curriculum_id']
                 ?? $curriculum['id']
                 ?? null,
-            'curriculum_type' => $studyPlan['curriculum_type']
-                ?? $curriculum['degree_short_th']
-                ?? null,
             'required_credits' => $studyPlan['required_credits']
                 ?? $curriculum['total_credits_min']
                 ?? null,

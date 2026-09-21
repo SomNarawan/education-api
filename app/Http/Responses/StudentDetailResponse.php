@@ -12,7 +12,6 @@ class StudentDetailResponse extends JsonResource
         $subdistrict = $this->highSchool?->subdistrict;
         $district = $subdistrict?->district;
         $province = $district?->province;
-        $studyPlan = $this->resource->getAttribute('study_plan_data');
 
         return [
             'id' => $this->id,
@@ -55,16 +54,17 @@ class StudentDetailResponse extends JsonResource
                 $province?->province_name,
                 $subdistrict?->postal_code,
             ),
-            'curriculum_id' => (int) ($studyPlan['curriculum_id'] ?? 0),
+            'curriculum_id' => (int) $this->curriculum_id,
+            'curriculum_name_th' => $this->curriculum_name_th,
             'study_plan_id' => $this->study_plan_id,
-            'curriculum_type' => $studyPlan['curriculum_type'] ?? null,
-            'study_plan_name' => $studyPlan['name_th'] ?? null,
-            'curriculum_plan_name' => $studyPlan['name_th'] ?? null,
+            'study_plan_name_th' => $this->study_plan_name_th,
+            'study_plan_name' => $this->study_plan_name_th,
+            'curriculum_plan_name' => $this->study_plan_name_th,
             'department_id' => $this->system_department_id,
             'department_name' => $this->systemDepartment?->th_name,
             'faculty_id' => $this->systemDepartment?->system_faculty_id,
             'faculty_name' => $this->systemDepartment?->systemFaculty?->th_name,
-            'required_credits' => $studyPlan['required_credits'] ?? null,
+            'required_credits' => null,
             'passed_credits' => $this->passed_credits === null ? null : (int) $this->passed_credits,
             'not_passed_credits' => $this->not_passed_credits === null ? null : (int) $this->not_passed_credits,
             'overed_credits' => $this->overed_credits === null ? null : (int) $this->overed_credits,

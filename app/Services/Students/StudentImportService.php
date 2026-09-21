@@ -171,7 +171,10 @@ class StudentImportService
                 [$attributes, $masterErrors] = $this->attributes(
                     $sourceRow,
                     $masterData,
+                    $curriculumId,
+                    $curriculumName,
                     $studyPlanId,
+                    $studyPlanName,
                 );
                 $validator = Validator::make(
                     $attributes,
@@ -287,8 +290,14 @@ class StudentImportService
         return array_map(fn (mixed $value) => $this->cellValue($value), $row);
     }
 
-    private function attributes(array $row, array $masterData, int $studyPlanId): array
-    {
+    private function attributes(
+        array $row,
+        array $masterData,
+        int $curriculumId,
+        string $curriculumName,
+        int $studyPlanId,
+        string $studyPlanName,
+    ): array {
         $masterErrors = [];
         $titleId = $this->masterId($row[2], $masterData['titles'], 'คำนำหน้า', true, $masterErrors);
         $systemTeacherId = $this->masterId($row[11], $masterData['systemTeachers'], 'อาจารย์ที่ปรึกษา', false, $masterErrors);
@@ -308,7 +317,10 @@ class StudentImportService
             'last_name_en' => $row[6],
             'phone' => $this->phone($row[7]),
             'email' => $row[8],
+            'curriculum_id' => $curriculumId,
+            'curriculum_name_th' => $curriculumName,
             'study_plan_id' => $studyPlanId,
+            'study_plan_name_th' => $studyPlanName,
             'entry_year' => $this->entryYear($row[10]),
             'teacher_id' => $systemTeacherId,
             'admission_channel_id' => $admissionChannelId,
@@ -396,7 +408,10 @@ class StudentImportService
             'last_name_en' => ['required', 'string', 'max:50'],
             'phone' => ['required', 'string', 'max:10'],
             'email' => ['required', 'email', 'max:50'],
+            'curriculum_id' => ['required', 'integer', 'min:1'],
+            'curriculum_name_th' => ['required', 'string', 'max:255'],
             'study_plan_id' => ['required', 'integer', new ValidStudyPlan($this->cmisApi)],
+            'study_plan_name_th' => ['required', 'string', 'max:255'],
             'entry_year' => ['required', 'integer', 'between:1901,2155'],
             'teacher_id' => ['nullable', 'integer', Rule::exists('system_teachers', 'id')],
             'admission_channel_id' => ['nullable', 'integer', Rule::exists('admission_channels', 'id')],
