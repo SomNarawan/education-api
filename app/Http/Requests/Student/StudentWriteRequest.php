@@ -46,7 +46,7 @@ class StudentWriteRequest extends FormRequest
             'admission_channel_id' => $this->requiredRules(['integer', 'exists:admission_channels,id']),
             'high_school_id' => $this->requiredRules(['integer', 'exists:high_schools,id']),
             'curriculum_id' => $this->requiredRules(['integer', 'min:1']),
-            'curriculum_name_th' => $this->requiredRules(['string', 'max:255']),
+            'curriculum_code' => $this->requiredRules(['string', 'max:255']),
             'study_plan_id' => $this->requiredRules([
                 'integer',
                 new ValidStudyPlan(

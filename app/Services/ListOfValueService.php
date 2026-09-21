@@ -140,7 +140,7 @@ class ListOfValueService
                     || in_array((int) ($curriculum['id'] ?? 0), $includeIds, true)))
             ->map(fn (array $curriculum): array => [
                 'id' => (int) ($curriculum['id'] ?? 0),
-                'name_th' => $curriculum['name_th'] ?? null,
+                'name_th' => $curriculum['code'] ?? null,
                 'name_en' => $curriculum['name_en'] ?? null,
             ])
             ->values();

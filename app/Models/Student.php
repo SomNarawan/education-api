@@ -31,7 +31,7 @@ class Student extends Model
         'admission_channel_id',
         'high_school_id',
         'curriculum_id',
-        'curriculum_name_th',
+        'curriculum_code',
         'study_plan_id',
         'study_plan_name_th',
         'system_department_id',

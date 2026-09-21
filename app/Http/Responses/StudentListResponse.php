@@ -14,7 +14,7 @@ class StudentListResponse extends JsonResource
             'full_name_th' => trim(($this->title?->title_abbr_th ?? '').($this->first_name_th ?? '').' '.($this->last_name_th ?? '')),
             'teacher_id' => $this->teacher_id,
             'teacher_full_name' => $this->teacher_full_name,
-            'curriculum_name_th' => $this->curriculum_name_th,
+            'curriculum_code' => $this->curriculum_code,
             'study_plan_name_th' => $this->study_plan_name_th,
             'study_plan_name' => $this->study_plan_name_th,
             'curriculum_plan_name' => $this->study_plan_name_th,

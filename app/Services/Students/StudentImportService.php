@@ -120,6 +120,14 @@ class StudentImportService
             0,
             255,
         );
+        $curriculumCode = mb_substr(trim((string) ($curriculum['code'] ?? '')), 0, 255);
+
+        if ($curriculumCode === '') {
+            throw ValidationException::withMessages([
+                'curriculum_id' => 'หลักสูตรไม่มีรหัสหลักสูตร',
+            ]);
+        }
+
         $studyPlanName = mb_substr(
             trim((string) ($studyPlan['name_th'] ?? $studyPlan['code'] ?? $studyPlanId)),
             0,
@@ -164,7 +172,7 @@ class StudentImportService
                     $sourceRow,
                     $masterData,
                     $curriculumId,
-                    $curriculumName,
+                    $curriculumCode,
                     $studyPlanId,
                     $studyPlanName,
                 );
@@ -286,7 +294,7 @@ class StudentImportService
         array $row,
         array $masterData,
         int $curriculumId,
-        string $curriculumName,
+        string $curriculumCode,
         int $studyPlanId,
         string $studyPlanName,
     ): array {
@@ -310,7 +318,7 @@ class StudentImportService
             'phone' => $this->phone($row[7]),
             'email' => $row[8],
             'curriculum_id' => $curriculumId,
-            'curriculum_name_th' => $curriculumName,
+            'curriculum_code' => $curriculumCode,
             'study_plan_id' => $studyPlanId,
             'study_plan_name_th' => $studyPlanName,
             'entry_year' => $this->entryYear($row[9]),
@@ -401,7 +409,7 @@ class StudentImportService
             'phone' => ['required', 'string', 'max:10'],
             'email' => ['required', 'email', 'max:50'],
             'curriculum_id' => ['required', 'integer', 'min:1'],
-            'curriculum_name_th' => ['required', 'string', 'max:255'],
+            'curriculum_code' => ['required', 'string', 'max:255'],
             'study_plan_id' => ['required', 'integer', 'min:1'],
             'study_plan_name_th' => ['required', 'string', 'max:255'],
             'entry_year' => ['required', 'integer', 'between:1901,2155'],
