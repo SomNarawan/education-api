@@ -38,10 +38,6 @@ class SaveStudent
     {
         if (array_key_exists('department_id', $attributes)) {
             $attributes['system_department_id'] = $attributes['department_id'];
-        } elseif (array_key_exists('teacher_id', $attributes) && $attributes['teacher_id'] !== null) {
-            $attributes['system_department_id'] = $this->departmentResolver->resolve($attributes + [
-                'study_plan_id' => $student->study_plan_id,
-            ]);
         } elseif (
             array_key_exists('study_plan_id', $attributes)
             && (int) $attributes['study_plan_id'] !== (int) $student->study_plan_id

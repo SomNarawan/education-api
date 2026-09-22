@@ -41,10 +41,9 @@ class ListOfValueRequest extends FormRequest
                 'sometimes',
                 'array',
             ],
-            'include_ids.*' => [
-                'integer',
-                'min:1',
-            ],
+            'include_ids.*' => $type === ListOfValueType::CurriculumPersonnel
+                ? ['string', 'max:50']
+                : ['integer', 'min:1'],
         ];
     }
 

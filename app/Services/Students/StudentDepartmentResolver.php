@@ -4,7 +4,6 @@ namespace App\Services\Students;
 
 use App\Contracts\CmisApi;
 use App\Models\SystemDepartment;
-use App\Models\SystemTeacher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -17,16 +16,6 @@ class StudentDepartmentResolver
     {
         if (isset($attributes['department_id'])) {
             return (int) $attributes['department_id'];
-        }
-
-        if (isset($attributes['teacher_id'])) {
-            $systemTeacherDepartmentId = SystemTeacher::query()
-                ->whereKey($attributes['teacher_id'])
-                ->value('department_id');
-
-            if ($systemTeacherDepartmentId !== null) {
-                return (int) $systemTeacherDepartmentId;
-            }
         }
 
         $payload = $this->cmisApi->getCurriculumCategories((int) $attributes['study_plan_id']);

@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Student;
 
-use App\Constants\Status;
 use App\Rules\ValidStudyPlan;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -20,9 +19,10 @@ class UpdateStudentAdvisorRequest extends FormRequest
             ],
             'teacher_id' => [
                 'required',
-                'integer',
-                Rule::exists('system_teachers', 'id')->where('status', Status::ACTIVE),
+                'string',
+                'max:50',
             ],
+            'teacher_full_name' => ['required', 'string', 'max:255'],
             'assign_student_ids' => ['present', 'array'],
             'assign_student_ids.*' => [
                 'integer',
