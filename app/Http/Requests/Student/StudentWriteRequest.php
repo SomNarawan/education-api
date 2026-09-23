@@ -15,21 +15,21 @@ class StudentWriteRequest extends FormRequest
         $studentId = $this->route('id');
 
         return [
-            'student_code' => [
-                'sometimes',
-                'nullable',
+            'student_code' => $this->requiredRules([
                 'string',
                 'max:10',
                 'regex:/^\d+$/',
                 Rule::unique('students', 'student_code')
                     ->ignore($studentId),
-            ],
-            'student_id_card' => $this->requiredRules([
+            ]),
+            'student_id_card' => [
+                'sometimes',
+                'nullable',
                 'string',
                 'max:13',
                 Rule::unique('students', 'student_id_card')
                     ->ignore($studentId),
-            ]),
+            ],
             'title_id' => $this->requiredRules(['integer', 'exists:titles,id']),
             'first_name_th' => $this->requiredRules(['string', 'max:50']),
             'last_name_th' => $this->requiredRules(['string', 'max:50']),

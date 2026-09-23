@@ -63,7 +63,7 @@ class StudentImportService
     ];
 
     private const REQUIRED_HEADER_INDEXES = [
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 18,
+        0, 2, 3, 4, 5, 6, 7, 8, 9, 11, 18,
     ];
 
     private const HEADER_MERGES = [
@@ -362,13 +362,13 @@ class StudentImportService
     {
         return [
             'student_code' => [
-                'nullable',
+                'required',
                 'string',
                 'max:10',
                 'regex:/^\d+$/',
                 Rule::unique('students', 'student_code'),
             ],
-            'student_id_card' => ['required', 'string', 'max:13', Rule::unique('students', 'student_id_card')],
+            'student_id_card' => ['nullable', 'string', 'max:13', Rule::unique('students', 'student_id_card')],
             'title_id' => ['required', 'integer', Rule::exists('titles', 'id')],
             'first_name_th' => ['required', 'string', 'max:50'],
             'last_name_th' => ['required', 'string', 'max:50'],
