@@ -137,18 +137,15 @@ class ListOfValueService
         return collect($this->cmisApi->getCurriculums())
             ->filter(fn (mixed $curriculum): bool => is_array($curriculum)
                 && (($curriculum['status'] ?? null) === 'published'
-                    || in_array((int) ($curriculum['id'] ?? 0), $includeIds, true)))
+                    || in_array((int) ($curriculum['id'] ?? 0), $includeIds, true))
+                && (int) ($curriculum['id'] ?? 0) > 0
+                && is_string($curriculum['code'] ?? null)
+                && trim($curriculum['code']) !== '')
             ->map(fn (array $curriculum): array => [
                 'id' => (int) ($curriculum['id'] ?? 0),
-                'code' => $curriculum['code'] ?? null,
-                'name_th' => $curriculum['name_th'] ?? null,
-                'name_en' => $curriculum['name_en'] ?? null,
+                'name_th' => $curriculum['code'] ?? null,
+                'name_en' => $curriculum['code'] ?? null,
             ])
-            ->filter(fn (array $curriculum): bool => $curriculum['id'] > 0
-                && is_string($curriculum['code'])
-                && trim($curriculum['code']) !== ''
-                && is_string($curriculum['name_th'])
-                && trim($curriculum['name_th']) !== '')
             ->values();
     }
 
