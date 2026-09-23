@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Responses\TitleResponse;
 use App\Models\Title;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\Rule;
 
 class TitleController extends MasterDataController
 {
@@ -18,13 +19,13 @@ class TitleController extends MasterDataController
 
     protected string $pluralLabel = 'titles';
 
-    protected function writeRules(): array
+    protected function writeRules(?int $ignoreId = null): array
     {
         return [
-            'title_abbr_th' => ['required', 'string', 'max:50'],
-            'title_abbr_en' => ['required', 'string', 'max:50'],
-            'title_name_th' => ['required', 'string', 'max:50'],
-            'title_name_en' => ['required', 'string', 'max:50'],
+            'title_abbr_th' => ['required', 'string', 'max:50', Rule::unique('titles', 'title_abbr_th')->ignore($ignoreId)],
+            'title_abbr_en' => ['required', 'string', 'max:50', Rule::unique('titles', 'title_abbr_en')->ignore($ignoreId)],
+            'title_name_th' => ['required', 'string', 'max:50', Rule::unique('titles', 'title_name_th')->ignore($ignoreId)],
+            'title_name_en' => ['required', 'string', 'max:50', Rule::unique('titles', 'title_name_en')->ignore($ignoreId)],
         ];
     }
 

@@ -56,14 +56,16 @@ class SaveStudent
 
     private function addAcademicStanding(array $attributes): array
     {
-        return $attributes + $this->standingCalculator->calculate((int) $attributes['entry_year']);
+        return [
+            ...Arr::except($attributes, self::MANAGED_ACADEMIC_FIELDS),
+            ...$this->standingCalculator->calculate((int) $attributes['entry_year']),
+        ];
     }
 
     private function databaseAttributes(array $attributes): array
     {
         return Arr::except($attributes, [
             'department_id',
-            ...self::MANAGED_ACADEMIC_FIELDS,
         ]);
     }
 }

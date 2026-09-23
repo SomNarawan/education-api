@@ -10,8 +10,12 @@ class ImportStudentsRequest extends FormRequest
     {
         return [
             'file' => ['required', 'file', 'mimes:xlsx', 'max:20480'],
-            'curriculum_id' => ['required', 'integer'],
+            'curriculum_id' => ['required', 'integer', 'min:1'],
+            'curriculum_code' => ['required', 'string', 'max:255'],
             'study_plan_id' => ['required', 'integer', 'min:1'],
+            'study_plan_name_th' => ['required', 'string', 'max:255'],
+            'teacher_id' => ['required', 'string', 'max:50'],
+            'teacher_full_name' => ['required', 'string', 'max:255'],
         ];
     }
 
@@ -24,8 +28,14 @@ class ImportStudentsRequest extends FormRequest
             'file.max' => 'ไฟล์ต้องมีขนาดไม่เกิน 20 MB',
             'curriculum_id.required' => 'กรุณาเลือกหลักสูตร',
             'curriculum_id.integer' => 'หลักสูตรไม่ถูกต้อง',
+            'curriculum_id.min' => 'หลักสูตรไม่ถูกต้อง',
+            'curriculum_code.required' => 'กรุณาระบุรหัสหลักสูตร',
             'study_plan_id.required' => 'กรุณาเลือกแผนการเรียน',
             'study_plan_id.integer' => 'แผนการเรียนไม่ถูกต้อง',
+            'study_plan_id.min' => 'แผนการเรียนไม่ถูกต้อง',
+            'study_plan_name_th.required' => 'กรุณาระบุชื่อแผนการเรียน',
+            'teacher_id.required' => 'กรุณาเลือกอาจารย์ที่ปรึกษา',
+            'teacher_full_name.required' => 'กรุณาระบุชื่ออาจารย์ที่ปรึกษา',
         ];
     }
 }

@@ -89,7 +89,7 @@ abstract class MasterDataController extends Controller
         }
 
         $item->update([
-            ...$request->validate($this->writeRules()),
+            ...$request->validate($this->writeRules($id)),
             'updated_by' => $actor,
         ]);
 
@@ -137,13 +137,16 @@ abstract class MasterDataController extends Controller
         return $this->modelClass::query();
     }
 
-    protected function writeRules(): array
+    protected function writeRules(?int $ignoreId = null): array
     {
+        $table = (new $this->modelClass)->getTable();
+
         return [
             $this->nameField => [
                 'required',
                 'string',
                 "max:{$this->nameMaxLength}",
+                Rule::unique($table, $this->nameField)->ignore($ignoreId),
             ],
         ];
     }

@@ -4,7 +4,6 @@ namespace App\Services\Students;
 
 use App\Actions\Students\SaveStudent;
 use App\Constants\Status;
-use App\Contracts\CmisApi;
 use App\Models\DataImport;
 use App\Models\ImportType;
 use Illuminate\Http\UploadedFile;
@@ -64,7 +63,7 @@ class StudentImportService
     ];
 
     private const REQUIRED_HEADER_INDEXES = [
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18,
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 18,
     ];
 
     private const HEADER_MERGES = [
@@ -74,13 +73,16 @@ class StudentImportService
 
     public function __construct(
         private readonly SaveStudent $saveStudent,
-        private readonly CmisApi $cmisApi,
     ) {}
 
     public function import(
         UploadedFile $file,
         int $curriculumId,
+        string $curriculumCode,
         int $studyPlanId,
+        string $studyPlanNameTh,
+        string $teacherId,
+        string $teacherFullName,
         array $claims,
     ): array {
         $importType = ImportType::query()
@@ -94,52 +96,17 @@ class StudentImportService
             ]);
         }
 
-        $studyPlan = collect($this->cmisApi->getCurriculumPlans($curriculumId))
-            ->first(
-                fn (mixed $plan): bool => is_array($plan)
-                    && (int) ($plan['id'] ?? 0) === $studyPlanId
-            );
-
-        if ($studyPlan === null) {
-            throw ValidationException::withMessages([
-                'study_plan_id' => 'แผนการเรียนไม่ถูกต้อง',
-            ]);
-        }
-
-        $curriculum = collect($this->cmisApi->getCurriculums())
-            ->firstWhere('id', $curriculumId);
-
-        if ($curriculum === null) {
-            throw ValidationException::withMessages([
-                'curriculum_id' => 'หลักสูตรไม่ถูกต้อง',
-            ]);
-        }
-
-        $curriculumName = mb_substr(
-            trim((string) ($curriculum['name_th'] ?? $curriculum['code'] ?? $curriculumId)),
-            0,
-            255,
-        );
-        $curriculumCode = mb_substr(trim((string) ($curriculum['code'] ?? '')), 0, 255);
-
-        if ($curriculumCode === '') {
-            throw ValidationException::withMessages([
-                'curriculum_id' => 'หลักสูตรไม่มีรหัสหลักสูตร',
-            ]);
-        }
-
-        $studyPlanName = mb_substr(
-            trim((string) ($studyPlan['name_th'] ?? $studyPlan['code'] ?? $studyPlanId)),
-            0,
-            255,
-        );
+        $curriculumCode = mb_substr(trim($curriculumCode), 0, 255);
+        $studyPlanNameTh = mb_substr(trim($studyPlanNameTh), 0, 255);
+        $teacherId = mb_substr(trim($teacherId), 0, 50);
+        $teacherFullName = mb_substr(trim($teacherFullName), 0, 255);
 
         $import = DataImport::query()->create([
             'import_type_id' => $importType->id,
             'curriculum_id' => $curriculumId,
-            'curriculum_name_th' => $curriculumName,
+            'curriculum_name_th' => $curriculumCode,
             'curriculum_plan_id' => $studyPlanId,
-            'curriculum_plan_name_th' => $studyPlanName,
+            'curriculum_plan_name_th' => $studyPlanNameTh,
             'file_name' => $file->getClientOriginalName(),
             'status' => Status::PROCESSING,
             'imported_by' => $this->importedBy($claims),
@@ -167,6 +134,7 @@ class StudentImportService
 
             foreach ($dataRows as $index => $row) {
                 $sourceRow = $this->sourceRow($row);
+                $sourceRow[10] = $teacherFullName;
                 $rowNumber = $index + 1;
                 [$attributes, $masterErrors] = $this->attributes(
                     $sourceRow,
@@ -174,7 +142,9 @@ class StudentImportService
                     $curriculumId,
                     $curriculumCode,
                     $studyPlanId,
-                    $studyPlanName,
+                    $studyPlanNameTh,
+                    $teacherId,
+                    $teacherFullName,
                 );
                 $validator = Validator::make(
                     $attributes,
@@ -267,16 +237,12 @@ class StudentImportService
             ]);
         }
 
-        $actualGroupHeaders = array_map(
-            fn (mixed $header) => trim((string) $header),
-            array_slice($rows[0], 0, count(self::GROUP_HEADERS)),
-        );
         $actualHeaders = array_map(
-            fn (mixed $header) => trim((string) $header),
+            fn (mixed $header) => rtrim(trim((string) $header), '*'),
             array_slice($rows[1], 0, count(self::HEADERS)),
         );
 
-        if ($actualGroupHeaders !== self::GROUP_HEADERS || $actualHeaders !== $this->templateHeaders()) {
+        if ($actualHeaders !== self::HEADERS) {
             throw ValidationException::withMessages([
                 'file' => 'รูปแบบ header ไม่ตรงกับ Import Student Template',
             ]);
@@ -296,19 +262,20 @@ class StudentImportService
         int $curriculumId,
         string $curriculumCode,
         int $studyPlanId,
-        string $studyPlanName,
+        string $studyPlanNameTh,
+        string $teacherId,
+        string $teacherFullName,
     ): array {
         $masterErrors = [];
         $titleId = $this->masterId($row[2], $masterData['titles'], 'คำนำหน้า', true, $masterErrors);
-        $systemTeacherId = $this->masterId($row[10], $masterData['systemTeachers'], 'อาจารย์ที่ปรึกษา', false, $masterErrors);
         $admissionChannelId = $this->masterId($row[11], $masterData['admission_channels'], 'ช่องทางรับเข้า', true, $masterErrors);
-        $highSchoolId = $this->masterId($row[12], $masterData['high_schools'], 'โรงเรียน ม.ปลาย', true, $masterErrors);
-        $guardianTitleId = $this->masterId($row[13], $masterData['titles'], 'คำนำหน้าผู้ปกครอง', true, $masterErrors);
-        $relationshipId = $this->masterId($row[16], $masterData['relationships'], 'ความสัมพันธ์', true, $masterErrors);
+        $highSchoolId = $this->masterId($row[12], $masterData['high_schools'], 'โรงเรียน ม.ปลาย', false, $masterErrors);
+        $guardianTitleId = $this->masterId($row[13], $masterData['titles'], 'คำนำหน้าผู้ปกครอง', false, $masterErrors);
+        $relationshipId = $this->masterId($row[16], $masterData['relationships'], 'ความสัมพันธ์', false, $masterErrors);
         $studentStatusId = $this->masterId($row[18], $masterData['student_statuses'], 'สถานะปัจจุบัน', true, $masterErrors);
 
         return [[
-            'student_code' => $row[0],
+            'student_code' => $row[0] === '' ? null : $row[0],
             'student_id_card' => $row[1],
             'title_id' => $titleId,
             'first_name_th' => $row[3],
@@ -320,16 +287,17 @@ class StudentImportService
             'curriculum_id' => $curriculumId,
             'curriculum_code' => $curriculumCode,
             'study_plan_id' => $studyPlanId,
-            'study_plan_name_th' => $studyPlanName,
+            'study_plan_name_th' => $studyPlanNameTh,
             'entry_year' => $this->entryYear($row[9]),
-            'teacher_id' => $systemTeacherId,
+            'teacher_id' => $teacherId,
+            'teacher_full_name' => $teacherFullName,
             'admission_channel_id' => $admissionChannelId,
             'high_school_id' => $highSchoolId,
             'guardian_title_id' => $guardianTitleId,
-            'guardian_first_name_th' => $row[14],
-            'guardian_last_name_th' => $row[15],
+            'guardian_first_name_th' => $this->optionalCell($row[14]),
+            'guardian_last_name_th' => $this->optionalCell($row[15]),
             'guardian_relationship_id' => $relationshipId,
-            'guardian_phone' => $this->phone($row[17]),
+            'guardian_phone' => $this->optionalCell($this->phone($row[17])),
             'student_status_id' => $studentStatusId,
         ], $masterErrors];
     }
@@ -338,7 +306,6 @@ class StudentImportService
     {
         return [
             'titles' => $this->lookup('titles', ['title_abbr_th', 'title_name_th']),
-            'systemTeachers' => $this->lookup('system_teachers', ['full_name_th']),
             'admission_channels' => $this->lookup('admission_channels', ['channel_name']),
             'high_schools' => $this->lookup('high_schools', ['school_name']),
             'relationships' => $this->lookup('relationships', ['relationship_name']),
@@ -395,13 +362,14 @@ class StudentImportService
     {
         return [
             'student_code' => [
-                'required',
+                'nullable',
                 'string',
                 'max:10',
+                'regex:/^\d+$/',
                 Rule::unique('students', 'student_code'),
             ],
             'student_id_card' => ['required', 'string', 'max:13', Rule::unique('students', 'student_id_card')],
-            'title_id' => ['nullable', 'integer', Rule::exists('titles', 'id')],
+            'title_id' => ['required', 'integer', Rule::exists('titles', 'id')],
             'first_name_th' => ['required', 'string', 'max:50'],
             'last_name_th' => ['required', 'string', 'max:50'],
             'first_name_en' => ['required', 'string', 'max:50'],
@@ -413,15 +381,16 @@ class StudentImportService
             'study_plan_id' => ['required', 'integer', 'min:1'],
             'study_plan_name_th' => ['required', 'string', 'max:255'],
             'entry_year' => ['required', 'integer', 'between:1901,2155'],
-            'teacher_id' => ['nullable', 'integer', Rule::exists('system_teachers', 'id')],
-            'admission_channel_id' => ['nullable', 'integer', Rule::exists('admission_channels', 'id')],
+            'teacher_id' => ['required', 'string', 'max:50'],
+            'teacher_full_name' => ['required', 'string', 'max:255'],
+            'admission_channel_id' => ['required', 'integer', Rule::exists('admission_channels', 'id')],
             'high_school_id' => ['nullable', 'integer', Rule::exists('high_schools', 'id')],
             'guardian_title_id' => ['nullable', 'integer', Rule::exists('titles', 'id')],
-            'guardian_first_name_th' => ['required', 'string', 'max:50'],
-            'guardian_last_name_th' => ['required', 'string', 'max:50'],
+            'guardian_first_name_th' => ['nullable', 'string', 'max:50'],
+            'guardian_last_name_th' => ['nullable', 'string', 'max:50'],
             'guardian_relationship_id' => ['nullable', 'integer', Rule::exists('relationships', 'id')],
-            'guardian_phone' => ['required', 'string', 'max:10'],
-            'student_status_id' => ['nullable', 'integer', Rule::exists('student_statuses', 'id')],
+            'guardian_phone' => ['nullable', 'string', 'max:10'],
+            'student_status_id' => ['required', 'integer', Rule::exists('student_statuses', 'id')],
         ];
     }
 
@@ -573,6 +542,11 @@ class StudentImportService
         }
 
         return trim((string) $value);
+    }
+
+    private function optionalCell(string $value): ?string
+    {
+        return $value === '' ? null : $value;
     }
 
     private function entryYear(string $value): mixed

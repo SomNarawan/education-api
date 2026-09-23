@@ -140,9 +140,15 @@ class ListOfValueService
                     || in_array((int) ($curriculum['id'] ?? 0), $includeIds, true)))
             ->map(fn (array $curriculum): array => [
                 'id' => (int) ($curriculum['id'] ?? 0),
-                'name_th' => $curriculum['code'] ?? null,
+                'code' => $curriculum['code'] ?? null,
+                'name_th' => $curriculum['name_th'] ?? null,
                 'name_en' => $curriculum['name_en'] ?? null,
             ])
+            ->filter(fn (array $curriculum): bool => $curriculum['id'] > 0
+                && is_string($curriculum['code'])
+                && trim($curriculum['code']) !== ''
+                && is_string($curriculum['name_th'])
+                && trim($curriculum['name_th']) !== '')
             ->values();
     }
 
