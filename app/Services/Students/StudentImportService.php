@@ -104,7 +104,7 @@ class StudentImportService
         $import = DataImport::query()->create([
             'import_type_id' => $importType->id,
             'curriculum_id' => $curriculumId,
-            'curriculum_name_th' => $curriculumCode,
+            'curriculum_code' => $curriculumCode,
             'curriculum_plan_id' => $studyPlanId,
             'curriculum_plan_name_th' => $studyPlanNameTh,
             'file_name' => $file->getClientOriginalName(),

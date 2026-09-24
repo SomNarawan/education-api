@@ -12,7 +12,7 @@ class DataImport extends Model
     protected $fillable = [
         'import_type_id',
         'curriculum_id',
-        'curriculum_name_th',
+        'curriculum_code',
         'curriculum_plan_id',
         'curriculum_plan_name_th',
         'file_name',
