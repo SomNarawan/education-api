@@ -20,6 +20,7 @@ class StudentImportController extends Controller
         $validated = $request->validated();
         $result = $studentImport->import(
             $request->file('file'),
+            (int) $validated['system_department_id'],
             (int) $validated['curriculum_id'],
             $validated['curriculum_code'],
             (int) $validated['study_plan_id'],

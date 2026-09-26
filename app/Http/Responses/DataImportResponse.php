@@ -12,6 +12,7 @@ class DataImportResponse extends JsonResource
             'id' => $this->id,
             'import_type_id' => $this->import_type_id,
             'type' => $this->importType?->type,
+            'system_department_id' => $this->system_department_id,
             'curriculum_id' => $this->curriculum_id,
             'curriculum_code' => $this->curriculum_code,
             'curriculum_plan_id' => $this->curriculum_plan_id,

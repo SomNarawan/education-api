@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Student;
 
+use App\Constants\Status;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ImportStudentsRequest extends FormRequest
 {
@@ -10,6 +12,11 @@ class ImportStudentsRequest extends FormRequest
     {
         return [
             'file' => ['required', 'file', 'mimes:xlsx', 'max:20480'],
+            'system_department_id' => [
+                'required',
+                'integer',
+                Rule::exists('system_departments', 'id')->where('status', Status::ACTIVE),
+            ],
             'curriculum_id' => ['required', 'integer', 'min:1'],
             'curriculum_code' => ['required', 'string', 'max:255'],
             'study_plan_id' => ['required', 'integer', 'min:1'],
@@ -26,6 +33,9 @@ class ImportStudentsRequest extends FormRequest
             'file.file' => 'ไฟล์ที่แนบไม่ถูกต้อง',
             'file.mimes' => 'รองรับเฉพาะไฟล์ .xlsx',
             'file.max' => 'ไฟล์ต้องมีขนาดไม่เกิน 20 MB',
+            'system_department_id.required' => 'กรุณาเลือกภาควิชา',
+            'system_department_id.integer' => 'ภาควิชาไม่ถูกต้อง',
+            'system_department_id.exists' => 'ไม่พบภาควิชาที่เปิดใช้งาน',
             'curriculum_id.required' => 'กรุณาเลือกหลักสูตร',
             'curriculum_id.integer' => 'หลักสูตรไม่ถูกต้อง',
             'curriculum_id.min' => 'หลักสูตรไม่ถูกต้อง',

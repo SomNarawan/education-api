@@ -77,6 +77,7 @@ class StudentImportService
 
     public function import(
         UploadedFile $file,
+        int $systemDepartmentId,
         int $curriculumId,
         string $curriculumCode,
         int $studyPlanId,
@@ -103,6 +104,7 @@ class StudentImportService
 
         $import = DataImport::query()->create([
             'import_type_id' => $importType->id,
+            'system_department_id' => $systemDepartmentId,
             'curriculum_id' => $curriculumId,
             'curriculum_code' => $curriculumCode,
             'curriculum_plan_id' => $studyPlanId,
@@ -139,6 +141,7 @@ class StudentImportService
                 [$attributes, $masterErrors] = $this->attributes(
                     $sourceRow,
                     $masterData,
+                    $systemDepartmentId,
                     $curriculumId,
                     $curriculumCode,
                     $studyPlanId,
@@ -259,6 +262,7 @@ class StudentImportService
     private function attributes(
         array $row,
         array $masterData,
+        int $systemDepartmentId,
         int $curriculumId,
         string $curriculumCode,
         int $studyPlanId,
@@ -284,6 +288,7 @@ class StudentImportService
             'last_name_en' => $row[6],
             'phone' => $this->phone($row[7]),
             'email' => $row[8],
+            'system_department_id' => $systemDepartmentId,
             'curriculum_id' => $curriculumId,
             'curriculum_code' => $curriculumCode,
             'study_plan_id' => $studyPlanId,
@@ -376,6 +381,11 @@ class StudentImportService
             'last_name_en' => ['required', 'string', 'max:50'],
             'phone' => ['required', 'string', 'max:10'],
             'email' => ['required', 'email', 'max:50'],
+            'system_department_id' => [
+                'required',
+                'integer',
+                Rule::exists('system_departments', 'id')->where('status', Status::ACTIVE),
+            ],
             'curriculum_id' => ['required', 'integer', 'min:1'],
             'curriculum_code' => ['required', 'string', 'max:255'],
             'study_plan_id' => ['required', 'integer', 'min:1'],
@@ -420,6 +430,7 @@ class StudentImportService
             'last_name_en' => 'นามสกุลภาษาอังกฤษ',
             'phone' => 'เบอร์โทร',
             'email' => 'อีเมล',
+            'system_department_id' => 'ภาควิชา',
             'entry_year' => 'ปีเข้าเรียน',
             'guardian_first_name_th' => 'ชื่อผู้ปกครอง',
             'guardian_last_name_th' => 'นามสกุลผู้ปกครอง',
