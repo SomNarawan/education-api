@@ -28,7 +28,7 @@ class SaveStudent
         $attributes = $this->addAcademicStanding($attributes);
 
         $student = new Student;
-        $student->fill($this->databaseAttributes($attributes));
+        $student->fill($attributes);
         $student->save();
 
         return $student->refresh();
@@ -36,10 +36,9 @@ class SaveStudent
 
     public function update(Student $student, array $attributes): Student
     {
-        if (array_key_exists('department_id', $attributes)) {
-            $attributes['system_department_id'] = $attributes['department_id'];
-        } elseif (
-            array_key_exists('study_plan_id', $attributes)
+        if (
+            ! array_key_exists('system_department_id', $attributes)
+            && array_key_exists('study_plan_id', $attributes)
             && (int) $attributes['study_plan_id'] !== (int) $student->study_plan_id
         ) {
             $attributes['system_department_id'] = $this->departmentResolver->resolve($attributes);
@@ -49,7 +48,7 @@ class SaveStudent
             $attributes = $this->addAcademicStanding($attributes);
         }
 
-        $student->update($this->databaseAttributes($attributes));
+        $student->update($attributes);
 
         return $student->refresh();
     }
@@ -60,12 +59,5 @@ class SaveStudent
             ...Arr::except($attributes, self::MANAGED_ACADEMIC_FIELDS),
             ...$this->standingCalculator->calculate((int) $attributes['entry_year']),
         ];
-    }
-
-    private function databaseAttributes(array $attributes): array
-    {
-        return Arr::except($attributes, [
-            'department_id',
-        ]);
     }
 }

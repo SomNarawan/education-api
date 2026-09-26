@@ -67,7 +67,7 @@ class StudentWriteRequest extends FormRequest
                 ),
             ]),
             'study_plan_name_th' => $this->requiredRules(['string', 'max:255']),
-            'department_id' => [
+            'system_department_id' => [
                 'sometimes',
                 'integer',
                 Rule::exists('system_departments', 'id')->where('status', Status::ACTIVE),

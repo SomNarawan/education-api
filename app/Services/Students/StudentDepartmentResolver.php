@@ -14,8 +14,8 @@ class StudentDepartmentResolver
 
     public function resolve(array $attributes): int
     {
-        if (isset($attributes['department_id'])) {
-            return (int) $attributes['department_id'];
+        if (isset($attributes['system_department_id'])) {
+            return (int) $attributes['system_department_id'];
         }
 
         $payload = $this->cmisApi->getCurriculumCategories((int) $attributes['study_plan_id']);
@@ -42,7 +42,7 @@ class StudentDepartmentResolver
         }
 
         throw ValidationException::withMessages([
-            'department_id' => 'Unable to determine the system department from the selected study plan.',
+            'system_department_id' => 'Unable to determine the system department from the selected study plan.',
         ]);
     }
 

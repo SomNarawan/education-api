@@ -60,7 +60,7 @@ class StudentDetailResponse extends JsonResource
             'study_plan_name_th' => $this->study_plan_name_th,
             'study_plan_name' => $this->study_plan_name_th,
             'curriculum_plan_name' => $this->study_plan_name_th,
-            'department_id' => $this->system_department_id,
+            'system_department_id' => $this->system_department_id,
             'department_name' => $this->systemDepartment?->th_name,
             'faculty_id' => $this->systemDepartment?->system_faculty_id,
             'faculty_name' => $this->systemDepartment?->systemFaculty?->th_name,
