@@ -4,16 +4,17 @@ API สำหรับให้ระบบ Portal-Main เรียกดูข
 
 ## Base URL
 
-```
-http://localhost:3009/api/portal-main-student
-```
+| Environment | Base URL |
+|-------------|----------|
+| Production  | `https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api/api/portal-main-student` |
+| Local       | `http://localhost:3009/api/portal-main-student` |
 
 ## Authentication
 
 ทุก endpoint ต้องแนบ API key ผ่าน header:
 
 ```
-X-API-KEY: <PORTAL_MAIN_API_KEY>
+X-API-KEY: 3355c2c5d5b87fc1295ef17801509f78cb5f4dcb1573e3a0850b55a55de26853
 ```
 
 ค่า `PORTAL_MAIN_API_KEY` กำหนดไว้ใน `.env` ของฝั่ง backend หากไม่แนบ หรือแนบผิด จะได้ `401 Unauthorized`:
@@ -39,7 +40,7 @@ GET /check-user/{nontriId}
 **ตัวอย่าง**
 
 ```bash
-curl -H "X-API-KEY: <API_KEY>" \
+curl -H "X-API-KEY: 3355c2c5d5b87fc1295ef17801509f78cb5f4dcb1573e3a0850b55a55de26853" \
   http://localhost:3009/api/portal-main-student/check-user/b6020501361
 ```
 
@@ -63,7 +64,7 @@ GET /get-user-data-by-nontri/{nontriId}
 **ตัวอย่าง**
 
 ```bash
-curl -H "X-API-KEY: <API_KEY>" \
+curl -H "X-API-KEY: 3355c2c5d5b87fc1295ef17801509f78cb5f4dcb1573e3a0850b55a55de26853" \
   http://localhost:3009/api/portal-main-student/get-user-data-by-nontri/b6020501361
 ```
 
@@ -110,7 +111,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST \
-  -H "X-API-KEY: <API_KEY>" \
+  -H "X-API-KEY: 3355c2c5d5b87fc1295ef17801509f78cb5f4dcb1573e3a0850b55a55de26853" \
   -H "Content-Type: application/json" \
   -d '{"nontriIds": ["b6020501361", "b6400000002", "unknown-id"]}' \
   http://localhost:3009/api/portal-main-student/get-user-data-list-by-nontri
@@ -156,7 +157,7 @@ GET /search-nontri-by-any?search={keyword}
 **ตัวอย่าง**
 
 ```bash
-curl -H "X-API-KEY: <API_KEY>" \
+curl -H "X-API-KEY: 3355c2c5d5b87fc1295ef17801509f78cb5f4dcb1573e3a0850b55a55de26853" \
   "http://localhost:3009/api/portal-main-student/search-nontri-by-any?search=%E0%B8%AA%E0%B8%A1%E0%B8%8A%E0%B8%B2%E0%B8%A2"
 ```
 
@@ -187,7 +188,7 @@ GET /search-nontri?nontriId={..}&fullName={..}&agency={..}
 **ตัวอย่าง**
 
 ```bash
-curl -H "X-API-KEY: <API_KEY>" \
+curl -H "X-API-KEY: 3355c2c5d5b87fc1295ef17801509f78cb5f4dcb1573e3a0850b55a55de26853" \
   "http://localhost:3009/api/portal-main-student/search-nontri?fullName=%E0%B8%AA%E0%B8%A1%E0%B8%8A%E0%B8%B2%E0%B8%A2&agency=%E0%B8%A7%E0%B8%B4%E0%B8%A8%E0%B8%A7%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1%E0%B8%84%E0%B8%AD%E0%B8%A1%E0%B8%9E%E0%B8%B4%E0%B8%A7%E0%B9%80%E0%B8%95%E0%B8%AD%E0%B8%A3%E0%B9%8C"
 ```
 

@@ -131,7 +131,8 @@ MOCK_LOGIN_ENABLED=true
 
 ```bash
 cp .env.production.example .env.production
-# ใส่ APP_KEY, JWT_SECRET, DB_PASSWORD และค่า production อื่น ๆ ให้ครบ
+# ใส่ APP_KEY, JWT_SECRET, DB_PASSWORD, PORTAL_MAIN_API_KEY และค่า production อื่น ๆ ให้ครบ
+# PORTAL_MAIN_API_KEY สร้างด้วย: openssl rand -hex 32
 docker compose --env-file .env.production up -d --build
 ```
 
