@@ -15,6 +15,11 @@ interface CmisApi
     public function getCurriculumCategories(int $studyPlanId): array;
 
     /**
+     * Return curriculum plan courses for the selected study plan.
+     */
+    public function getCurriculumPlanCourses(int $studyPlanId): array;
+
+    /**
      * Return only the curriculum plans from the CMIS response data field.
      */
     public function getCurriculumPlans(int $curriculumId): array;

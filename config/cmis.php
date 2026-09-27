@@ -10,6 +10,7 @@ return [
         'curriculums' => '/curriculums',
         'curriculum_plans' => '/curriculums-plans',
         'curriculum_categories' => '/curriculum-categories',
+        'curriculum_plan_courses' => '/curriculum-plan-courses',
         'curriculum_personnel' => '/curriculum-personnel',
         'teachers' => '/teachers',
     ],

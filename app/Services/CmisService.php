@@ -21,6 +21,23 @@ class CmisService implements CmisApi
         ]);
     }
 
+    public function getCurriculumPlanCourses(int $studyPlanId): array
+    {
+        $payload = $this->request('curriculum_plan_courses', [
+            'study_plan_id' => $studyPlanId,
+        ]);
+
+        if (array_is_list($payload)) {
+            return $payload;
+        }
+
+        if (isset($payload['data']) && is_array($payload['data'])) {
+            return $payload['data'];
+        }
+
+        throw new RuntimeException('CMIS service returned invalid curriculum plan courses');
+    }
+
     public function getCurriculumPlans(int $curriculumId): array
     {
         return $this->get('curriculum_plans', [
@@ -36,6 +53,19 @@ class CmisService implements CmisApi
     }
 
     private function get(string $endpointKey, array $query): array
+    {
+        $payload = $this->request($endpointKey, $query);
+
+        if (! array_key_exists('data', $payload)
+            || ! is_array($payload['data'])
+            || (array_key_exists('meta', $payload) && ! is_array($payload['meta']))) {
+            throw new RuntimeException('CMIS service returned an invalid response');
+        }
+
+        return $payload;
+    }
+
+    private function request(string $endpointKey, array $query): array
     {
         try {
             $response = Http::withOptions([
@@ -53,10 +83,7 @@ class CmisService implements CmisApi
 
         $payload = $response->json();
 
-        if (! is_array($payload)
-            || ! array_key_exists('data', $payload)
-            || ! is_array($payload['data'])
-            || (array_key_exists('meta', $payload) && ! is_array($payload['meta']))) {
+        if (! is_array($payload)) {
             throw new RuntimeException('CMIS service returned an invalid response');
         }
 

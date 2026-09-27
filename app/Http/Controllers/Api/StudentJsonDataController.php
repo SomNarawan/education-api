@@ -59,15 +59,25 @@ class StudentJsonDataController extends Controller
      */
     public function performanceSummary(string $studentCode): JsonResponse
     {
+        $groupFiles = array_values(array_filter(
+            Storage::disk('local')->files('data/graph/by_group'),
+            fn (string $path) => preg_match(
+                '/\/'.preg_quote($studentCode, '/').'_(\d+)\.json$/',
+                $path,
+            ) === 1,
+        ));
+        usort($groupFiles, 'strnatcasecmp');
+        $groupSections = [];
+
+        foreach ($groupFiles as $index => $path) {
+            $groupSections['group_'.($index + 1)] = $path;
+        }
+
         return $this->loadBundle(
             $studentCode,
             [
                 'by_credit' => "data/graph/by_credit/{$studentCode}.json",
-                'by_group' => [
-                    'group_1' => "data/graph/by_group/{$studentCode}_1.json",
-                    'group_2' => "data/graph/by_group/{$studentCode}_2.json",
-                    'group_3' => "data/graph/by_group/{$studentCode}_3.json",
-                ],
+                'by_group' => $groupSections,
                 'by_semester' => "data/graph/by_semester/{$studentCode}.json",
             ],
             'Graph data not found',
