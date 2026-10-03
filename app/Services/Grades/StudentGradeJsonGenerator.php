@@ -25,7 +25,7 @@ class StudentGradeJsonGenerator
         $attempts = $this->withPlanCredits($attempts, $planRows);
         $this->writeJson("data/grade_attempts/{$studentCode}.json", $attempts);
         $standing = $this->studentStanding($studentCode);
-        $entryYear = $this->entryYear($studentCode, $standing, $attempts);
+        $entryYear = $this->entryYear($studentCode, $standing, $attempts, $planRows);
         $attempts = array_map(
             fn (array $attempt) => [
                 ...$attempt,
@@ -36,13 +36,7 @@ class StudentGradeJsonGenerator
         $aggregates = $this->aggregateCourses($attempts);
         $slots = $this->slots($planRows);
         [$slots, $assigned, $over] = $this->allocate($slots, $aggregates);
-
-        $enrollments = [];
-
-        foreach ($aggregates as $aggregate) {
-            $courseCode = $aggregate['course_code'];
-            $enrollments[] = $this->record($aggregate, $assigned[$courseCode]['slot'] ?? null);
-        }
+        $enrollments = $this->enrollments($slots, $assigned, $over);
 
         $currentPeriod = $this->currentPeriod($standing, $attempts);
         $notPass = $this->notPass($slots, $assigned, $currentPeriod);
@@ -143,15 +137,7 @@ class StudentGradeJsonGenerator
         $merged = [];
 
         foreach ([...$existing, ...$newAttempts] as $attempt) {
-            $key = implode('|', [
-                $attempt['student_code'] ?? $studentCode,
-                $attempt['course_code'] ?? '',
-                $attempt['enrollment_type'] ?? 'credit',
-                $attempt['credit'] ?? 0,
-                $attempt['section'] ?? '',
-                $attempt['academic_year'] ?? 0,
-                $attempt['semester_order'] ?? 0,
-            ]);
+            $key = $this->attemptKey($attempt, $studentCode);
             $merged[$key] = $attempt;
         }
 
@@ -159,6 +145,16 @@ class StudentGradeJsonGenerator
         usort($attempts, fn (array $left, array $right) => $this->attemptOrder($left) <=> $this->attemptOrder($right));
 
         return $attempts;
+    }
+
+    private function attemptKey(array $attempt, string $studentCode): string
+    {
+        return implode('|', [
+            $attempt['student_code'] ?? $studentCode,
+            $this->normalizeCode($attempt['course_code'] ?? ''),
+            $attempt['academic_year'] ?? 0,
+            $attempt['semester_order'] ?? 0,
+        ]);
     }
 
     private function studentStanding(string $studentCode): ?array
@@ -173,8 +169,18 @@ class StudentGradeJsonGenerator
             ?->only(['entry_year', 'study_year', 'study_semester']);
     }
 
-    private function entryYear(string $studentCode, ?array $standing, array $attempts): int
-    {
+    private function entryYear(
+        string $studentCode,
+        ?array $standing,
+        array $attempts,
+        array $planRows,
+    ): int {
+        $planEntryYear = $this->planEntryYear($planRows);
+
+        if ($planEntryYear !== null) {
+            return $planEntryYear;
+        }
+
         $entryYear = is_numeric($standing['entry_year'] ?? null)
             ? (int) $standing['entry_year']
             : 0;
@@ -193,6 +199,30 @@ class StudentGradeJsonGenerator
         }
 
         return min(array_column($attempts, 'academic_year'));
+    }
+
+    private function planEntryYear(array $planRows): ?int
+    {
+        $entryYears = [];
+
+        foreach ($planRows as $row) {
+            if (! is_numeric($row['plan_year_be'] ?? null)) {
+                continue;
+            }
+
+            $planYear = $this->normalizeAcademicYear((int) $row['plan_year_be']);
+
+            if ($planYear === null) {
+                continue;
+            }
+
+            $studyYear = is_numeric($row['plan_study_year'] ?? null)
+                ? max(1, (int) $row['plan_study_year'])
+                : 1;
+            $entryYears[] = $planYear - $studyYear + 1;
+        }
+
+        return $entryYears === [] ? null : min($entryYears);
     }
 
     private function normalizeAcademicYear(int $year): ?int
@@ -554,6 +584,33 @@ class StudentGradeJsonGenerator
             if ($recovered) {
                 $rows[] = $this->record($aggregate, $assigned[$courseCode]['slot'] ?? null);
             }
+        }
+
+        return $rows;
+    }
+
+    private function enrollments(array $slots, array $assigned, array $over): array
+    {
+        $rows = [];
+
+        foreach ($slots as $slot) {
+            foreach ($slot['_assigned_codes'] as $courseCode) {
+                $aggregate = $assigned[$courseCode]['aggregate'] ?? null;
+
+                if ($aggregate !== null) {
+                    $rows[] = $this->record($aggregate, $slot);
+                }
+            }
+
+            $remainingCredit = $this->slotAllocationRemaining($slot);
+
+            if ($remainingCredit > 0) {
+                $rows[] = $this->plannedRecord($slot, $remainingCredit);
+            }
+        }
+
+        foreach ($over as $item) {
+            $rows[] = $this->record($item['aggregate'], $item['possible_slot']);
         }
 
         return $rows;
