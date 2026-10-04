@@ -6,6 +6,7 @@ use App\Actions\Students\SaveStudent;
 use App\Constants\Status;
 use App\Models\DataImport;
 use App\Models\ImportType;
+use App\Models\Student;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -149,9 +150,12 @@ class StudentImportService
                     $teacherId,
                     $teacherFullName,
                 );
+                $student = Student::query()
+                    ->where('student_code', $attributes['student_code'])
+                    ->first();
                 $validator = Validator::make(
                     $attributes,
-                    $this->studentRules(),
+                    $this->studentRules($student),
                     $this->validationMessages(),
                     $this->attributeNames(),
                 );
@@ -164,7 +168,15 @@ class StudentImportService
                 }
 
                 try {
-                    DB::transaction(fn () => $this->saveStudent->create($validator->validated()));
+                    DB::transaction(function () use ($student, $validator): void {
+                        if ($student === null) {
+                            $this->saveStudent->create($validator->validated());
+
+                            return;
+                        }
+
+                        $this->saveStudent->update($student, $validator->validated());
+                    });
                     $successRows[] = $sourceRow;
                 } catch (ValidationException $exception) {
                     $failedRows[] = [
@@ -363,17 +375,25 @@ class StudentImportService
         return $lookup[$key];
     }
 
-    private function studentRules(): array
+    private function studentRules(?Student $student = null): array
     {
+        $studentCodeUnique = Rule::unique('students', 'student_code');
+        $studentIdCardUnique = Rule::unique('students', 'student_id_card');
+
+        if ($student !== null) {
+            $studentCodeUnique->ignore($student->getKey());
+            $studentIdCardUnique->ignore($student->getKey());
+        }
+
         return [
             'student_code' => [
                 'required',
                 'string',
                 'max:10',
                 'regex:/^\d+$/',
-                Rule::unique('students', 'student_code'),
+                $studentCodeUnique,
             ],
-            'student_id_card' => ['nullable', 'string', 'max:13', Rule::unique('students', 'student_id_card')],
+            'student_id_card' => ['nullable', 'string', 'max:13', $studentIdCardUnique],
             'title_id' => ['required', 'integer', Rule::exists('titles', 'id')],
             'first_name_th' => ['required', 'string', 'max:50'],
             'last_name_th' => ['required', 'string', 'max:50'],
