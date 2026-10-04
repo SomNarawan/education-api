@@ -128,7 +128,7 @@ class StudentGradeJsonGenerator
         $slots = $this->slots($planRows);
         [$slots, $assigned, $over] = $this->allocate($slots, $aggregates);
         $latestImportedPeriod = $this->latestPeriod($attempts);
-        $enrollments = $this->enrollments($slots, $assigned, $over, $latestImportedPeriod);
+        $enrollments = $this->enrollments($slots, $assigned, $over);
 
         $notPass = $this->notPass($slots, $assigned, $latestImportedPeriod);
         $passedAfterFailure = $this->passedAfterFailure($aggregates, $assigned);
@@ -719,7 +719,6 @@ class StudentGradeJsonGenerator
         array $slots,
         array $assigned,
         array $over,
-        array $latestImportedPeriod,
     ): array {
         $rows = [];
 
@@ -734,7 +733,7 @@ class StudentGradeJsonGenerator
 
             $remainingCredit = $this->slotAllocationRemaining($slot);
 
-            if ($remainingCredit > 0 && $this->isDue($slot, $latestImportedPeriod)) {
+            if ($remainingCredit > 0) {
                 $rows[] = $this->plannedRecord($slot, $remainingCredit);
             }
         }
