@@ -26,7 +26,52 @@ class StudentGradeJsonGenerator
         $newAttempts = $this->withPlanCredits($newAttempts, $planRows);
         $attempts = $this->mergeAttempts($studentCode, $newAttempts);
         $attempts = $this->withPlanCredits($attempts, $planRows);
-        $this->writeJson("data/grade_attempts/{$studentCode}.json", $attempts);
+        $this->writeGeneratedData(
+            $studentCode,
+            $attempts,
+            $planRows,
+            $totalCredits,
+        );
+        $this->writeStudyPlanSyncLog(
+            $studentCode,
+            $importId,
+            $planResponse,
+        );
+    }
+
+    public function resetAll(string $studentCode): ?int
+    {
+        $attempts = $this->storedAttempts($studentCode);
+
+        if ($attempts === null) {
+            return null;
+        }
+
+        $resetCount = count($attempts);
+        $this->deleteGeneratedData($studentCode);
+
+        return $resetCount;
+    }
+
+    public function resetSemester(
+        string $studentCode,
+        int $studyYear,
+        int $semester,
+        array $planResponse,
+        int $studyPlanId,
+    ): ?int {
+        $attempts = $this->storedAttempts($studentCode);
+
+        if ($attempts === null) {
+            return null;
+        }
+
+        if ($attempts === []) {
+            return 0;
+        }
+
+        [$planRows, $totalCredits] = $this->plan($planResponse, $studyPlanId);
+        $attempts = $this->withPlanCredits($attempts, $planRows);
         $standing = $this->studentStanding($studentCode);
         $entryYear = $this->entryYear($studentCode, $standing, $attempts, $planRows);
         $attempts = array_map(
@@ -36,6 +81,49 @@ class StudentGradeJsonGenerator
             ],
             $attempts,
         );
+        $remainingAttempts = array_values(array_filter(
+            $attempts,
+            fn (array $attempt): bool => (int) $attempt['study_year'] !== $studyYear
+                || (int) ($attempt['semester_order'] ?? 0) !== $semester,
+        ));
+        $resetCount = count($attempts) - count($remainingAttempts);
+
+        if ($resetCount === 0) {
+            return 0;
+        }
+
+        if ($remainingAttempts === []) {
+            $this->deleteGeneratedData($studentCode);
+
+            return $resetCount;
+        }
+
+        $this->writeGeneratedData(
+            $studentCode,
+            $remainingAttempts,
+            $planRows,
+            $totalCredits,
+        );
+
+        return $resetCount;
+    }
+
+    private function writeGeneratedData(
+        string $studentCode,
+        array $attempts,
+        array $planRows,
+        float $totalCredits,
+    ): void {
+        $standing = $this->studentStanding($studentCode);
+        $entryYear = $this->entryYear($studentCode, $standing, $attempts, $planRows);
+        $attempts = array_map(
+            fn (array $attempt) => [
+                ...$attempt,
+                'study_year' => max(1, ((int) $attempt['academic_year']) - $entryYear + 1),
+            ],
+            $attempts,
+        );
+        $this->writeJson("data/grade_attempts/{$studentCode}.json", $attempts);
         $aggregates = $this->aggregateCourses($attempts);
         $slots = $this->slots($planRows);
         [$slots, $assigned, $over] = $this->allocate($slots, $aggregates);
@@ -44,7 +132,10 @@ class StudentGradeJsonGenerator
 
         $notPass = $this->notPass($slots, $assigned, $latestImportedPeriod);
         $passedAfterFailure = $this->passedAfterFailure($aggregates, $assigned);
-        $overRecords = $this->notStudiedAsPlanned($slots, $latestImportedPeriod);
+        $overRecords = array_map(
+            fn (array $item) => $this->record($item['aggregate'], $item['possible_slot']),
+            $over,
+        );
 
         usort($enrollments, $this->recordSorter(...));
         usort($notPass, $this->recordSorter(...));
@@ -63,11 +154,42 @@ class StudentGradeJsonGenerator
             $over,
             $totalCredits,
         );
-        $this->writeStudyPlanSyncLog(
-            $studentCode,
-            $importId,
-            $planResponse,
-        );
+    }
+
+    private function storedAttempts(string $studentCode): ?array
+    {
+        $path = "data/grade_attempts/{$studentCode}.json";
+        $disk = Storage::disk('local');
+
+        if (! $disk->exists($path)) {
+            return null;
+        }
+
+        $decoded = json_decode($disk->get($path), true, 512, JSON_THROW_ON_ERROR);
+
+        return is_array($decoded)
+            ? array_values(array_filter($decoded, 'is_array'))
+            : [];
+    }
+
+    private function deleteGeneratedData(string $studentCode): void
+    {
+        $disk = Storage::disk('local');
+        $disk->delete([
+            "data/grade_attempts/{$studentCode}.json",
+            "data/enrollments/{$studentCode}.json",
+            "data/enrollments_not_pass/{$studentCode}.json",
+            "data/enrollments_pass/{$studentCode}.json",
+            "data/enrollments_over/{$studentCode}.json",
+            "data/graph/by_credit/{$studentCode}.json",
+            "data/graph/by_semester/{$studentCode}.json",
+        ]);
+
+        foreach ($disk->files('data/graph/by_group') as $path) {
+            if (preg_match('/\/'.preg_quote($studentCode, '/').'_\d+\.json$/', $path) === 1) {
+                $disk->delete($path);
+            }
+        }
     }
 
     private function writeStudyPlanSyncLog(
@@ -568,25 +690,6 @@ class StudentGradeJsonGenerator
         return $rows;
     }
 
-    private function notStudiedAsPlanned(array $slots, array $latestImportedPeriod): array
-    {
-        $rows = [];
-
-        foreach ($slots as $slot) {
-            if (! $this->isDue($slot, $latestImportedPeriod)) {
-                continue;
-            }
-
-            $unallocatedCredit = $this->slotAllocationRemaining($slot);
-
-            if ($unallocatedCredit > 0) {
-                $rows[] = $this->plannedRecord($slot, $unallocatedCredit);
-            }
-        }
-
-        return $rows;
-    }
-
     private function passedAfterFailure(array $aggregates, array $assigned): array
     {
         $rows = [];
@@ -617,8 +720,7 @@ class StudentGradeJsonGenerator
         array $assigned,
         array $over,
         array $latestImportedPeriod,
-    ): array
-    {
+    ): array {
         $rows = [];
 
         foreach ($slots as $slot) {

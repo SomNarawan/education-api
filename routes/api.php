@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\NoteTypeController;
 use App\Http\Controllers\Api\PortalMainStudentController;
 use App\Http\Controllers\Api\RelationshipController;
 use App\Http\Controllers\Api\StudentController;
+use App\Http\Controllers\Api\StudentGradeController;
 use App\Http\Controllers\Api\StudentImportController;
 use App\Http\Controllers\Api\StudentJsonDataController;
 use App\Http\Controllers\Api\StudentStatusController;
@@ -117,6 +118,8 @@ Route::prefix('students')->group(function (): void {
     Route::get('/{studentCode}/enrollment-statuses', [StudentJsonDataController::class, 'enrollmentStatuses'])
         ->whereNumber('studentCode');
     Route::get('/{studentCode}/performance-summary', [StudentJsonDataController::class, 'performanceSummary'])
+        ->whereNumber('studentCode');
+    Route::delete('/{studentCode}/grades', [StudentGradeController::class, 'reset'])
         ->whereNumber('studentCode');
 
     Route::post('/', [StudentController::class, 'store']);
