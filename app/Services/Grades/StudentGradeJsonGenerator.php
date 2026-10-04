@@ -13,11 +13,14 @@ class StudentGradeJsonGenerator
 
     private const PASS_GRADES = ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'P', 'S'];
 
+    private const ACADEMIC_GRADES = ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F'];
+
     public function generate(
         string $studentCode,
         array $newAttempts,
         array $planResponse,
         int $studyPlanId,
+        ?int $importId = null,
     ): void {
         [$planRows, $totalCredits] = $this->plan($planResponse, $studyPlanId);
         $newAttempts = $this->withPlanCredits($newAttempts, $planRows);
@@ -36,15 +39,12 @@ class StudentGradeJsonGenerator
         $aggregates = $this->aggregateCourses($attempts);
         $slots = $this->slots($planRows);
         [$slots, $assigned, $over] = $this->allocate($slots, $aggregates);
-        $enrollments = $this->enrollments($slots, $assigned, $over);
+        $latestImportedPeriod = $this->latestPeriod($attempts);
+        $enrollments = $this->enrollments($slots, $assigned, $over, $latestImportedPeriod);
 
-        $currentPeriod = $this->currentPeriod($standing, $attempts);
-        $notPass = $this->notPass($slots, $assigned, $currentPeriod);
+        $notPass = $this->notPass($slots, $assigned, $latestImportedPeriod);
         $passedAfterFailure = $this->passedAfterFailure($aggregates, $assigned);
-        $overRecords = array_map(
-            fn (array $item) => $this->record($item['aggregate'], $item['possible_slot']),
-            $over,
-        );
+        $overRecords = $this->notStudiedAsPlanned($slots, $latestImportedPeriod);
 
         usort($enrollments, $this->recordSorter(...));
         usort($notPass, $this->recordSorter(...));
@@ -62,6 +62,26 @@ class StudentGradeJsonGenerator
             $assigned,
             $over,
             $totalCredits,
+        );
+        $this->writeStudyPlanSyncLog(
+            $studentCode,
+            $importId,
+            $planResponse,
+        );
+    }
+
+    private function writeStudyPlanSyncLog(
+        string $studentCode,
+        ?int $importId,
+        array $planResponse,
+    ): void {
+        if ($importId === null) {
+            return;
+        }
+
+        $this->writeJson(
+            "data/study_plan_sync_logs/{$studentCode}_{$importId}.json",
+            $planResponse,
         );
     }
 
@@ -240,22 +260,6 @@ class StudentGradeJsonGenerator
         }
 
         return null;
-    }
-
-    private function currentPeriod(?array $standing, array $attempts): array
-    {
-        $studyYear = is_numeric($standing['study_year'] ?? null)
-            ? (int) $standing['study_year']
-            : 0;
-        $studySemester = is_numeric($standing['study_semester'] ?? null)
-            ? (int) $standing['study_semester']
-            : 0;
-
-        if ($studyYear >= 1 && in_array($studySemester, [1, 2, 3], true)) {
-            return [$studyYear, $studySemester];
-        }
-
-        return $this->latestPeriod($attempts);
     }
 
     private function aggregateCourses(array $attempts): array
@@ -498,7 +502,7 @@ class StudentGradeJsonGenerator
             'semester_year_be' => (int) $latest['academic_year'] + 543,
             'semester_order' => (int) $latest['semester_order'],
             'study_period' => 'ปีที่ '.((int) $latest['study_year']).' '.$latest['semester'],
-            'course_code' => $aggregate['course_code'],
+            'course_code' => $this->mappedCourseCode($aggregate['course_code']),
             'course_name' => $isUnplanned ? null : $this->courseName($aggregate['course_code'], $slot),
             'course_category' => $isUnplanned ? null : ($slot['course_category'] ?? 'นอกหลักสูตร'),
             'course_sub_category' => $isUnplanned ? null : ($slot['course_sub_category'] ?? null),
@@ -522,7 +526,7 @@ class StudentGradeJsonGenerator
             'semester_year_be' => isset($slot['plan_year_be']) ? (int) $slot['plan_year_be'] : null,
             'semester_order' => (int) ($slot['plan_semester_order'] ?? 0),
             'study_period' => $slot['plan_study_period'] ?? null,
-            'course_code' => $slot['course_code'] ?? null,
+            'course_code' => $this->mappedCourseCode($slot['course_code'] ?? null),
             'course_name' => $slot['course_name'] ?? '-',
             'course_category' => $slot['course_category'] ?? '-',
             'course_sub_category' => $slot['course_sub_category'] ?? null,
@@ -564,6 +568,25 @@ class StudentGradeJsonGenerator
         return $rows;
     }
 
+    private function notStudiedAsPlanned(array $slots, array $latestImportedPeriod): array
+    {
+        $rows = [];
+
+        foreach ($slots as $slot) {
+            if (! $this->isDue($slot, $latestImportedPeriod)) {
+                continue;
+            }
+
+            $unallocatedCredit = $this->slotAllocationRemaining($slot);
+
+            if ($unallocatedCredit > 0) {
+                $rows[] = $this->plannedRecord($slot, $unallocatedCredit);
+            }
+        }
+
+        return $rows;
+    }
+
     private function passedAfterFailure(array $aggregates, array $assigned): array
     {
         $rows = [];
@@ -589,7 +612,12 @@ class StudentGradeJsonGenerator
         return $rows;
     }
 
-    private function enrollments(array $slots, array $assigned, array $over): array
+    private function enrollments(
+        array $slots,
+        array $assigned,
+        array $over,
+        array $latestImportedPeriod,
+    ): array
     {
         $rows = [];
 
@@ -604,7 +632,7 @@ class StudentGradeJsonGenerator
 
             $remainingCredit = $this->slotAllocationRemaining($slot);
 
-            if ($remainingCredit > 0) {
+            if ($remainingCredit > 0 && $this->isDue($slot, $latestImportedPeriod)) {
                 $rows[] = $this->plannedRecord($slot, $remainingCredit);
             }
         }
@@ -724,7 +752,7 @@ class StudentGradeJsonGenerator
 
         $groupFiles = [];
 
-        foreach ($this->mainCategories($slots) as $index => $category) {
+        foreach ($this->mainCategories($slots, $assigned, $over) as $index => $category) {
             $path = 'data/graph/by_group/'.$studentCode.'_'.($index + 1).'.json';
             $groupFiles[] = $path;
             $this->writeJson(
@@ -812,11 +840,16 @@ class StudentGradeJsonGenerator
         return $rows;
     }
 
-    private function mainCategories(array $slots): array
+    private function mainCategories(array $slots, array $assigned, array $over): array
     {
         $categories = [];
+        $gradedSlotIndexes = $this->gradedSlotIndexes($assigned, $over);
 
         foreach ($slots as $slot) {
+            if (! isset($gradedSlotIndexes[$slot['_index']])) {
+                continue;
+            }
+
             $category = trim((string) ($slot['course_category'] ?? ''));
 
             if ($category !== '' && ! in_array($category, $categories, true)) {
@@ -833,6 +866,8 @@ class StudentGradeJsonGenerator
             $slots,
             fn (array $slot) => ($slot['course_category'] ?? null) === $category,
         ));
+        $gradedSlotIndexes = $this->gradedSlotIndexes($assigned, $over);
+
         $nodes = [[$category, $categorySlots]];
         $seen = [$category => true];
 
@@ -840,7 +875,9 @@ class StudentGradeJsonGenerator
             foreach ($categorySlots as $slot) {
                 $label = trim((string) ($slot[$field] ?? ''));
 
-                if ($label === '' || isset($seen[$label])) {
+                if ($label === ''
+                    || isset($seen[$label])
+                    || ! isset($gradedSlotIndexes[$slot['_index']])) {
                     continue;
                 }
 
@@ -856,6 +893,38 @@ class StudentGradeJsonGenerator
             fn (array $node) => $this->groupSummary($node[0], $node[1], $assigned, $over),
             $nodes,
         );
+    }
+
+    private function gradedSlotIndexes(array $assigned, array $over): array
+    {
+        $indexes = [];
+
+        foreach ($assigned as $item) {
+            if ($this->hasAcademicGrade($item['aggregate'])) {
+                $indexes[$item['slot_index']] = true;
+            }
+        }
+
+        foreach ($over as $item) {
+            $possibleIndex = $item['possible_slot']['_index'] ?? null;
+
+            if ($possibleIndex !== null && $this->hasAcademicGrade($item['aggregate'])) {
+                $indexes[$possibleIndex] = true;
+            }
+        }
+
+        return $indexes;
+    }
+
+    private function hasAcademicGrade(array $aggregate): bool
+    {
+        foreach ($aggregate['attempts'] as $attempt) {
+            if (in_array($attempt['grade_letter'] ?? null, self::ACADEMIC_GRADES, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function groupSummary(string $label, array $slots, array $assigned, array $over): array
@@ -942,6 +1011,15 @@ class StudentGradeJsonGenerator
     private function normalizeCode(mixed $code): string
     {
         return strtoupper(preg_replace('/\s+/', '', trim((string) $code)) ?? '');
+    }
+
+    private function mappedCourseCode(mixed $code): string
+    {
+        $value = preg_replace('/\s+/', '', trim((string) $code)) ?? '';
+
+        return preg_match('/^(?:\d{8}|\d{5}x{3})$/i', $value) === 1
+            ? $value
+            : '-';
     }
 
     private function number(float|int|string|null $value): float|int

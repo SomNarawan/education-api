@@ -76,6 +76,7 @@ class ProcessGradeImport implements ShouldQueue
                         $studentRows,
                         $resolvedPlan['courses'],
                         $resolvedPlan['study_plan_id'],
+                        $import->id,
                     );
                     $successCount++;
                 } catch (Throwable $exception) {
