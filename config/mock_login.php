@@ -15,10 +15,13 @@ return [
 
     'enabled' => filter_var(env('MOCK_LOGIN_ENABLED', false), FILTER_VALIDATE_BOOL),
 
-    'frontend_url' => trim(explode(
-        ',',
-        (string) env('FRONTEND_URL', 'https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd')
-    )[0]),
+    'frontend_url' => trim((string) env(
+        'MOCK_LOGIN_FRONTEND_URL',
+        trim(explode(
+            ',',
+            (string) env('FRONTEND_URL', 'https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd')
+        )[0])
+    )),
 
     /*
     |--------------------------------------------------------------------------
