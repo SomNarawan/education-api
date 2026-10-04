@@ -30,8 +30,11 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('mock-login')->withoutMiddleware(AuthenticateJwt::class)->group(function (): void {
     Route::get('/', [MockLoginController::class, 'picker']);
     Route::get('/search', [MockLoginController::class, 'search']);
+    Route::get('/students/search', [MockLoginController::class, 'searchStudents']);
     Route::get('/admin', [MockLoginController::class, 'issueAdmin']);
     Route::get('/system-teacher/{nontriId}', [MockLoginController::class, 'issueSystemTeacher']);
+    Route::get('/student/{studentCode}', [MockLoginController::class, 'issueStudent'])
+        ->whereNumber('studentCode');
 });
 
 Route::prefix('portal-main-student')

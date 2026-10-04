@@ -1,5 +1,13 @@
 <?php
 
+$frontendUrls = array_values(array_filter(array_map(
+    'trim',
+    explode(',', (string) env(
+        'FRONTEND_URL',
+        'https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd'
+    ))
+)));
+
 return [
 
     /*
@@ -17,10 +25,12 @@ return [
 
     'frontend_url' => trim((string) env(
         'MOCK_LOGIN_FRONTEND_URL',
-        trim(explode(
-            ',',
-            (string) env('FRONTEND_URL', 'https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd')
-        )[0])
+        $frontendUrls[0] ?? 'https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd'
+    )),
+
+    'student_frontend_url' => trim((string) env(
+        'MOCK_LOGIN_STUDENT_FRONTEND_URL',
+        $frontendUrls[1] ?? $frontendUrls[0] ?? 'http://localhost:3002'
     )),
 
     /*

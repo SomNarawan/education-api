@@ -39,6 +39,21 @@ class MockLoginController extends Controller
         return response()->json($systemTeachers);
     }
 
+    public function searchStudents(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->query('q', ''));
+
+        $students = collect($this->mockStudents())
+            ->filter(fn (array $student) => $q === ''
+                || str_contains(mb_strtolower($student['student_code']), mb_strtolower($q))
+                || str_contains(mb_strtolower($student['full_name_th']), mb_strtolower($q)))
+            ->sortBy('full_name_th')
+            ->take(20)
+            ->values();
+
+        return response()->json($students);
+    }
+
     public function issueAdmin(JwtIssuer $issuer): RedirectResponse
     {
         return $this->redirectWithToken($issuer, [
@@ -76,8 +91,28 @@ class MockLoginController extends Controller
         ]);
     }
 
+    public function issueStudent(string $studentCode, JwtIssuer $issuer): RedirectResponse
+    {
+        $student = collect($this->mockStudents())->firstWhere('student_code', $studentCode);
+
+        abort_unless(
+            $student,
+            HttpStatus::NOT_FOUND['code'],
+            "ไม่พบ mock student student_code={$studentCode} — เช็คไฟล์ resources/mocks/mock-student-login.json"
+        );
+
+        return $this->redirectWithToken($issuer, [
+            'nontri_id' => $student['student_code'],
+            'name' => $student['full_name_th'],
+            'role' => ['student'],
+            'current_role' => 'student',
+            'department_id' => $student['department_id'],
+            'faculty_id' => $student['faculty_id'],
+        ], (string) config('mock_login.student_frontend_url'));
+    }
+
     /**
-    * @return array<int, array{nontri_id: string, full_name_th: string, department_id: int|null, faculty_id: int|null, is_admin: bool}>
+     * @return array<int, array{nontri_id: string, full_name_th: string, department_id: int|null, faculty_id: int|null, is_admin: bool}>
      */
     private function mockUsers(): array
     {
@@ -103,14 +138,47 @@ class MockLoginController extends Controller
         return $users;
     }
 
-    private function redirectWithToken(JwtIssuer $issuer, array $claims): RedirectResponse
+    /**
+     * @return array<int, array{student_code: string, full_name_th: string, department_id: int|null, department_name: string|null, faculty_id: int|null}>
+     */
+    private function mockStudents(): array
     {
+        $content = file_get_contents(resource_path('mocks/mock-student-login.json'));
+
+        if ($content === false) {
+            abort(500, 'ไม่สามารถอ่านไฟล์ resources/mocks/mock-student-login.json ได้');
+        }
+
+        try {
+            $students = json_decode(
+                $content,
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+        } catch (JsonException|\ValueError $exception) {
+            abort(500, 'ไม่สามารถอ่านไฟล์ resources/mocks/mock-student-login.json ได้');
+        }
+
+        abort_unless(is_array($students), 500, 'รูปแบบไฟล์ resources/mocks/mock-student-login.json ไม่ถูกต้อง');
+
+        return $students;
+    }
+
+    private function redirectWithToken(
+        JwtIssuer $issuer,
+        array $claims,
+        ?string $frontendUrl = null
+    ): RedirectResponse {
         $claims += [
             'iat' => time(),
             'exp' => time() + 8 * 3600,
         ];
 
-        $frontendUrl = rtrim((string) config('mock_login.frontend_url'), '/');
+        $frontendUrl = rtrim(
+            $frontendUrl ?? (string) config('mock_login.frontend_url'),
+            '/'
+        );
         $token = $issuer->issue($claims);
 
         return redirect("{$frontendUrl}/auth/callback?token={$token}");
