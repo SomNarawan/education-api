@@ -33,10 +33,10 @@ class StudentWriteRequest extends FormRequest
             'title_id' => $this->requiredRules(['integer', 'exists:titles,id']),
             'first_name_th' => $this->requiredRules(['string', 'max:50']),
             'last_name_th' => $this->requiredRules(['string', 'max:50']),
-            'first_name_en' => $this->requiredRules(['string', 'max:50']),
-            'last_name_en' => $this->requiredRules(['string', 'max:50']),
-            'phone' => $this->requiredRules(['string', 'max:10']),
-            'email' => $this->requiredRules(['email', 'max:50']),
+            'first_name_en' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'last_name_en' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:10'],
+            'email' => ['sometimes', 'nullable', 'email', 'max:50'],
 
             'teacher_id' => [
                 'sometimes',

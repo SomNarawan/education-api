@@ -64,7 +64,7 @@ class StudentImportService
     ];
 
     private const REQUIRED_HEADER_INDEXES = [
-        0, 2, 3, 4, 5, 6, 7, 8, 9, 11, 18,
+        0, 2, 3, 4, 9, 11, 18,
     ];
 
     private const HEADER_MERGES = [
@@ -296,10 +296,10 @@ class StudentImportService
             'title_id' => $titleId,
             'first_name_th' => $row[3],
             'last_name_th' => $row[4],
-            'first_name_en' => $row[5],
-            'last_name_en' => $row[6],
-            'phone' => $this->phone($row[7]),
-            'email' => $row[8],
+            'first_name_en' => $this->optionalCell($row[5]),
+            'last_name_en' => $this->optionalCell($row[6]),
+            'phone' => $this->optionalCell($this->phone($row[7])),
+            'email' => $this->optionalCell($row[8]),
             'system_department_id' => $systemDepartmentId,
             'curriculum_id' => $curriculumId,
             'curriculum_code' => $curriculumCode,
@@ -397,10 +397,10 @@ class StudentImportService
             'title_id' => ['required', 'integer', Rule::exists('titles', 'id')],
             'first_name_th' => ['required', 'string', 'max:50'],
             'last_name_th' => ['required', 'string', 'max:50'],
-            'first_name_en' => ['required', 'string', 'max:50'],
-            'last_name_en' => ['required', 'string', 'max:50'],
-            'phone' => ['required', 'string', 'max:10'],
-            'email' => ['required', 'email', 'max:50'],
+            'first_name_en' => ['nullable', 'string', 'max:50'],
+            'last_name_en' => ['nullable', 'string', 'max:50'],
+            'phone' => ['nullable', 'string', 'max:10'],
+            'email' => ['nullable', 'email', 'max:50'],
             'system_department_id' => [
                 'required',
                 'integer',
