@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Constants\HttpStatus;
+use App\Models\Student;
 use App\Services\JwtIssuer;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,13 +44,27 @@ class MockLoginController extends Controller
     public function searchStudents(Request $request): JsonResponse
     {
         $q = trim((string) $request->query('q', ''));
+        $terms = preg_split('/\s+/u', $q, -1, PREG_SPLIT_NO_EMPTY) ?: [];
 
-        $students = collect($this->mockStudents())
-            ->filter(fn (array $student) => $q === ''
-                || str_contains(mb_strtolower($student['student_code']), mb_strtolower($q))
-                || str_contains(mb_strtolower($student['full_name_th']), mb_strtolower($q)))
-            ->sortBy('full_name_th')
-            ->take(20)
+        $students = Student::query()
+            ->with('systemDepartment.systemFaculty')
+            ->when($terms !== [], function (Builder $query) use ($terms): void {
+                foreach ($terms as $term) {
+                    $query->where(function (Builder $termQuery) use ($term): void {
+                        $pattern = "%{$term}%";
+
+                        $termQuery
+                            ->where('student_code', 'like', $pattern)
+                            ->orWhere('first_name_th', 'like', $pattern)
+                            ->orWhere('last_name_th', 'like', $pattern);
+                    });
+                }
+            })
+            ->orderBy('first_name_th')
+            ->orderBy('last_name_th')
+            ->limit(20)
+            ->get()
+            ->map(fn (Student $student): array => $this->studentLoginData($student))
             ->values();
 
         return response()->json($students);
@@ -93,21 +109,27 @@ class MockLoginController extends Controller
 
     public function issueStudent(string $studentCode, JwtIssuer $issuer): RedirectResponse
     {
-        $student = collect($this->mockStudents())->firstWhere('student_code', $studentCode);
+        $student = Student::query()
+            ->with('systemDepartment.systemFaculty')
+            ->where('student_code', $studentCode)
+            ->first();
 
         abort_unless(
             $student,
             HttpStatus::NOT_FOUND['code'],
-            "ไม่พบ mock student student_code={$studentCode} — เช็คไฟล์ resources/mocks/mock-student-login.json"
+            "ไม่พบนิสิตรหัส {$studentCode} ในตาราง students"
         );
 
+        $studentData = $this->studentLoginData($student);
+
         return $this->redirectWithToken($issuer, [
-            'nontri_id' => $student['student_code'],
-            'name' => $student['full_name_th'],
+            'nontri_id' => $studentData['student_code'],
+            'name' => $studentData['full_name_th'],
             'role' => ['student'],
             'current_role' => 'student',
-            'department_id' => $student['department_id'],
-            'faculty_id' => $student['faculty_id'],
+            'department_id' => $studentData['department_id'],
+            'faculty_id' => $studentData['faculty_id'],
+            'study_plan_id' => $studentData['study_plan_id'],
         ], (string) config('mock_login.student_frontend_url'));
     }
 
@@ -139,30 +161,22 @@ class MockLoginController extends Controller
     }
 
     /**
-     * @return array<int, array{student_code: string, full_name_th: string, department_id: int|null, department_name: string|null, faculty_id: int|null}>
+     * @return array{student_code: string, full_name_th: string, department_id: int|null, department_name: string|null, faculty_id: int|null, study_plan_id: int}
      */
-    private function mockStudents(): array
+    private function studentLoginData(Student $student): array
     {
-        $content = file_get_contents(resource_path('mocks/mock-student-login.json'));
-
-        if ($content === false) {
-            abort(500, 'ไม่สามารถอ่านไฟล์ resources/mocks/mock-student-login.json ได้');
-        }
-
-        try {
-            $students = json_decode(
-                $content,
-                true,
-                512,
-                JSON_THROW_ON_ERROR
-            );
-        } catch (JsonException|\ValueError $exception) {
-            abort(500, 'ไม่สามารถอ่านไฟล์ resources/mocks/mock-student-login.json ได้');
-        }
-
-        abort_unless(is_array($students), 500, 'รูปแบบไฟล์ resources/mocks/mock-student-login.json ไม่ถูกต้อง');
-
-        return $students;
+        return [
+            'student_code' => (string) $student->student_code,
+            'full_name_th' => trim(
+                ($student->first_name_th ?? '')
+                .' '
+                .($student->last_name_th ?? '')
+            ),
+            'department_id' => $student->system_department_id,
+            'department_name' => $student->systemDepartment?->th_name,
+            'faculty_id' => $student->systemDepartment?->system_faculty_id,
+            'study_plan_id' => (int) $student->study_plan_id,
+        ];
     }
 
     private function redirectWithToken(

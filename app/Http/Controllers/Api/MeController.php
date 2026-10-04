@@ -26,6 +26,7 @@ class MeController extends Controller
             'current_role' => $claims['current_role'] ?? ($roles[0] ?? null),
             'department_id' => $claims['department_id'] ?? null,
             'faculty_id' => $claims['faculty_id'] ?? null,
+            'study_plan_id' => $claims['study_plan_id'] ?? null,
             'iat' => isset($claims['iat']) ? (int) $claims['iat'] : null,
             'exp' => isset($claims['exp']) ? (int) $claims['exp'] : null,
         ], HttpStatus::OK['message'], HttpStatus::OK['code']);
