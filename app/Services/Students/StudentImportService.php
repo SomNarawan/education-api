@@ -19,6 +19,8 @@ use Throwable;
 
 class StudentImportService
 {
+    private const IMPORT_SHEET_NAME = 'Sheet1';
+
     private const GROUP_HEADERS = [
         'รหัสนิสิต',
         'ข้อมูลส่วนตัว',
@@ -233,11 +235,11 @@ class StudentImportService
             ]);
         }
 
-        $sheetIndex = array_search('Students', $xlsx->sheetNames(), true);
+        $sheetIndex = array_search(self::IMPORT_SHEET_NAME, $xlsx->sheetNames(), true);
 
         if ($sheetIndex === false) {
             throw ValidationException::withMessages([
-                'file' => 'ไม่พบชีต Students ในไฟล์ Excel',
+                'file' => 'ไม่พบชีต '.self::IMPORT_SHEET_NAME.' ในไฟล์ Excel',
             ]);
         }
 
@@ -248,7 +250,7 @@ class StudentImportService
     {
         if (! isset($rows[0], $rows[1])) {
             throw ValidationException::withMessages([
-                'file' => 'ไม่พบ header ที่แถว 1-2 ในชีต Students',
+                'file' => 'ไม่พบ header ที่แถว 1-2 ในชีต '.self::IMPORT_SHEET_NAME,
             ]);
         }
 
