@@ -21,8 +21,6 @@ class ImportStudentsRequest extends FormRequest
             'curriculum_code' => ['required', 'string', 'max:255'],
             'study_plan_id' => ['required', 'integer', 'min:1'],
             'study_plan_name_th' => ['required', 'string', 'max:255'],
-            'teacher_id' => ['required', 'string', 'max:50'],
-            'teacher_full_name' => ['required', 'string', 'max:255'],
         ];
     }
 
@@ -44,8 +42,6 @@ class ImportStudentsRequest extends FormRequest
             'study_plan_id.integer' => 'แผนการเรียนไม่ถูกต้อง',
             'study_plan_id.min' => 'แผนการเรียนไม่ถูกต้อง',
             'study_plan_name_th.required' => 'กรุณาระบุชื่อแผนการเรียน',
-            'teacher_id.required' => 'กรุณาเลือกอาจารย์ที่ปรึกษา',
-            'teacher_full_name.required' => 'กรุณาระบุชื่ออาจารย์ที่ปรึกษา',
         ];
     }
 }

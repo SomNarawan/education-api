@@ -25,7 +25,8 @@ class Note extends Model
     protected $casts = [
         'student_id' => 'integer',
         'note_type_id' => 'integer',
-        'deleted_at' => 'datetime',
+        'created_at' => 'timestamp',
+        'deleted_at' => 'timestamp',
     ];
 
     public function student(): BelongsTo
