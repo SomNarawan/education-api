@@ -16,8 +16,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | Lets the API mint its own JWT (routes/web.php -> MockLoginController) so
-    | the app can be tested end-to-end without the real SSO. Must stay off in
-    | production and be removed once the real SSO integration is verified.
+    | the app can be tested end-to-end without the real SSO. MOCK_LOGIN_ENABLED
+    | is the only switch (it works under any APP_ENV, including production):
+    | turn it off and remove this once the real SSO integration is verified.
     |
     */
 

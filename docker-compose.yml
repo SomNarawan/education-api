@@ -21,7 +21,7 @@ x-laravel-image: &laravel-image
 # Nothing here is baked into the image.
 x-laravel-env: &laravel-env
   APP_NAME: ${APP_NAME:-Education API}
-  APP_ENV: production
+  APP_ENV: ${APP_ENV:-production}
   APP_DEBUG: "false"
   APP_KEY: ${APP_KEY:?APP_KEY is required}
   APP_URL: ${APP_URL:-http://localhost:3009}
