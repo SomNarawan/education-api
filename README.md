@@ -131,7 +131,7 @@ MOCK_LOGIN_ENABLED=true
 
 ```bash
 cp .env.production.example .env.production
-# ใส่ APP_KEY, JWT_SECRET, DB_PASSWORD, PORTAL_MAIN_API_KEY และค่า production อื่น ๆ ให้ครบ
+# ใส่ APP_KEY, JWT_SECRET, DB_USERNAME, DB_PASSWORD, PORTAL_MAIN_API_KEY และค่า production อื่น ๆ ให้ครบ
 # PORTAL_MAIN_API_KEY สร้างด้วย: openssl rand -hex 32
 sh docker/deploy.sh .env.production
 ```
@@ -140,18 +140,24 @@ sh docker/deploy.sh .env.production
 
 Rollback ไป image ก่อนหน้า: `APP_TAG=previous docker compose --env-file .env.production up -d --wait`
 
-Services: `nginx` (port 3009) → `laravel-app` (php-fpm) · `laravel-queue` (`queue:work`) · `laravel-migrate` (one-shot) · `mysql` · `frontend` · `phpmyadmin` (ปิดไว้ เปิดด้วย `docker compose --profile tools up -d phpmyadmin` ที่ `127.0.0.1:8080`)
+Services: `nginx` (port 3009) → `laravel-app` (php-fpm) · `laravel-queue` (`queue:work`) · `laravel-migrate` (one-shot) · `frontend` · `phpmyadmin` (ปิดไว้ เปิดด้วย `docker compose --profile tools up -d phpmyadmin` ที่ `127.0.0.1:8080`)
 
 ดู log: `docker compose logs -f laravel-app laravel-queue` · รันคำสั่ง artisan: `docker compose exec laravel-app php artisan <command>`
 
-ใช้ DB user แยกแทน root (แนะนำ):
+### Database บน host
+
+compose ไม่มี MySQL container แล้ว container ต่อ MySQL ที่ติดตั้งบน server เองผ่าน `DB_HOST=host.docker.internal` (ห้ามใช้ `127.0.0.1` เพราะใน container หมายถึงตัว container เอง) ผู้ดูแล server ต้องตั้ง MySQL บน host ครั้งเดียว:
+
+1. ให้ MySQL ฟัง TCP จาก Docker ได้ — ใน `/etc/mysql/mysql.conf.d/mysqld.cnf` ตั้ง `bind-address = 0.0.0.0` (MySQL 8.0.13+ ใช้ `127.0.0.1,172.17.0.1` ได้) แล้ว `sudo systemctl restart mysql`
+2. กันไม่ให้ port 3306 เปิดออก internet — เช่น `sudo ufw allow from 172.16.0.0/12 to any port 3306` และ `sudo ufw deny 3306`
+3. ให้ user ต่อจาก Docker network ได้ (user `'xxx'@'localhost'` เดิมใช้จาก container ไม่ได้):
 
 ```sql
-CREATE USER 'education_api'@'%' IDENTIFIED BY '<strong-password>';
-GRANT ALL PRIVILEGES ON education_dss.* TO 'education_api'@'%';
+CREATE USER 'education_api'@'172.%' IDENTIFIED BY '<strong-password>';
+GRANT ALL PRIVILEGES ON `kukps-education-dss`.* TO 'education_api'@'172.%';
 ```
 
-แล้วตั้ง `DB_USERNAME=education_api`, `DB_PASSWORD=<strong-password>`, `DB_ROOT_PASSWORD=<root-password เดิม>`
+แล้วตั้ง `DB_USERNAME`, `DB_PASSWORD` ให้ตรง ทดสอบจาก container ได้ด้วย `docker compose run --rm laravel-migrate` (ขึ้น `database is ready` = ต่อได้)
 
 ค่าที่ต้องเป็น URL จริงบน server:
 

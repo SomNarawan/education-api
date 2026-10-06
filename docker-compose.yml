@@ -1,7 +1,11 @@
 # Production stack
 #
-#   mysql ──healthy──▶ laravel-migrate ──completed──▶ laravel-app ──healthy──▶ nginx :3009
-#                                     └─completed──▶ laravel-queue
+#   laravel-migrate ──completed──▶ laravel-app ──healthy──▶ nginx :3009
+#                   └─completed──▶ laravel-queue
+#
+# The database is MySQL on the Docker host (not a container), reached through
+# host.docker.internal. That MySQL must accept TCP from the Docker networks;
+# see README > Docker Compose.
 #
 # laravel-app, laravel-queue and laravel-migrate run the same image.
 # Deploy:  docker compose --env-file .env.production up -d --build --wait
@@ -17,6 +21,10 @@ x-logging: &logging
 x-laravel-image: &laravel-image
   image: ${APP_IMAGE:-education-api}:${APP_TAG:-latest}
 
+# Makes host.docker.internal resolve to the Docker host (Linux needs this).
+x-host-gateway: &host-gateway
+  - "host.docker.internal:host-gateway"
+
 # Values come from the --env-file (.env.production) or a .env next to this file.
 # Nothing here is baked into the image.
 x-laravel-env: &laravel-env
@@ -30,11 +38,12 @@ x-laravel-env: &laravel-env
   LOG_CHANNEL: stderr
   LOG_LEVEL: ${LOG_LEVEL:-error}
   DB_CONNECTION: mysql
-  # For an external database, point DB_HOST/DB_PORT at it and remove the mysql service.
-  DB_HOST: mysql
-  DB_PORT: 3306
-  DB_DATABASE: ${DB_DATABASE:-education_dss}
-  DB_USERNAME: ${DB_USERNAME:-root}
+  # MySQL on the Docker host. Never 127.0.0.1: inside a container that is the
+  # container itself.
+  DB_HOST: ${DB_HOST:-host.docker.internal}
+  DB_PORT: ${DB_PORT:-3306}
+  DB_DATABASE: ${DB_DATABASE:?DB_DATABASE is required}
+  DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required}
   DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
   # cache/queue/session live in the database so every container sees the same
   # state (needed for queue:restart and for more than one app replica).
@@ -63,40 +72,16 @@ x-laravel-env: &laravel-env
   FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3008}
 
 services:
-  mysql:
-    image: mysql:8.0
-    restart: unless-stopped
-    environment:
-      # Only used when the volume is first initialised.
-      MYSQL_DATABASE: ${DB_DATABASE:-education_dss}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-${DB_PASSWORD:?DB_PASSWORD is required}}
-    volumes:
-      - dbdata:/var/lib/mysql
-      # Put a .sql dump here before the very first `up` to seed an empty volume.
-      - ./docker/db:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      # TCP on 127.0.0.1: the temporary server that runs while the dump is
-      # being imported listens on the socket only, so this stays unhealthy
-      # until the real server is up. No password needed: ping succeeds
-      # (exit 0) even when access is denied.
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 300s
-      start_interval: 3s
-    logging: *logging
-
   laravel-migrate:
     <<: *laravel-image
     command: ["migrate"]
+    # Image is built locally by laravel-app; there is nothing to pull.
+    pull_policy: never
     restart: "no"
     environment:
       <<: *laravel-env
       DB_WAIT_TIMEOUT: ${DB_WAIT_TIMEOUT:-120}
-    depends_on:
-      mysql:
-        condition: service_healthy
+    extra_hosts: *host-gateway
     deploy:
       resources:
         limits:
@@ -116,16 +101,18 @@ services:
       FPM_PM_MAX_CHILDREN: ${FPM_PM_MAX_CHILDREN:-10}
     volumes:
       - app-storage:/var/www/html/storage/app
+    extra_hosts: *host-gateway
     depends_on:
       laravel-migrate:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "php-fpm-healthcheck"]
-      interval: 30s
+      # No start_interval: it needs Docker Engine 25+ and the server runs 24.
+      # nginx waits for the first passing check, so keep the interval short.
+      interval: 10s
       timeout: 5s
       retries: 3
       start_period: 30s
-      start_interval: 2s
     # php-fpm drains in-flight requests on SIGQUIT (process_control_timeout 50s).
     stop_grace_period: 60s
     deploy:
@@ -140,6 +127,7 @@ services:
   laravel-queue:
     <<: *laravel-image
     command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=90"]
+    pull_policy: never
     restart: unless-stopped
     init: true
     environment:
@@ -148,6 +136,7 @@ services:
     volumes:
       # Same volume as laravel-app: jobs read uploads and write JSON results here.
       - app-storage:/var/www/html/storage/app
+    extra_hosts: *host-gateway
     depends_on:
       laravel-migrate:
         condition: service_completed_successfully
@@ -179,11 +168,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3009/up"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
       retries: 3
       start_period: 10s
-      start_interval: 2s
     deploy:
       resources:
         limits:
@@ -192,7 +180,8 @@ services:
 
   frontend:
     build:
-      context: ../education-web
+      # Path to the education-web checkout, relative to this file.
+      context: ${WEB_CONTEXT:-../education-web}
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3009/api}
         VITE_BASE_PATH: ${VITE_BASE_PATH:-}
@@ -211,15 +200,14 @@ services:
     image: phpmyadmin:latest
     profiles: ["tools"]
     environment:
-      PMA_HOST: mysql
+      PMA_HOST: ${DB_HOST:-host.docker.internal}
+      PMA_PORT: ${DB_PORT:-3306}
+    extra_hosts: *host-gateway
     ports:
       - "127.0.0.1:8080:80"
-    depends_on:
-      - mysql
     logging: *logging
 
 volumes:
-  dbdata:
   # storage/app: uploaded imports + generated JSON. Persists across deploys and
   # is shared by laravel-app and laravel-queue.
   app-storage:
