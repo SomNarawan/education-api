@@ -1,66 +1,194 @@
+# Production stack
+#
+#   mysql ──healthy──▶ laravel-migrate ──completed──▶ laravel-app ──healthy──▶ nginx :3009
+#                                     └─completed──▶ laravel-queue
+#
+# laravel-app, laravel-queue and laravel-migrate run the same image.
+# Deploy:  docker compose --env-file .env.production up -d --build --wait
+# If laravel-migrate fails, the new app/queue containers are not started.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+    compress: "true"
+
+x-laravel-image: &laravel-image
+  image: ${APP_IMAGE:-education-api}:${APP_TAG:-latest}
+
+# Values come from the --env-file (.env.production) or a .env next to this file.
+# Nothing here is baked into the image.
+x-laravel-env: &laravel-env
+  APP_NAME: ${APP_NAME:-Education API}
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_KEY: ${APP_KEY:?APP_KEY is required}
+  APP_URL: ${APP_URL:-http://localhost:3009}
+  APP_LOCALE: ${APP_LOCALE:-th}
+  APP_FALLBACK_LOCALE: ${APP_FALLBACK_LOCALE:-th}
+  LOG_CHANNEL: stderr
+  LOG_LEVEL: ${LOG_LEVEL:-error}
+  DB_CONNECTION: mysql
+  # For an external database, point DB_HOST/DB_PORT at it and remove the mysql service.
+  DB_HOST: mysql
+  DB_PORT: 3306
+  DB_DATABASE: ${DB_DATABASE:-education_dss}
+  DB_USERNAME: ${DB_USERNAME:-root}
+  DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+  # cache/queue/session live in the database so every container sees the same
+  # state (needed for queue:restart and for more than one app replica).
+  CACHE_STORE: ${CACHE_STORE:-database}
+  SESSION_DRIVER: ${SESSION_DRIVER:-database}
+  SESSION_LIFETIME: ${SESSION_LIFETIME:-120}
+  QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
+  # Must be longer than the slowest job, otherwise a second worker picks the
+  # job up again while the first is still running it.
+  DB_QUEUE_RETRY_AFTER: ${DB_QUEUE_RETRY_AFTER:-1800}
+  FILESYSTEM_DISK: local
+  MAIL_MAILER: ${MAIL_MAILER:-log}
+  JWT_SECRET: ${JWT_SECRET:-}
+  JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+  JWT_REQUIRE_EXPIRATION: ${JWT_REQUIRE_EXPIRATION:-false}
+  CMIS_URL: ${CMIS_URL:-}
+  CMIS_SERVICE_BASE_PATH: ${CMIS_SERVICE_BASE_PATH:-/api}
+  CMIS_SERVICE_TIMEOUT: ${CMIS_SERVICE_TIMEOUT:-15}
+  CMIS_SERVICE_VERIFY_SSL: ${CMIS_SERVICE_VERIFY_SSL:-true}
+  PERSONNEL_API_URL: ${PERSONNEL_API_URL:-}
+  PORTAL_MAIN_API_KEY: ${PORTAL_MAIN_API_KEY:-}
+  MOCK_LOGIN_ENABLED: ${MOCK_LOGIN_ENABLED:-false}
+  MOCK_LOGIN_FRONTEND_URL: ${MOCK_LOGIN_FRONTEND_URL:-http://localhost:3008}
+  MOCK_LOGIN_STUDENT_FRONTEND_URL: ${MOCK_LOGIN_STUDENT_FRONTEND_URL:-}
+  MOCK_LOGIN_ADMIN_NONTRI_IDS: ${MOCK_LOGIN_ADMIN_NONTRI_IDS:-}
+  FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3008}
+
 services:
   mysql:
     image: mysql:8.0
-    container_name: mysql
+    restart: unless-stopped
     environment:
-      MYSQL_DATABASE: education_dss
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      # Only used when the volume is first initialised.
+      MYSQL_DATABASE: ${DB_DATABASE:-education_dss}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-${DB_PASSWORD:?DB_PASSWORD is required}}
     volumes:
       - dbdata:/var/lib/mysql
-      - ./docker/db:/docker-entrypoint-initdb.d:ro   # วางไฟล์ dump (.sql) ไว้ในโฟลเดอร์นี้ก่อน docker compose up ครั้งแรก
+      # Put a .sql dump here before the very first `up` to seed an empty volume.
+      - ./docker/db:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
-      interval: 5s
+      # TCP on 127.0.0.1: the temporary server that runs while the dump is
+      # being imported listens on the socket only, so this stays unhealthy
+      # until the real server is up. No password needed: ping succeeds
+      # (exit 0) even when access is denied.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 30s
       timeout: 5s
-      retries: 20
+      retries: 5
+      start_period: 300s
+      start_interval: 3s
+    logging: *logging
 
-  phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: phpmyadmin
+  laravel-migrate:
+    <<: *laravel-image
+    command: ["migrate"]
+    restart: "no"
     environment:
-      PMA_HOST: mysql
-      PMA_USER: root
-      PMA_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "8080:80"
-    depends_on:
-      - mysql
-
-  backend:
-    build: .
-    container_name: api
-    environment:
-      APP_KEY: ${APP_KEY}
-      APP_ENV: ${APP_ENV:-local}
-      APP_DEBUG: ${APP_DEBUG:-true}
-      APP_URL: ${APP_URL:-http://localhost:3009}
-      SESSION_DRIVER: ${SESSION_DRIVER:-file}
-      CACHE_STORE: ${CACHE_STORE:-file}
-      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-sync}
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: education_dss
-      DB_USERNAME: root
-      DB_PASSWORD: ${DB_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
-      JWT_REQUIRE_EXPIRATION: ${JWT_REQUIRE_EXPIRATION:-false}
-      CMIS_URL: ${CMIS_URL}
-      CMIS_SERVICE_BASE_PATH: ${CMIS_SERVICE_BASE_PATH:-/api}
-      CMIS_SERVICE_TIMEOUT: ${CMIS_SERVICE_TIMEOUT:-15}
-      CMIS_SERVICE_VERIFY_SSL: ${CMIS_SERVICE_VERIFY_SSL:-true}
-      PERSONNEL_API_URL: ${PERSONNEL_API_URL}
-      PORTAL_MAIN_API_KEY: ${PORTAL_MAIN_API_KEY}
-      MOCK_LOGIN_ENABLED: ${MOCK_LOGIN_ENABLED:-false}
-      MOCK_LOGIN_FRONTEND_URL: ${MOCK_LOGIN_FRONTEND_URL:-http://localhost:3008}
-      MOCK_LOGIN_ADMIN_NONTRI_IDS: ${MOCK_LOGIN_ADMIN_NONTRI_IDS:-}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3008}
-    ports:
-      - "3009:3009"
+      <<: *laravel-env
+      DB_WAIT_TIMEOUT: ${DB_WAIT_TIMEOUT:-120}
     depends_on:
       mysql:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging: *logging
+
+  laravel-app:
+    <<: *laravel-image
+    build:
+      context: .
+      target: app
+    restart: unless-stopped
+    init: true
+    environment:
+      <<: *laravel-env
+      PHP_MEMORY_LIMIT: ${PHP_MEMORY_LIMIT:-256M}
+      FPM_PM_MAX_CHILDREN: ${FPM_PM_MAX_CHILDREN:-10}
+    volumes:
+      - app-storage:/var/www/html/storage/app
+    depends_on:
+      laravel-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "php-fpm-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
+    # php-fpm drains in-flight requests on SIGQUIT (process_control_timeout 50s).
+    stop_grace_period: 60s
+    deploy:
+      resources:
+        # ~10 fpm workers x 30-60 MB, plus room for a couple of 256 MB imports.
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    logging: *logging
+
+  laravel-queue:
+    <<: *laravel-image
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=90"]
+    restart: unless-stopped
+    init: true
+    environment:
+      <<: *laravel-env
+      PHP_MEMORY_LIMIT: ${PHP_MEMORY_LIMIT:-256M}
+    volumes:
+      # Same volume as laravel-app: jobs read uploads and write JSON results here.
+      - app-storage:/var/www/html/storage/app
+    depends_on:
+      laravel-migrate:
+        condition: service_completed_successfully
+    # queue:work finishes the current job on SIGTERM, then exits.
+    # Must exceed the longest job or Docker will SIGKILL it mid-job.
+    stop_signal: SIGTERM
+    stop_grace_period: ${QUEUE_STOP_GRACE_PERIOD:-180s}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    logging: *logging
+
+  nginx:
+    image: ${APP_IMAGE:-education-api}-nginx:${APP_TAG:-latest}
+    build:
+      context: .
+      target: nginx
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-3009}:3009"
+    volumes:
+      # Serves public/storage (php artisan storage:link) read-only.
+      - app-storage:/var/www/html/storage/app:ro
+    depends_on:
+      laravel-app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3009/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+      start_interval: 2s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    logging: *logging
 
   frontend:
     build:
@@ -69,11 +197,29 @@ services:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3009/api}
         VITE_BASE_PATH: ${VITE_BASE_PATH:-}
         VITE_MOCK_LOGIN_ENABLED: ${MOCK_LOGIN_ENABLED:-false}
-    container_name: web
+    restart: unless-stopped
     ports:
-      - "3008:80"
+      - "${WEB_PORT:-3008}:80"
     depends_on:
-      - backend
+      - nginx
+    logging: *logging
+
+  # Admin tool, off by default. Start with:
+  #   docker compose --profile tools up -d phpmyadmin
+  # Bound to localhost only and requires a MySQL login (no auto-login).
+  phpmyadmin:
+    image: phpmyadmin:latest
+    profiles: ["tools"]
+    environment:
+      PMA_HOST: mysql
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - mysql
+    logging: *logging
 
 volumes:
   dbdata:
+  # storage/app: uploaded imports + generated JSON. Persists across deploys and
+  # is shared by laravel-app and laravel-queue.
+  app-storage:

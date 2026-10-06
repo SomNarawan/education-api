@@ -133,8 +133,25 @@ MOCK_LOGIN_ENABLED=true
 cp .env.production.example .env.production
 # ใส่ APP_KEY, JWT_SECRET, DB_PASSWORD, PORTAL_MAIN_API_KEY และค่า production อื่น ๆ ให้ครบ
 # PORTAL_MAIN_API_KEY สร้างด้วย: openssl rand -hex 32
-docker compose --env-file .env.production up -d --build
+sh docker/deploy.sh .env.production
 ```
+
+`docker/deploy.sh` จะ build image → รัน migration (`laravel-migrate`) ก่อน → ถ้าสำเร็จจึงค่อยเปลี่ยน `laravel-app`, `laravel-queue`, `nginx` เป็นเวอร์ชันใหม่ ถ้า migration ล้มเหลว เวอร์ชันเดิมยังทำงานต่อ (อย่าใช้ `docker compose up -d --build` ตรง ๆ ตอน deploy เพราะ compose จะหยุด container เดิมก่อนรู้ผล migration)
+
+Rollback ไป image ก่อนหน้า: `APP_TAG=previous docker compose --env-file .env.production up -d --wait`
+
+Services: `nginx` (port 3009) → `laravel-app` (php-fpm) · `laravel-queue` (`queue:work`) · `laravel-migrate` (one-shot) · `mysql` · `frontend` · `phpmyadmin` (ปิดไว้ เปิดด้วย `docker compose --profile tools up -d phpmyadmin` ที่ `127.0.0.1:8080`)
+
+ดู log: `docker compose logs -f laravel-app laravel-queue` · รันคำสั่ง artisan: `docker compose exec laravel-app php artisan <command>`
+
+ใช้ DB user แยกแทน root (แนะนำ):
+
+```sql
+CREATE USER 'education_api'@'%' IDENTIFIED BY '<strong-password>';
+GRANT ALL PRIVILEGES ON education_dss.* TO 'education_api'@'%';
+```
+
+แล้วตั้ง `DB_USERNAME=education_api`, `DB_PASSWORD=<strong-password>`, `DB_ROOT_PASSWORD=<root-password เดิม>`
 
 ค่าที่ต้องเป็น URL จริงบน server:
 
