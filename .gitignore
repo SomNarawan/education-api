@@ -27,3 +27,5 @@ Thumbs.db
 /docker/db/*.sql
 Makefile
 *.gz
+Makefile.api
+Makefile.queue

@@ -1,19 +1,69 @@
+# Secrets: never part of the build context
 .env
 .env.*
+auth.json
+
+# VCS / editor / OS
 .git
 .gitignore
-node_modules
+.gitattributes
+.editorconfig
+.idea
+.vscode
+.fleet
+.zed
+.DS_Store
+Thumbs.db
+
+# Installed inside the image
 vendor
-docker/db/*.sql
-storage/app/private/*
-!storage/app/private/.gitignore
-!storage/app/private/data
-!storage/app/private/data/**
-storage/framework/cache/*
-storage/framework/sessions/*
-storage/framework/views/*
-storage/logs/*
+node_modules
+
+# Docker / deploy files (Dockerfile reads only docker/php, docker/nginx,
+# docker/standalone, docker/entrypoint.sh)
+Dockerfile
+.dockerignore
+docker-compose*.yml
+compose*.yml
+docker/db
+Makefile
+
+# Database dumps contain real student data
+*.sql
+*.sql.gz
+*.gz
+
+# Not used at runtime (no frontend asset build in this image)
+tests
+phpunit.xml
 .phpunit.result.cache
 .phpunit.cache
-tests
-README.md
+docs
+*.md
+package.json
+package-lock.json
+vite.config.js
+public/hot
+public/build
+public/storage
+
+# Local caches would leak dev config/providers into production
+bootstrap/cache/*.php
+
+# Runtime data; storage/app is a volume in production.
+# storage/app/private/data is the tracked seed data and is kept.
+storage/*.key
+storage/pail
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/testing/*
+storage/framework/views/*
+storage/app/public/*
+storage/app/private/*
+!storage/app/private/data
+!storage/app/private/data/**
+*.log
+
+# Host-side deploy script
+docker/deploy.sh

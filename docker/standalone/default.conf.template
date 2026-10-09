@@ -1,0 +1,100 @@
+# Server block for the standalone image. Same routes as
+# docker/nginx/default.conf.template (the compose nginx), but php-fpm is in
+# this container behind a unix socket.
+#
+# docker-entrypoint renders it to /run/nginx/conf.d/default.conf at start and
+# replaces only ${HEALTH_TOKEN}; nginx's own $variables are left alone.
+
+# Skip access-log lines for healthcheck probes.
+map $request_uri $loggable {
+    ~^/up(\?|$)          0;
+    ~^/api/health(\?|$)  0;
+    default              1;
+}
+
+server {
+    # With `docker run --network=host` this is port 3009 on the server itself,
+    # where Apache proxies to. IPv4 only, like the previous image's setup.
+    listen 3009 default_server;
+    server_name _;
+
+    root /var/www/html/public;
+    index index.php;
+
+    server_tokens off;
+    access_log /dev/stdout main if=$loggable;
+
+    # Imports accept xlsx up to 20 MB (max:20480). nginx defaults to 1 MB.
+    client_max_body_size 25m;
+
+    gzip on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_vary on;
+    gzip_types application/json application/javascript text/css text/plain image/svg+xml;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    # nginx's own liveness. Does not touch PHP.
+    location = /_nginx {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+
+    # Only the front controller is executable.
+    location = /index.php {
+        fastcgi_pass unix:/run/php-fpm/php-fpm.sock;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param DOCUMENT_ROOT $realpath_root;
+        fastcgi_hide_header X-Powered-By;
+
+        # Matches PHP max_execution_time (300s); long synchronous imports.
+        fastcgi_read_timeout 300s;
+        fastcgi_buffer_size 32k;
+        fastcgi_buffers 16 16k;
+
+        # php-fpm not running: still booting (cache, database, migrations) or
+        # boot failed. Answer in JSON instead of an HTML 502.
+        error_page 502 504 = @backend_down;
+    }
+
+    location @backend_down {
+        default_type application/json;
+        return 503 '{"status":"down","checks":{"backend":{"ok":false}},"message":"nginx is running but php-fpm is not (still booting, or boot failed). Container state: /_status?token=<HEALTH_TOKEN>"}\n';
+    }
+
+    # What boot is doing (booting, waiting_db, migrate_failed, running, ...),
+    # written by status.php. Served by nginx itself so it still answers when
+    # PHP is down. Requires ?token=<HEALTH_TOKEN>; 404 while HEALTH_TOKEN is empty.
+    location = /_status {
+        access_log off;
+        if ($arg_token = "") {
+            return 404;
+        }
+        if ($arg_token != "${HEALTH_TOKEN}") {
+            return 404;
+        }
+        default_type application/json;
+        expires -1;
+        alias /var/www/html/storage/app/status/status.json;
+    }
+
+    location ~ \.php$ {
+        return 404;
+    }
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+}
