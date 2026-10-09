@@ -1,7 +1,12 @@
+# Rendered at container start by the nginx image's envsubst step
+# (NGINX_ENVSUBST_FILTER=^HEALTH_ in the Dockerfile): only ${HEALTH_TOKEN} is
+# substituted, nginx's own $variables are left alone.
+
 # Skip access-log lines for healthcheck probes.
 map $request_uri $loggable {
-    ~^/up(\?|$)  0;
-    default      1;
+    ~^/up(\?|$)          0;
+    ~^/api/health(\?|$)  0;
+    default              1;
 }
 
 server {
@@ -38,6 +43,14 @@ server {
         try_files $uri $uri/ /index.php?$query_string;
     }
 
+    # nginx's own liveness (container healthcheck). Does not touch PHP, so nginx
+    # stays healthy while laravel-app is still starting; app health is /up.
+    location = /_nginx {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
     location = /favicon.ico { access_log off; log_not_found off; }
     location = /robots.txt  { access_log off; log_not_found off; }
 
@@ -53,6 +66,32 @@ server {
         fastcgi_read_timeout 300s;
         fastcgi_buffer_size 32k;
         fastcgi_buffers 16 16k;
+
+        # php-fpm unreachable (laravel-app stopped, restarting, or never started
+        # because the migration failed): answer in JSON instead of an HTML 502.
+        error_page 502 504 = @backend_down;
+    }
+
+    location @backend_down {
+        default_type application/json;
+        return 503 '{"status":"down","checks":{"backend":{"ok":false}},"message":"nginx is running but laravel-app (php-fpm) is not reachable. Container states: /_status?token=<HEALTH_TOKEN>"}\n';
+    }
+
+    # What each container (migrate, app, queue) is doing, written by
+    # status.php to the shared storage volume. Served by nginx itself so it
+    # still answers when PHP is down. Requires ?token=<HEALTH_TOKEN>; returns
+    # 404 while HEALTH_TOKEN is empty.
+    location = /_status {
+        access_log off;
+        if ($arg_token = "") {
+            return 404;
+        }
+        if ($arg_token != "${HEALTH_TOKEN}") {
+            return 404;
+        }
+        default_type application/json;
+        expires -1;
+        alias /var/www/html/storage/app/status/status.json;
     }
 
     location ~ \.php$ {

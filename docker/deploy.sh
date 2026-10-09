@@ -42,7 +42,12 @@ if ! compose run --rm laravel-migrate; then
 fi
 
 echo "==> [4/4] roll out app, queue worker, nginx"
-compose up -d --wait --remove-orphans
+if ! compose up -d --wait --remove-orphans; then
+    compose ps -a
+    compose logs --tail=50 laravel-app laravel-queue nginx
+    echo "!!  roll-out did not become healthy; see the logs above" >&2
+    exit 1
+fi
 
 docker image prune -f >/dev/null
 compose ps

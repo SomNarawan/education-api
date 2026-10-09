@@ -77,6 +77,8 @@ COPY . .
 RUN set -eux; \
     composer install --no-dev --optimize-autoloader --classmap-authoritative --no-progress; \
     php artisan storage:link; \
+    # Shown by /api/health, to tell which build is running.
+    printf '{"built_at":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > build-info.json; \
     rm -rf docker; \
     mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions \
              storage/framework/views storage/logs bootstrap/cache; \
@@ -89,7 +91,11 @@ RUN set -eux; \
 # -----------------------------------------------------------------------------
 FROM nginxinc/nginx-unprivileged:stable-alpine AS nginx
 
-COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+# Rendered to /etc/nginx/conf.d/default.conf at start; only HEALTH_* vars are
+# substituted. HEALTH_TOKEN empty = /_status disabled.
+ENV NGINX_ENVSUBST_FILTER=^HEALTH_ \
+    HEALTH_TOKEN=
+COPY docker/nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /var/www/html/public /var/www/html/public
 
 EXPOSE 3009
@@ -102,6 +108,7 @@ FROM base AS app
 COPY --chmod=0755 docker/entrypoint.sh       /usr/local/bin/docker-entrypoint
 COPY --chmod=0755 docker/php/healthcheck.sh  /usr/local/bin/php-fpm-healthcheck
 COPY docker/php/db.php                       /usr/local/lib/laravel/db.php
+COPY docker/php/status.php                   /usr/local/lib/laravel/status.php
 
 # Code stays root-owned (read-only for the app); only the paths Laravel writes
 # to belong to www-data.

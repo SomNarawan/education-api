@@ -6,7 +6,7 @@ REST API backend (Laravel 12) สำหรับ **ระบบฐานข้�
 
 ระบบนี้เก็บและให้บริการข้อมูลของนิสิต (ประวัติ, สถานะการศึกษา, อาจารย์ที่ปรึกษา, แผนการเรียน/หลักสูตร) โดยมีจุดสำคัญคือ
 
-- **ไม่ได้เป็นเจ้าของฐานข้อมูลหลักเพียงผู้เดียว** — ตาราง Eloquent ส่วนใหญ่ (`students`, `curriculums`, `teachers`, `system_departments`, ฯลฯ) ชี้ไปยังฐานข้อมูล MySQL ที่มีอยู่แล้ว (`education_dss`) ซึ่งอาจถูกสร้าง/ดูแลจากภายนอกโปรเจกต์ Laravel นี้ (ดูหัวข้อ [Database Setup](#database-setup))
+- **ไม่ได้เป็นเจ้าของฐานข้อมูลหลักเพียงผู้เดียว** — ตาราง Eloquent ส่วนใหญ่ (`students`, `curriculums`, `teachers`, `system_departments`, ฯลฯ) ชี้ไปยังฐานข้อมูล MySQL ที่มีอยู่แล้ว (`kukps-education-dss`) ซึ่งอาจถูกสร้าง/ดูแลจากภายนอกโปรเจกต์ Laravel นี้ (ดูหัวข้อ [Database Setup](#database-setup))
 - **Authentication เป็นแบบ JWT ที่ออกโดยระบบอื่น** (SSO/ระบบบุคลากรมหาวิทยาลัย) — API นี้แค่ตรวจสอบลายเซ็นของ token ที่ส่งเข้ามา ไม่มีหน้า login เป็นของตัวเอง
 - **Sync ข้อมูลจากระบบภายนอก** — อาจารย์ (Teacher), คณะ/ภาควิชา (System Faculty/Department) จะถูกดึงจาก Personnel API ของมหาวิทยาลัยผ่าน endpoint `*/sync`
 - **ข้อมูลผลการเรียน/การลงทะเบียน** (enrollments, เกรด, กราฟสรุปผล) ไม่ได้เก็บใน DB แต่อ่านจากไฟล์ JSON ที่วางไว้ใน storage ของแอป (ดูหัวข้อ [Usage](#usage))
@@ -44,7 +44,7 @@ REST API backend (Laravel 12) สำหรับ **ระบบฐานข้�
 | ประเภท | เทคโนโลยี |
 |---|---|
 | Backend Framework | Laravel 12 (PHP ^8.2) |
-| Database | MySQL (เชื่อมต่อฐานข้อมูล `education_dss` ที่มีอยู่แล้ว) |
+| Database | MySQL (เชื่อมต่อฐานข้อมูล `kukps-education-dss` ที่มีอยู่แล้ว) |
 | Authentication | Custom JWT middleware (`App\Http\Middleware\AuthenticateJwt` + `App\Services\JwtVerifier`, รองรับ HS256/384/512) — token ออกโดยระบบภายนอก |
 | ORM | Eloquent |
 | Frontend build (asset ของ Laravel เอง) | Vite 7, TailwindCSS 4 |
@@ -60,7 +60,7 @@ REST API backend (Laravel 12) สำหรับ **ระบบฐานข้�
 - PHP >= 8.2 พร้อม extension ที่ Laravel 12 ต้องการ (pdo_mysql, mbstring, openssl, tokenizer, xml, ctype, json, bcmath)
 - Composer 2.x
 - Node.js + npm (สำหรับ build asset ของ Laravel เอง เช่นหน้า welcome/Vite)
-- MySQL 8.x / MariaDB ที่เข้าถึงฐานข้อมูล `education_dss` ได้ (ต้องขอไฟล์ dump หรือสิทธิ์เข้าถึงจากทีม)
+- MySQL 8.x / MariaDB ที่เข้าถึงฐานข้อมูล `kukps-education-dss` ได้ (ต้องขอไฟล์ dump หรือสิทธิ์เข้าถึงจากทีม)
 - ไฟล์ `.env` ที่มีค่าเชื่อมต่อจริง (ฐานข้อมูล, `JWT_SECRET`, `PERSONNEL_API_URL`) — ขอจากทีม/หัวหน้างาน
 
 ## Installation
@@ -140,9 +140,107 @@ sh docker/deploy.sh .env.production
 
 Rollback ไป image ก่อนหน้า: `APP_TAG=previous docker compose --env-file .env.production up -d --wait`
 
-Services: `nginx` (port 3009) → `laravel-app` (php-fpm) · `laravel-queue` (`queue:work`) · `laravel-migrate` (one-shot) · `frontend` · `phpmyadmin` (ปิดไว้ เปิดด้วย `docker compose --profile tools up -d phpmyadmin` ที่ `127.0.0.1:8080`)
+Services: `nginx` (port 3009) → `laravel-app` (php-fpm) · `laravel-queue` (`queue:work`) · `laravel-migrate` (one-shot) · `frontend` · `phpmyadmin` (port 3010 ตั้งด้วย `PHPMYADMIN_PORT`, login ด้วย user MySQL — user ต้องต่อจาก Docker network ได้ เช่น `'user'@'172.%'`)
 
 ดู log: `docker compose logs -f laravel-app laravel-queue` · รันคำสั่ง artisan: `docker compose exec laravel-app php artisan <command>`
+
+### ตรวจสอบการทำงานหลัง deploy
+
+ตั้ง `HEALTH_TOKEN` ใน `.env.production` ไว้ก่อน (`openssl rand -hex 32`) เพื่อเปิดดูรายละเอียดได้ แล้วไล่ตรวจตามลำดับนี้ ตัวอย่างใช้ตัวแปร
+
+```bash
+BASE=https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api   # หรือ http://localhost:3009 ถ้ารันบน server
+HEALTH_TOKEN=<ค่าใน .env.production>
+```
+
+**1. ผลของ `docker/deploy.sh`** — ต้องจบด้วย `==> deploy finished`
+
+- `!! migration failed` → migration ไม่ผ่าน เวอร์ชันเดิมยังทำงานอยู่ (ไม่มี downtime) ดูสาเหตุจาก output ด้านบน หรือ `/_status?token=...`
+- `!! roll-out did not become healthy` → container ใหม่ไม่ผ่าน healthcheck สคริปต์จะพิมพ์ `ps` และ log 50 บรรทัดล่าสุดให้ดู ถ้าแก้ไม่ทันให้ rollback (ดูด้านบน)
+
+**2. สถานะ container (บน server)**
+
+```bash
+docker compose --env-file .env.production ps -a
+```
+
+| Service | สถานะที่ถูกต้อง |
+|---|---|
+| `laravel-migrate` | `Exited (0)` (รันครั้งเดียวแล้วจบ ถ้า exit code ไม่ใช่ 0 แปลว่า migration ล้ม) |
+| `laravel-app` | `Up ... (healthy)` — healthcheck ยิง `/up` ตรงเข้า php-fpm |
+| `nginx` | `Up ... (healthy)` |
+| `laravel-queue` | `Up` (ไม่มี healthcheck ของ Docker ดูจาก check `queue` ใน `/api/health` แทน) |
+| `frontend`, `phpmyadmin` | `Up` |
+
+**3. Health endpoints (เรียกจากที่ไหนก็ได้ ไม่ต้องเข้า server)**
+
+| URL | ตอบโดย | ใช้ดู |
+|---|---|---|
+| `/_nginx` | nginx | nginx ทำงานอยู่ (ตอบ `ok`) |
+| `/up` | Laravel | Laravel boot และตอบ request ได้ (ไม่ได้เช็ค DB) — 200 = ปกติ |
+| `/api/health` | Laravel | `ok` ต่อ check: `database`, `migrations`, `queue` (worker ยังวนอยู่ไหม), `storage`, `frontend` — 200 = ผ่านหมด, 503 = มีตัวที่ไม่ผ่าน |
+| `/api/health?token=<HEALTH_TOKEN>` | Laravel | เหมือนบน + error message, จำนวน job ค้าง/failed, migration ที่ยังไม่รัน, เวลา build image, สถานะแต่ละ container (ส่ง token ผ่าน header `X-Health-Token` แทน query ก็ได้) |
+| `/_status?token=<HEALTH_TOKEN>` | nginx (ไม่ผ่าน PHP) | สถานะล่าสุดของ container `migrate`, `app`, `queue` (เช่น `waiting_db`, `db_unreachable`, `migrate_failed`, `boot_failed`, `running`) พร้อม error/output — ใช้ได้แม้ PHP ล่ม (ตอบ 404 ถ้า token ผิดหรือไม่ได้ตั้ง `HEALTH_TOKEN`) |
+
+```bash
+curl -s "$BASE/_nginx"                                        # ok
+curl -s -o /dev/null -w '%{http_code}\n' "$BASE/up"           # 200
+curl -s -w '\nHTTP %{http_code}\n' "$BASE/api/health"         # "status": "ok" + HTTP 200
+curl -s -H "X-Health-Token: $HEALTH_TOKEN" "$BASE/api/health" # รายละเอียดเต็ม
+curl -s "$BASE/_status?token=$HEALTH_TOKEN"                   # สถานะแต่ละ container
+```
+
+ผลที่ถูกต้องของ `/api/health` (ไม่ใส่ token):
+
+```json
+{
+    "status": "ok",
+    "checked_at": "2026-10-09T10:00:00+07:00",
+    "checks": {
+        "database": { "ok": true },
+        "migrations": { "ok": true },
+        "queue": { "ok": true },
+        "storage": { "ok": true },
+        "frontend": { "ok": true }
+    }
+}
+```
+
+เมื่อใส่ token ให้ดู `app.build.built_at` ว่าเป็นเวลาที่เพิ่ง build — ยืนยันว่า container กำลังรัน image ใหม่จริง ไม่ใช่ตัวเก่า
+
+ถ้ามี check ไหนเป็น `"ok": false` (ใส่ token เพื่อดู `error`):
+
+| Check | ความหมาย / สิ่งที่ต้องทำ |
+|---|---|
+| `database` | ต่อ MySQL ไม่ได้ — ตรวจ `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD` และสิทธิ์ user `'...'@'172.%'` (ดู [Database บน host](#database-บน-host)) |
+| `migrations` | มี migration ที่ยังไม่รัน (`pending`) หรือยังไม่เคยรันเลย — `docker compose exec laravel-app php artisan migrate:status` แล้ว deploy ใหม่ |
+| `queue` | worker ไม่ได้รายงานตัวเกิน `HEALTH_QUEUE_WORKER_MAX_SILENCE` วินาที (default 180) — `laravel-queue` หยุด/restart วน หรือติด job ที่นานเกินไป ดู `docker compose logs --tail=100 laravel-queue` (หลัง deploy ใหม่ ๆ รอสักครู่ให้ worker วนรอบแรกก่อน) |
+| `storage` | เขียน `storage/` ไม่ได้ — ตรวจ volume `app-storage` และ permission |
+| `frontend` | เรียก `HEALTH_FRONTEND_URL` (default `http://frontend/`) ไม่ได้ — container `frontend` ไม่ทำงาน หรือ build ไม่ผ่าน |
+
+**4. ทดสอบ API ที่ต้อง login** — `/api/health` ไม่ผ่าน JWT จึงควรเช็คว่าตั้ง `JWT_SECRET` แล้วด้วย:
+
+```bash
+curl -s -w '\nHTTP %{http_code}\n' -H "Authorization: Bearer invalid" "$BASE/api/me"
+```
+
+- `HTTP 401` → ปกติ (routing + middleware ตรวจ JWT ทำงาน แค่ token ไม่ถูก)
+- `HTTP 500` + `JWT authentication is not configured` → ยังไม่ได้ตั้ง `JWT_SECRET`
+
+จากนั้นเปิดหน้าเว็บ frontend แล้ว login จริง 1 ครั้ง และลองเปิดหน้ารายชื่อนิสิต เพื่อยืนยันว่า CORS (`FRONTEND_URL`) และ `VITE_API_URL` ถูกต้อง (ถ้า browser console ขึ้น CORS error = `FRONTEND_URL` ไม่ตรงกับ origin ของหน้าเว็บ)
+
+**5. Log และ job ที่ล้มเหลว**
+
+```bash
+docker compose --env-file .env.production logs --tail=100 laravel-app laravel-queue nginx
+docker compose --env-file .env.production exec laravel-app php artisan queue:failed
+```
+
+#### อ่านผลเมื่อเรียกจากภายนอกแล้วไม่ได้ JSON ที่คาดไว้
+
+- **ได้หน้า HTML 503 ของ Apache** → ไม่มีอะไรฟัง port 3009 (nginx ไม่ได้รัน หรือ `ProxyPass` ชี้ผิด) — ต้องให้ผู้ดูแล server ตรวจ
+- **ได้ JSON `"backend":{"ok":false}`** → nginx ทำงาน แต่ laravel-app ไม่ทำงาน → เปิด `/_status?token=...` ดูสาเหตุ
+- **`/api/health` ตอบ JSON** → ดู check ที่ `"ok": false` ตามตารางด้านบน
 
 ### Database บน host
 
@@ -175,10 +273,10 @@ VITE_API_URL=https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api/api
 
 **ข้อควรระวัง:** โฟลเดอร์ `database/migrations` ของโปรเจกต์นี้มีแค่ตารางพื้นฐานของ Laravel (`users`, `cache`, `jobs`, `personal_access_tokens`) เท่านั้น **ไม่มี migration ของตารางข้อมูลหลัก** เช่น `students`, `teachers`, `curriculums`, `system_departments` ฯลฯ
 
-ตารางเหล่านี้ Eloquent Model อ้างอิงถึงโดยตรง (ผ่าน `$table`) และคาดว่ามีอยู่แล้วในฐานข้อมูล MySQL ชื่อ `education_dss` ซึ่งน่าจะถูกดูแล/สร้างขึ้นจากระบบอื่น (เช่นระบบทะเบียนของมหาวิทยาลัย) ดังนั้นขั้นตอนเตรียมฐานข้อมูลคือ
+ตารางเหล่านี้ Eloquent Model อ้างอิงถึงโดยตรง (ผ่าน `$table`) และคาดว่ามีอยู่แล้วในฐานข้อมูล MySQL ชื่อ `kukps-education-dss` ซึ่งน่าจะถูกดูแล/สร้างขึ้นจากระบบอื่น (เช่นระบบทะเบียนของมหาวิทยาลัย) ดังนั้นขั้นตอนเตรียมฐานข้อมูลคือ
 
-1. ขอไฟล์ dump ฐานข้อมูล `education_dss` (หรือสิทธิ์เข้าถึง MySQL instance ที่มีอยู่แล้ว) จากทีม
-2. Import เข้าฐานข้อมูล MySQL ในเครื่อง แล้วตั้งค่า `DB_DATABASE=education_dss` ใน `.env` ให้ตรงกับชื่อฐานข้อมูลนั้น
+1. ขอไฟล์ dump ฐานข้อมูล `kukps-education-dss` (หรือสิทธิ์เข้าถึง MySQL instance ที่มีอยู่แล้ว) จากทีม
+2. Import เข้าฐานข้อมูล MySQL ในเครื่อง แล้วตั้งค่า `DB_DATABASE=kukps-education-dss` ใน `.env` ให้ตรงกับชื่อฐานข้อมูลนั้น
 3. รัน `php artisan migrate` เพื่อสร้างเฉพาะตารางระบบของ Laravel (auth/cache/queue/token) เพิ่มเติมเข้าไปในฐานข้อมูลเดียวกัน
 
 ตารางหลักที่ระบบคาดหวังว่ามีอยู่แล้ว (ดูรายละเอียดคอลัมน์ใน [ER Diagram](#er-diagram)):
@@ -303,7 +401,7 @@ storage/app/private/
 
 ## ER Diagram
 
-แผนภาพนี้ครอบคลุมความสัมพันธ์หลักตามที่นิยามไว้ใน Eloquent Model (`app/Models/*.php`) ตารางทั้งหมดอยู่ในฐานข้อมูล `education_dss` ภายนอกโปรเจกต์ (ดู [Database Setup](#database-setup))
+แผนภาพนี้ครอบคลุมความสัมพันธ์หลักตามที่นิยามไว้ใน Eloquent Model (`app/Models/*.php`) ตารางทั้งหมดอยู่ในฐานข้อมูล `kukps-education-dss` ภายนอกโปรเจกต์ (ดู [Database Setup](#database-setup))
 
 ```mermaid
 erDiagram
