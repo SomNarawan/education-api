@@ -110,7 +110,8 @@ services:
       FPM_PM_MAX_CHILDREN: ${FPM_PM_MAX_CHILDREN:-10}
     volumes:
       - app-storage:/var/www/html/storage/app
-    extra_hosts: *host-gateway
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       laravel-migrate:
         condition: service_completed_successfully
@@ -135,7 +136,8 @@ services:
 
   laravel-queue:
     <<: *laravel-image
-    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=90"]
+    command:
+      ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=90"]
     pull_policy: never
     restart: unless-stopped
     init: true
@@ -185,7 +187,8 @@ services:
     # a JSON 503 until php-fpm is reachable; /_status shows what is wrong.
     healthcheck:
       # nginx only; laravel-app has its own healthcheck (/up).
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3009/_nginx"]
+      test:
+        ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3009/_nginx"]
       interval: 10s
       timeout: 5s
       retries: 3
