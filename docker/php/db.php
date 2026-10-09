@@ -160,7 +160,7 @@ switch ($command) {
             record_status('migrated', 'migrations finished', $output);
         } else {
             out("migrations FAILED (exit {$exitCode})");
-            record_status('migrate_failed', "php artisan migrate failed (exit {$exitCode}); the new app and queue containers were not started", $output);
+            record_status('migrate_failed', "php artisan migrate failed (exit {$exitCode}); the app and the queue worker were not started", $output);
         }
         exit($exitCode);
 

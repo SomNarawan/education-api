@@ -19,7 +19,8 @@ Thumbs.db
 vendor
 node_modules
 
-# Docker / deploy files (Dockerfile reads only docker/php, docker/nginx, docker/entrypoint.sh)
+# Docker / deploy files (Dockerfile reads only docker/php, docker/nginx,
+# docker/standalone, docker/entrypoint.sh)
 Dockerfile
 .dockerignore
 docker-compose*.yml

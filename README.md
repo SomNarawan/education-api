@@ -106,6 +106,32 @@ php artisan serve
 
 API จะพร้อมใช้งานที่ `http://localhost:8000/api` (หรือ URL ตาม `APP_URL`/`php artisan serve`)
 
+## Deploy ด้วย Makefile (image standalone)
+
+`make build` (`docker build .` ไม่ระบุ `--target`) ได้ stage สุดท้ายของ Dockerfile คือ `standalone`: คอนเทนเนอร์เดียวที่มี nginx (:3009), php-fpm (unix socket) และ queue worker อยู่ภายใต้ supervisord จากนั้น `make cd` รันด้วย `docker run --network=host --env-file .env` (Apache บน server proxy ไปที่ :3009)
+
+ลำดับตอนคอนเทนเนอร์เริ่ม:
+
+1. nginx เริ่มทันที และตอบ JSON 503 จนกว่า php-fpm จะพร้อม
+2. `boot`: cache config/route/view/event → รอ DB (สูงสุด `DB_WAIT_TIMEOUT` วินาที default 300) → `php artisan migrate --force` (ปิดได้ด้วย `RUN_MIGRATIONS=false`) → start php-fpm และ queue worker
+3. ถ้า boot ล้ม (เช่น รหัสผ่าน DB ผิด หรือ migration ล้ม) คอนเทนเนอร์ไม่หยุด nginx ยังตอบ 503 และ `/_status?token=<HEALTH_TOKEN>` บอกสาเหตุ แก้ที่ต้นเหตุแล้วสั่ง boot ใหม่ได้โดยไม่ต้อง deploy: `docker exec kukps-education-dss-api supervisorctl start boot` (ถ้าต้องแก้ค่าใน `.env` ให้ `make cd` ใหม่)
+
+ตรวจสอบบน server:
+
+```bash
+docker ps --filter name=kukps-education-dss-api            # STATUS ต้องเป็น (healthy)
+docker logs -f kukps-education-dss-api                      # log ของ nginx, php-fpm, queue และ Laravel รวมกัน
+docker exec kukps-education-dss-api supervisorctl status    # nginx, php-fpm, queue-worker = RUNNING, boot = EXITED
+curl -s http://127.0.0.1:3009/api/health
+```
+
+Laravel log ออกที่ `docker logs` เสมอ แม้ `.env` จะตั้ง `LOG_CHANNEL=stack` (image ตั้ง `LOG_STACK=stderr` ไว้)
+
+ข้อจำกัดที่มาจากคำสั่ง `docker run` ใน Makefile (ไม่ใช่จาก image):
+
+- ใช้ `--rm` และไม่มี volume: ไฟล์ใน `storage/app` (ไฟล์นำเข้า และ JSON ที่ระบบสร้าง) หายเมื่อ deploy ใหม่ และถูกแทนด้วย `storage/app/private/data` ที่ติดมากับ image จากเครื่องที่ build
+- ไม่มี `--restart`: หลัง server reboot ต้องรัน `make cd` ใหม่
+
 ## Docker Compose
 
 `docker-compose.yml` ตั้งค่า default ให้เหมาะกับ local development เพื่อให้รัน `docker compose up --build` ได้ทันที:
@@ -180,7 +206,7 @@ docker compose --env-file .env.production ps -a
 | `/up` | Laravel | Laravel boot และตอบ request ได้ (ไม่ได้เช็ค DB) — 200 = ปกติ |
 | `/api/health` | Laravel | `ok` ต่อ check: `database`, `migrations`, `queue` (worker ยังวนอยู่ไหม), `storage`, `frontend` — 200 = ผ่านหมด, 503 = มีตัวที่ไม่ผ่าน |
 | `/api/health?token=<HEALTH_TOKEN>` | Laravel | เหมือนบน + error message, จำนวน job ค้าง/failed, migration ที่ยังไม่รัน, เวลา build image, สถานะแต่ละ container (ส่ง token ผ่าน header `X-Health-Token` แทน query ก็ได้) |
-| `/_status?token=<HEALTH_TOKEN>` | nginx (ไม่ผ่าน PHP) | สถานะล่าสุดของ container `migrate`, `app`, `queue` (เช่น `waiting_db`, `db_unreachable`, `migrate_failed`, `boot_failed`, `running`) พร้อม error/output — ใช้ได้แม้ PHP ล่ม (ตอบ 404 ถ้า token ผิดหรือไม่ได้ตั้ง `HEALTH_TOKEN`) |
+| `/_status?token=<HEALTH_TOKEN>` | nginx (ไม่ผ่าน PHP) | สถานะล่าสุดของ container `migrate`, `app`, `queue` (image standalone: `standalone`) (เช่น `waiting_db`, `db_unreachable`, `migrate_failed`, `boot_failed`, `running`) พร้อม error/output — ใช้ได้แม้ PHP ล่ม (ตอบ 404 ถ้า token ผิดหรือไม่ได้ตั้ง `HEALTH_TOKEN`) |
 
 ```bash
 curl -s "$BASE/_nginx"                                        # ok

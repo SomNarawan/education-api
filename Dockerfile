@@ -1,9 +1,15 @@
 # syntax=docker/dockerfile:1.7
 #
 # Targets
-#   app   (default) PHP-FPM runtime. The same image runs laravel-app,
+#   standalone (default) app + nginx + queue worker in one container under
+#                   supervisord. This is what `make build` (no --target) builds
+#                   and `make cd` runs with `docker run --network=host`.
+#   app             PHP-FPM runtime. The same image runs laravel-app,
 #                   laravel-queue and laravel-migrate (see docker-compose.yml).
 #   nginx           nginx-unprivileged + public/ only, proxies PHP to laravel-app.
+#
+# `docker build` without --target builds the last stage, so standalone must
+# stay last. docker-compose.yml names its targets and does not use it.
 
 ARG PHP_VERSION=8.2
 
@@ -38,6 +44,9 @@ COPY docker/php/php-fpm.conf /usr/local/etc/php-fpm.d/zz-app.conf
 ENV APP_ENV=production \
     APP_DEBUG=false \
     LOG_CHANNEL=stderr \
+    # An env file with LOG_CHANNEL=stack (Laravel's default) still logs to
+    # `docker logs` instead of a file inside the container.
+    LOG_STACK=stderr \
     PHP_MEMORY_LIMIT=256M \
     PHP_MAX_EXECUTION_TIME=300 \
     PHP_UPLOAD_MAX_FILESIZE=25M \
@@ -123,3 +132,40 @@ STOPSIGNAL SIGQUIT
 
 ENTRYPOINT ["docker-entrypoint"]
 CMD ["php-fpm"]
+
+# -----------------------------------------------------------------------------
+# standalone (default, keep last): the app image plus nginx and supervisord.
+# One container serves HTTP on :3009 (php-fpm behind a unix socket), runs the
+# queue worker and migrates the database at start. Flow and failure handling:
+# docker/standalone/supervisord.conf and docker/entrypoint.sh.
+# -----------------------------------------------------------------------------
+FROM app AS standalone
+
+USER root
+RUN set -eux; \
+    apk add --no-cache nginx supervisor; \
+    rm -f /etc/nginx/http.d/default.conf; \
+    # Sockets, pid files and nginx temp files; everything runs as www-data.
+    mkdir -p /run/nginx/conf.d /run/php-fpm /run/supervisord; \
+    chown -R www-data:www-data /run/nginx /run/php-fpm /run/supervisord
+
+COPY docker/standalone/nginx.conf             /etc/nginx/nginx.conf
+COPY docker/standalone/default.conf.template  /etc/nginx/templates/default.conf.template
+COPY docker/standalone/php-fpm.conf           /usr/local/etc/php-fpm.d/zzz-standalone.conf
+COPY docker/standalone/supervisord.conf       /etc/supervisord.conf
+
+# nginx answers 503 while boot waits, so the database may take longer to come
+# up than in compose (where the container would just be restarted).
+ENV CONTAINER_ROLE=standalone \
+    DB_WAIT_TIMEOUT=300
+
+USER www-data
+
+EXPOSE 3009
+# supervisord stops its programs (each with its own stop signal) on SIGTERM.
+STOPSIGNAL SIGTERM
+# No --start-interval: it needs Docker Engine 25+ and the server runs 24.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=3 \
+    CMD wget -q -O /dev/null http://127.0.0.1:3009/up || exit 1
+
+CMD ["standalone"]

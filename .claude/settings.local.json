@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(docker stop sa-test-mysql)",
+      "PowerShell(docker run -d --name sa-test-api2 --network sa-test -p 13010:3009 --env-file .env -e DB_HOST=sa-test-mysql -e DB_DATABASE=education_test -e DB_USERNAME=root -e DB_PASSWORD=testpass -e HEALTH_TOKEN=testtoken123 kukps-education-dss-api:standalone-test)",
+      "PowerShell(curl.exe -s -w \"  [HTTP %{http_code}]`n\" http://localhost:13010/api/health)",
+      "PowerShell(curl.exe -s \"http://localhost:13010/_status?token=testtoken123\")",
+      "PowerShell(docker exec sa-test-api2 supervisorctl status)"
+    ]
+  }
+}
