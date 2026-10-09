@@ -5,8 +5,10 @@ namespace App\Providers;
 use App\Contracts\CmisApi;
 use App\Contracts\TeacherApi;
 use App\Services\CmisService;
+use App\Services\QueueWorkerHeartbeat;
 use App\Services\TeacherApiService;
 use Illuminate\Foundation\Events\DiagnosingHealth;
+use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
@@ -40,6 +42,11 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(DiagnosingHealth::class, function (): void {
             DB::connection()->getPdo();
+        });
+
+        // Fired on every queue:work loop; /api/health reads it to see the worker is alive.
+        Event::listen(Looping::class, function (): void {
+            QueueWorkerHeartbeat::beat();
         });
     }
 }
