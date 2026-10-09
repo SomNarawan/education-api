@@ -25,6 +25,7 @@ class Note extends Model
     protected $casts = [
         'student_id' => 'integer',
         'note_type_id' => 'integer',
+        'created_at' => 'datetime',
         'deleted_at' => 'datetime',
     ];
 

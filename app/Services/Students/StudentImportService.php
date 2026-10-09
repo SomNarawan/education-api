@@ -4,6 +4,7 @@ namespace App\Services\Students;
 
 use App\Actions\Students\SaveStudent;
 use App\Constants\Status;
+use App\Contracts\CmisApi;
 use App\Models\DataImport;
 use App\Models\ImportType;
 use App\Models\Student;
@@ -66,7 +67,7 @@ class StudentImportService
     ];
 
     private const REQUIRED_HEADER_INDEXES = [
-        0, 2, 3, 4, 9, 11, 18,
+        0, 2, 3, 4, 9, 10, 11, 18,
     ];
 
     private const HEADER_MERGES = [
@@ -76,6 +77,7 @@ class StudentImportService
 
     public function __construct(
         private readonly SaveStudent $saveStudent,
+        private readonly CmisApi $cmisApi,
     ) {}
 
     public function import(
@@ -85,8 +87,6 @@ class StudentImportService
         string $curriculumCode,
         int $studyPlanId,
         string $studyPlanNameTh,
-        string $teacherId,
-        string $teacherFullName,
         array $claims,
     ): array {
         $importType = ImportType::query()
@@ -102,12 +102,9 @@ class StudentImportService
 
         $curriculumCode = mb_substr(trim($curriculumCode), 0, 255);
         $studyPlanNameTh = mb_substr(trim($studyPlanNameTh), 0, 255);
-        $teacherId = mb_substr(trim($teacherId), 0, 50);
-        $teacherFullName = mb_substr(trim($teacherFullName), 0, 255);
 
         $import = DataImport::query()->create([
             'import_type_id' => $importType->id,
-            'system_department_id' => $systemDepartmentId,
             'curriculum_id' => $curriculumId,
             'curriculum_code' => $curriculumCode,
             'curriculum_plan_id' => $studyPlanId,
@@ -133,13 +130,12 @@ class StudentImportService
                 ]);
             }
 
-            $masterData = $this->masterData();
+            $masterData = $this->masterData($curriculumId);
             $successRows = [];
             $failedRows = [];
 
             foreach ($dataRows as $index => $row) {
                 $sourceRow = $this->sourceRow($row);
-                $sourceRow[10] = $teacherFullName;
                 $rowNumber = $index + 1;
                 [$attributes, $masterErrors] = $this->attributes(
                     $sourceRow,
@@ -149,8 +145,6 @@ class StudentImportService
                     $curriculumCode,
                     $studyPlanId,
                     $studyPlanNameTh,
-                    $teacherId,
-                    $teacherFullName,
                 );
                 $student = Student::query()
                     ->where('student_code', $attributes['student_code'])
@@ -281,8 +275,6 @@ class StudentImportService
         string $curriculumCode,
         int $studyPlanId,
         string $studyPlanNameTh,
-        string $teacherId,
-        string $teacherFullName,
     ): array {
         $masterErrors = [];
         $titleId = $this->masterId($row[2], $masterData['titles'], 'คำนำหน้า', true, $masterErrors);
@@ -291,6 +283,11 @@ class StudentImportService
         $guardianTitleId = $this->masterId($row[13], $masterData['titles'], 'คำนำหน้าผู้ปกครอง', false, $masterErrors);
         $relationshipId = $this->masterId($row[16], $masterData['relationships'], 'ความสัมพันธ์', false, $masterErrors);
         $studentStatusId = $this->masterId($row[18], $masterData['student_statuses'], 'สถานะปัจจุบัน', true, $masterErrors);
+        [$teacherId, $teacherFullName] = $this->advisor(
+            $row[10],
+            $masterData['advisors'],
+            $masterErrors,
+        );
 
         return [[
             'student_code' => $row[0] === '' ? null : $row[0],
@@ -321,7 +318,7 @@ class StudentImportService
         ], $masterErrors];
     }
 
-    private function masterData(): array
+    private function masterData(int $curriculumId): array
     {
         return [
             'titles' => $this->lookup('titles', ['title_abbr_th', 'title_name_th']),
@@ -329,7 +326,73 @@ class StudentImportService
             'high_schools' => $this->lookup('high_schools', ['school_name']),
             'relationships' => $this->lookup('relationships', ['relationship_name']),
             'student_statuses' => $this->lookup('student_statuses', ['status_name']),
+            'advisors' => $this->advisorLookup($curriculumId),
         ];
+    }
+
+    private function advisorLookup(int $curriculumId): array
+    {
+        $lookup = [];
+
+        foreach ($this->cmisApi->getCurriculumPersonnel($curriculumId) as $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+
+            $externalId = $person['external_id'] ?? null;
+            $names = collect(['full_name', 'full_name_th', 'full_name_en'])
+                ->map(fn (string $field): mixed => $person[$field] ?? null)
+                ->filter(fn (mixed $name): bool => is_scalar($name) && trim((string) $name) !== '')
+                ->map(fn (mixed $name): string => trim((string) $name))
+                ->unique()
+                ->values()
+                ->all();
+
+            if (! is_scalar($externalId) || trim((string) $externalId) === '' || $names === []) {
+                continue;
+            }
+
+            $teacherId = mb_substr(trim((string) $externalId), 0, 50);
+            $advisor = [
+                'id' => $teacherId,
+                'name' => mb_substr($names[0], 0, 255),
+            ];
+
+            foreach ([$teacherId, ...$names] as $value) {
+                $key = $this->normalizedKey($value);
+
+                if ($key !== '') {
+                    $lookup[$key][$teacherId] = $advisor;
+                }
+            }
+        }
+
+        return $lookup;
+    }
+
+    private function advisor(string $value, array $lookup, array &$errors): array
+    {
+        $key = $this->normalizedKey($value);
+
+        if ($key === '') {
+            return [null, null];
+        }
+
+        $matches = array_values($lookup[$key] ?? []);
+
+        if ($matches === []) {
+            $errors[] = "ไม่พบอาจารย์ที่ปรึกษา \"{$value}\" ในหลักสูตรที่เลือก";
+
+            return [null, null];
+        }
+
+        if (count($matches) > 1) {
+            $errors[] = "พบอาจารย์ที่ปรึกษาชื่อ \"{$value}\" มากกว่าหนึ่งคน กรุณาระบุรหัสบัญชีผู้ใช้ในไฟล์แทนชื่อ";
+
+            return [null, null];
+        }
+
+        return [$matches[0]['id'], $matches[0]['name']];
     }
 
     private function lookup(string $table, array $columns): array
@@ -454,6 +517,8 @@ class StudentImportService
             'email' => 'อีเมล',
             'system_department_id' => 'ภาควิชา',
             'entry_year' => 'ปีเข้าเรียน',
+            'teacher_id' => 'อาจารย์ที่ปรึกษา',
+            'teacher_full_name' => 'อาจารย์ที่ปรึกษา',
             'guardian_first_name_th' => 'ชื่อผู้ปกครอง',
             'guardian_last_name_th' => 'นามสกุลผู้ปกครอง',
             'guardian_phone' => 'เบอร์โทรผู้ปกครอง',

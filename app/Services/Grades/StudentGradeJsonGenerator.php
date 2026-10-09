@@ -49,6 +49,7 @@ class StudentGradeJsonGenerator
 
         $resetCount = count($attempts);
         $this->deleteGeneratedData($studentCode);
+        $this->updateStudentAcademicSummary($studentCode, $this->emptyAcademicSummary());
 
         return $resetCount;
     }
@@ -94,6 +95,7 @@ class StudentGradeJsonGenerator
 
         if ($remainingAttempts === []) {
             $this->deleteGeneratedData($studentCode);
+            $this->updateStudentAcademicSummary($studentCode, $this->emptyAcademicSummary());
 
             return $resetCount;
         }
@@ -142,18 +144,29 @@ class StudentGradeJsonGenerator
         usort($passedAfterFailure, $this->recordSorter(...));
         usort($overRecords, $this->recordSorter(...));
 
+        $semesterGraph = $this->semesterGraph($attempts, $assigned, $over);
+        $academicSummary = $this->academicSummary(
+            $slots,
+            $notPass,
+            $over,
+            $semesterGraph,
+        );
+
         $this->writeJson("data/enrollments/{$studentCode}.json", $enrollments);
         $this->writeJson("data/enrollments_not_pass/{$studentCode}.json", $notPass);
         $this->writeJson("data/enrollments_pass/{$studentCode}.json", $passedAfterFailure);
         $this->writeJson("data/enrollments_over/{$studentCode}.json", $overRecords);
         $this->writeGraphs(
             $studentCode,
-            $attempts,
             $slots,
             $assigned,
             $over,
             $totalCredits,
+            $semesterGraph,
+            $academicSummary['passed_credits'],
+            $academicSummary['overed_credits'],
         );
+        $this->updateStudentAcademicSummary($studentCode, $academicSummary);
     }
 
     private function storedAttempts(string $studentCode): ?array
@@ -816,19 +829,14 @@ class StudentGradeJsonGenerator
 
     private function writeGraphs(
         string $studentCode,
-        array $attempts,
         array $slots,
         array $assigned,
         array $over,
         float $totalCredits,
+        array $semesterGraph,
+        float|int $creditsStudy,
+        float|int $creditsOver,
     ): void {
-        $creditsStudy = array_sum(array_column($slots, '_completed_credit'));
-        $creditsOver = array_sum(array_map(
-            fn (array $item) => $this->completesCredit($item['aggregate'])
-                ? (float) $item['aggregate']['credit']
-                : 0,
-            $over,
-        ));
         $assignedAggregates = array_column($assigned, 'aggregate');
 
         $this->writeJson("data/graph/by_credit/{$studentCode}.json", [
@@ -848,7 +856,7 @@ class StudentGradeJsonGenerator
 
         $this->writeJson(
             "data/graph/by_semester/{$studentCode}.json",
-            $this->semesterGraph($attempts, $assigned, $over),
+            $semesterGraph,
         );
 
         $groupFiles = [];
@@ -868,6 +876,51 @@ class StudentGradeJsonGenerator
                 Storage::disk('local')->delete($path);
             }
         }
+    }
+
+    private function academicSummary(
+        array $slots,
+        array $notPass,
+        array $over,
+        array $semesterGraph,
+    ): array {
+        $latestSemester = $semesterGraph[array_key_last($semesterGraph)] ?? [];
+
+        return [
+            'gpa' => (float) ($latestSemester['gpa'] ?? 0),
+            'gpax' => (float) ($latestSemester['gpax'] ?? 0),
+            'passed_credits' => $this->number(array_sum(array_column($slots, '_completed_credit'))),
+            'not_passed_credits' => $this->number(array_sum(array_map(
+                fn (array $record): float => is_numeric($record['credit'] ?? null)
+                    ? (float) $record['credit']
+                    : 0,
+                $notPass,
+            ))),
+            'overed_credits' => $this->number(array_sum(array_map(
+                fn (array $item): float => $this->completesCredit($item['aggregate'])
+                    ? (float) $item['aggregate']['credit']
+                    : 0,
+                $over,
+            ))),
+        ];
+    }
+
+    private function emptyAcademicSummary(): array
+    {
+        return [
+            'gpa' => 0,
+            'gpax' => 0,
+            'passed_credits' => 0,
+            'not_passed_credits' => 0,
+            'overed_credits' => 0,
+        ];
+    }
+
+    private function updateStudentAcademicSummary(string $studentCode, array $summary): void
+    {
+        Student::query()
+            ->where('student_code', $studentCode)
+            ->update($summary);
     }
 
     private function semesterGraph(array $attempts, array $assigned, array $over): array

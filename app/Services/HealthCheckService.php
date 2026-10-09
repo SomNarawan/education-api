@@ -10,7 +10,7 @@ use Throwable;
 
 /**
  * Builds the GET /api/health report: one entry per dependency, each with an
- * "ok" flag. Details (counts, error messages, container states) are only
+ * "ok" flag. Details (counts, error messages) are only
  * included for callers that present config('health.token').
  */
 class HealthCheckService
@@ -46,11 +46,7 @@ class HealthCheckService
         ];
 
         if ($detailed) {
-            $report['app'] = [
-                'env' => config('app.env'),
-                'build' => $this->readJson(base_path('build-info.json')),
-            ];
-            $report['containers'] = $this->readJson((string) config('health.status_file'));
+            $report['app'] = ['env' => config('app.env')];
         }
 
         return $report;
@@ -90,8 +86,10 @@ class HealthCheckService
     {
         $migrator = app('migrator');
 
+        // The database is loaded from an SQL dump (docker/db), not built by
+        // php artisan migrate, so there may be no migrations table to compare.
         if (! $migrator->repositoryExists()) {
-            return ['ok' => false, 'error' => 'migrations table does not exist; php artisan migrate has never run'];
+            return ['ok' => true, 'skipped' => true, 'note' => 'no migrations table; schema comes from the SQL dump'];
         }
 
         $files = $migrator->getMigrationFiles(array_merge([database_path('migrations')], $migrator->paths()));
@@ -104,13 +102,14 @@ class HealthCheckService
     {
         $name = config('queue.default');
         $config = config("queue.connections.{$name}", []);
-        $workerSilence = QueueWorkerHeartbeat::secondsSinceLastBeat();
-        $maxSilence = (int) config('health.queue_worker_max_silence');
 
         // sync runs jobs inside the request; there is no worker to watch.
         if (($config['driver'] ?? null) === 'sync') {
             return ['ok' => true, 'skipped' => true, 'driver' => 'sync'];
         }
+
+        $workerSilence = QueueWorkerHeartbeat::secondsSinceLastBeat();
+        $maxSilence = (int) config('health.queue_worker_max_silence');
 
         $result = [
             'ok' => $workerSilence !== null && $workerSilence <= $maxSilence,
@@ -166,14 +165,5 @@ class HealthCheckService
             'url' => $url,
             'http_status' => $response->status(),
         ];
-    }
-
-    private function readJson(string $path): mixed
-    {
-        if (! is_file($path)) {
-            return null;
-        }
-
-        return json_decode((string) file_get_contents($path), true);
     }
 }

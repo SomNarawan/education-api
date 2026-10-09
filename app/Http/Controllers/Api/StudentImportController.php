@@ -25,8 +25,6 @@ class StudentImportController extends Controller
             $validated['curriculum_code'],
             (int) $validated['study_plan_id'],
             $validated['study_plan_name_th'],
-            $validated['teacher_id'],
-            $validated['teacher_full_name'],
             $request->attributes->get('jwt_claims', []),
         );
 

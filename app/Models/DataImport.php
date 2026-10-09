@@ -9,9 +9,10 @@ class DataImport extends Model
 {
     protected $table = 'imports';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'import_type_id',
-        'system_department_id',
         'curriculum_id',
         'curriculum_code',
         'curriculum_plan_id',
@@ -32,7 +33,6 @@ class DataImport extends Model
     {
         return [
             'import_type_id' => 'integer',
-            'system_department_id' => 'integer',
             'curriculum_id' => 'integer',
             'curriculum_plan_id' => 'integer',
             'total_count' => 'integer',
@@ -46,10 +46,5 @@ class DataImport extends Model
     public function importType(): BelongsTo
     {
         return $this->belongsTo(ImportType::class);
-    }
-
-    public function systemDepartment(): BelongsTo
-    {
-        return $this->belongsTo(SystemDepartment::class, 'system_department_id');
     }
 }

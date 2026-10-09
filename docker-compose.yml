@@ -173,31 +173,45 @@ services:
     ports:
       - "${API_PORT:-3009}:3009"
     environment:
-      # Opens /_status?token=...; empty = /_status disabled.
+      APP_KEY: ${APP_KEY}
+      APP_ENV: ${APP_ENV:-local}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_URL: ${APP_URL:-http://localhost:3009}
+      # Fixed on purpose, not read from .env: the database comes from the SQL
+      # dump and has no sessions/cache/jobs tables, and this stack runs no
+      # queue worker (database queue jobs would never run).
+      SESSION_DRIVER: file
+      CACHE_STORE: file
+      QUEUE_CONNECTION: sync
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: education_dss
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_REQUIRE_EXPIRATION: ${JWT_REQUIRE_EXPIRATION:-false}
+      CMIS_URL: ${CMIS_URL}
+      CMIS_SERVICE_BASE_PATH: ${CMIS_SERVICE_BASE_PATH:-/api}
+      CMIS_SERVICE_TIMEOUT: ${CMIS_SERVICE_TIMEOUT:-15}
+      CMIS_SERVICE_VERIFY_SSL: ${CMIS_SERVICE_VERIFY_SSL:-true}
+      PERSONNEL_API_URL: ${PERSONNEL_API_URL}
+      PORTAL_MAIN_API_KEY: ${PORTAL_MAIN_API_KEY}
+      MOCK_LOGIN_ENABLED: ${MOCK_LOGIN_ENABLED:-false}
+      MOCK_LOGIN_FRONTEND_URL: ${MOCK_LOGIN_FRONTEND_URL:-http://localhost:3008}
+      MOCK_LOGIN_ADMIN_NONTRI_IDS: ${MOCK_LOGIN_ADMIN_NONTRI_IDS:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3008}
+      # GET /api/health. Without HEALTH_TOKEN it still answers ok/failed per
+      # check but never shows details. The frontend check calls the web
+      # container over the compose network (service name, internal port 80).
       HEALTH_TOKEN: ${HEALTH_TOKEN:-}
-    volumes:
-      # Serves public/storage (php artisan storage:link) and the status file
-      # (/_status) read-only.
-      - app-storage:/var/www/html/storage/app:ro
-    # No depends_on on purpose. depends_on is only checked by `docker compose
-    # up`: when laravel-app was unhealthy at that moment (database briefly down)
-    # or never started (migration failed), compose did not start nginx, nothing
-    # listened on :3009 and Apache answered 503 with no way to see why. nginx
-    # re-resolves laravel-app itself, so it starts on its own and answers with
-    # a JSON 503 until php-fpm is reachable; /_status shows what is wrong.
-    healthcheck:
-      # nginx only; laravel-app has its own healthcheck (/up).
-      test:
-        ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3009/_nginx"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-    logging: *logging
+      HEALTH_FRONTEND_URL: ${HEALTH_FRONTEND_URL:-http://frontend/}
+    ports:
+      - "3009:3009"
+    depends_on:
+      mysql:
+        condition: service_healthy
 
   frontend:
     build:
