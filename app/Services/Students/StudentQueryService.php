@@ -42,8 +42,12 @@ class StudentQueryService
                 fn (Builder $query) => $this->applyTextSearch($query, trim($filters['search_text']))
             )
             ->when(
-                isset($filters['search_note']),
-                fn (Builder $query) => $this->applyNoteSearch($query, trim($filters['search_note']))
+                isset($filters['search_note_type_id']) || isset($filters['search_note']),
+                fn (Builder $query) => $this->applyNoteSearch(
+                    $query,
+                    $filters['search_note_type_id'] ?? null,
+                    isset($filters['search_note']) ? trim($filters['search_note']) : null,
+                )
             )
             ->orderBy('id')
             ->get();
@@ -93,19 +97,30 @@ class StudentQueryService
         });
     }
 
-    private function applyNoteSearch(Builder $query, string $searchNote): void
-    {
-        $query->whereHas('notes', function (Builder $noteQuery) use ($searchNote): void {
-            $noteQuery->withTrashed()->where(function (Builder $searchQuery) use ($searchNote): void {
-                $pattern = "%{$searchNote}%";
+    private function applyNoteSearch(
+        Builder $query,
+        ?int $noteTypeId,
+        ?string $searchNote,
+    ): void {
+        $query->whereHas('notes', function (Builder $noteQuery) use ($noteTypeId, $searchNote): void {
+            $noteQuery
+                ->withTrashed()
+                ->when(
+                    $noteTypeId !== null,
+                    fn (Builder $typedNoteQuery) => $typedNoteQuery->where('note_type_id', $noteTypeId)
+                )
+                ->when($searchNote !== null, function (Builder $searchQuery) use ($searchNote): void {
+                    $pattern = "%{$searchNote}%";
 
-                $searchQuery
-                    ->where('remark', 'like', $pattern)
-                    ->orWhereHas(
-                        'noteType',
-                        fn (Builder $noteTypeQuery) => $noteTypeQuery->where('note', 'like', $pattern)
-                    );
-            });
+                    $searchQuery->where(function (Builder $matchingNoteQuery) use ($pattern): void {
+                        $matchingNoteQuery
+                            ->where('remark', 'like', $pattern)
+                            ->orWhereHas(
+                                'noteType',
+                                fn (Builder $noteTypeQuery) => $noteTypeQuery->where('note', 'like', $pattern)
+                            );
+                    });
+                });
         });
     }
 }

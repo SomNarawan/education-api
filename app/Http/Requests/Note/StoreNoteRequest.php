@@ -21,12 +21,10 @@ class StoreNoteRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                $isOther = NoteType::query()
-                    ->whereKey($this->integer('note_type_id'))
-                    ->where('note', 'อื่นๆ')
-                    ->exists();
-
-                if ($isOther && blank($this->input('remark'))) {
+                if (
+                    NoteType::isOther($this->integer('note_type_id')) &&
+                    blank($this->input('remark'))
+                ) {
                     $validator->errors()->add('remark', 'กรุณากรอกรายละเอียด');
                 }
             },
