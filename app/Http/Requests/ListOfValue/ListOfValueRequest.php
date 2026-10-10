@@ -11,6 +11,11 @@ class ListOfValueRequest extends FormRequest
     public function rules(): array
     {
         $type = $this->listOfValueType();
+        $supportsIncludeIds = ! in_array($type, [
+            ListOfValueType::Curriculums,
+            ListOfValueType::StudyPlans,
+            ListOfValueType::CurriculumPersonnel,
+        ], true);
 
         return [
             'province_id' => [
@@ -38,12 +43,11 @@ class ListOfValueRequest extends FormRequest
                 'min:1',
             ],
             'include_ids' => [
+                Rule::prohibitedIf(! $supportsIncludeIds),
                 'sometimes',
                 'array',
             ],
-            'include_ids.*' => $type === ListOfValueType::CurriculumPersonnel
-                ? ['string', 'max:50']
-                : ['integer', 'min:1'],
+            'include_ids.*' => ['integer', 'min:1'],
         ];
     }
 

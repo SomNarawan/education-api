@@ -106,10 +106,9 @@ class ListOfValueService
                 'en_name',
                 $includeIds,
             ),
-            ListOfValueType::Curriculums => $this->curriculumOptions($filters),
+            ListOfValueType::Curriculums => $this->curriculumOptions(),
             ListOfValueType::StudyPlans => $this->studyPlanOptions(
                 (int) $filters['curriculum_id'],
-                $includeIds,
             ),
             ListOfValueType::CurriculumPersonnel => $this->curriculumPersonnelOptions(
                 (int) $filters['curriculum_id'],
@@ -117,12 +116,11 @@ class ListOfValueService
         };
     }
 
-    private function studyPlanOptions(int $curriculumId, array $includeIds = []): Collection
+    private function studyPlanOptions(int $curriculumId): Collection
     {
         return collect($this->cmisApi->getCurriculumPlans($curriculumId))
             ->filter(fn (mixed $studyPlan): bool => is_array($studyPlan))
-            ->filter(fn (array $studyPlan): bool => ($studyPlan['status'] ?? null) === 'activate'
-                || in_array((int) ($studyPlan['id'] ?? 0), $includeIds, true))
+            ->filter(fn (array $studyPlan): bool => ($studyPlan['status'] ?? null) === 'activate')
             ->map(fn (array $studyPlan): array => [
                 'id' => (int) ($studyPlan['id'] ?? 0),
                 'name_th' => $studyPlan['name_th'] ?? null,
@@ -132,14 +130,11 @@ class ListOfValueService
             ->values();
     }
 
-    private function curriculumOptions(array $filters): Collection
+    private function curriculumOptions(): Collection
     {
-        $includeIds = array_map('intval', $filters['include_ids'] ?? []);
-
         return collect($this->cmisApi->getCurriculums())
             ->filter(fn (mixed $curriculum): bool => is_array($curriculum)
-                && (($curriculum['status'] ?? null) === 'published'
-                    || in_array((int) ($curriculum['id'] ?? 0), $includeIds, true))
+                && ($curriculum['status'] ?? null) === 'published'
                 && (int) ($curriculum['id'] ?? 0) > 0
                 && is_string($curriculum['code'] ?? null)
                 && trim($curriculum['code']) !== '')
@@ -154,7 +149,12 @@ class ListOfValueService
     private function curriculumPersonnelOptions(int $curriculumId): Collection
     {
         return $this->personnelOptions(
-            $this->cmisApi->getCurriculumPersonnel($curriculumId),
+            collect($this->cmisApi->getCurriculumPersonnel($curriculumId))
+                ->filter(fn (mixed $person): bool => is_array($person)
+                    && is_array($person['roles'] ?? null)
+                    && in_array('curriculum_instructor', $person['roles'], true))
+                ->values()
+                ->all(),
         );
     }
 
