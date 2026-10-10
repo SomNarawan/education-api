@@ -148,39 +148,37 @@ class ListOfValueService
 
     private function curriculumPersonnelOptions(int $curriculumId): Collection
     {
-        return $this->personnelOptions(
-            collect($this->cmisApi->getCurriculumPersonnel($curriculumId))
-                ->filter(fn (mixed $person): bool => is_array($person)
-                    && is_array($person['roles'] ?? null)
-                    && in_array('curriculum_instructor', $person['roles'], true))
-                ->values()
-                ->all(),
-        );
-    }
-
-    private function personnelOptions(array $personnel): Collection
-    {
-        return collect($personnel)
-            ->filter(fn (mixed $person): bool => is_array($person))
-            ->map(function (array $person): ?array {
-                $id = $person['external_id'] ?? null;
-                $nameTh = $person['full_name'] ?? $person['full_name_th'] ?? null;
-
-                if (! is_scalar($id) || trim((string) $id) === ''
-                    || ! is_scalar($nameTh) || trim((string) $nameTh) === '') {
-                    return null;
-                }
-
-                return [
-                    'id' => (string) $id,
-                    'name_th' => (string) $nameTh,
-                    'name_en' => isset($person['full_name_en']) && is_scalar($person['full_name_en'])
-                        ? (string) $person['full_name_en']
-                        : null,
-                ];
-            })
+        return collect($this->cmisApi->getCurriculumPersonnel($curriculumId))
+            ->filter($this->isCurriculumInstructor(...))
+            ->map($this->personnelOption(...))
             ->filter()
             ->values();
+    }
+
+    private function isCurriculumInstructor(mixed $person): bool
+    {
+        return is_array($person)
+            && is_array($person['roles'] ?? null)
+            && in_array('curriculum_instructor', $person['roles'], true);
+    }
+
+    private function personnelOption(array $person): ?array
+    {
+        $id = $person['external_id'] ?? null;
+        $nameTh = $person['full_name'] ?? $person['full_name_th'] ?? null;
+
+        if (! is_scalar($id) || trim((string) $id) === ''
+            || ! is_scalar($nameTh) || trim((string) $nameTh) === '') {
+            return null;
+        }
+
+        return [
+            'id' => trim((string) $id),
+            'name_th' => trim((string) $nameTh),
+            'name_en' => isset($person['full_name_en']) && is_scalar($person['full_name_en'])
+                ? trim((string) $person['full_name_en'])
+                : null,
+        ];
     }
 
     private function options(

@@ -5,10 +5,11 @@ namespace App\Services\Students;
 use App\Actions\Students\SaveStudent;
 use App\Constants\Status;
 use App\Constants\StudySemester;
-use App\Contracts\CmisApi;
+use App\Enums\ListOfValueType;
 use App\Models\DataImport;
 use App\Models\ImportType;
 use App\Models\Student;
+use App\Services\ListOfValueService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -81,9 +82,19 @@ class StudentImportService
         'P1:T1',
     ];
 
+    private const MASTER_DATA_TYPES = [
+        'titles' => ListOfValueType::Titles,
+        'admission_channels' => ListOfValueType::AdmissionChannels,
+        'high_schools' => ListOfValueType::HighSchools,
+        'relationships' => ListOfValueType::Relationships,
+        'student_statuses' => ListOfValueType::StudentStatuses,
+    ];
+
+    private const OPTION_NAME_FIELDS = ['name_th', 'name_en'];
+
     public function __construct(
         private readonly SaveStudent $saveStudent,
-        private readonly CmisApi $cmisApi,
+        private readonly ListOfValueService $listOfValueService,
     ) {}
 
     public function import(
@@ -283,13 +294,13 @@ class StudentImportService
         string $studyPlanNameTh,
     ): array {
         $masterErrors = [];
-        $titleId = $this->masterId($row[2], $masterData['titles'], 'คำนำหน้า', true, $masterErrors);
-        $admissionChannelId = $this->masterId($row[13], $masterData['admission_channels'], 'ช่องทางรับเข้า', true, $masterErrors);
-        $highSchoolId = $this->masterId($row[14], $masterData['high_schools'], 'โรงเรียน ม.ปลาย', false, $masterErrors);
-        $guardianTitleId = $this->masterId($row[15], $masterData['titles'], 'คำนำหน้าผู้ปกครอง', false, $masterErrors);
-        $relationshipId = $this->masterId($row[18], $masterData['relationships'], 'ความสัมพันธ์', false, $masterErrors);
-        $studentStatusId = $this->masterId($row[20], $masterData['student_statuses'], 'สถานะปัจจุบัน', true, $masterErrors);
-        [$teacherId, $teacherFullName] = $this->advisor(
+        $titleId = $this->resolveMasterDataId($row[2], $masterData['titles'], 'คำนำหน้า', true, $masterErrors);
+        $admissionChannelId = $this->resolveMasterDataId($row[13], $masterData['admission_channels'], 'ช่องทางรับเข้า', true, $masterErrors);
+        $highSchoolId = $this->resolveMasterDataId($row[14], $masterData['high_schools'], 'โรงเรียน ม.ปลาย', false, $masterErrors);
+        $guardianTitleId = $this->resolveMasterDataId($row[15], $masterData['titles'], 'คำนำหน้าผู้ปกครอง', false, $masterErrors);
+        $relationshipId = $this->resolveMasterDataId($row[18], $masterData['relationships'], 'ความสัมพันธ์', false, $masterErrors);
+        $studentStatusId = $this->resolveMasterDataId($row[20], $masterData['student_statuses'], 'สถานะปัจจุบัน', true, $masterErrors);
+        [$teacherId, $teacherFullName] = $this->resolveAdvisor(
             $row[12],
             $masterData['advisors'],
             $masterErrors,
@@ -297,7 +308,7 @@ class StudentImportService
 
         return [[
             'student_code' => $row[0] === '' ? null : $row[0],
-            'student_id_card' => $row[1],
+            'student_id_card' => $this->optionalCell($row[1]),
             'title_id' => $titleId,
             'first_name_th' => $row[3],
             'last_name_th' => $row[4],
@@ -328,39 +339,38 @@ class StudentImportService
 
     private function masterData(int $curriculumId): array
     {
-        return [
-            'titles' => $this->lookup('titles', ['title_abbr_th', 'title_name_th']),
-            'admission_channels' => $this->lookup('admission_channels', ['channel_name']),
-            'high_schools' => $this->lookup('high_schools', ['school_name']),
-            'relationships' => $this->lookup('relationships', ['relationship_name']),
-            'student_statuses' => $this->lookup('student_statuses', ['status_name']),
-            'advisors' => $this->advisorLookup($curriculumId),
-        ];
+        $masterData = [];
+
+        foreach (self::MASTER_DATA_TYPES as $key => $type) {
+            $masterData[$key] = $this->masterDataLookup($type);
+        }
+
+        $masterData['advisors'] = $this->advisorLookup($curriculumId);
+
+        return $masterData;
     }
 
     private function advisorLookup(int $curriculumId): array
     {
         $lookup = [];
 
-        foreach ($this->cmisApi->getCurriculumPersonnel($curriculumId) as $person) {
-            if (! is_array($person)) {
+        $advisors = $this->listOfValueService->get(
+            ListOfValueType::CurriculumPersonnel,
+            ['curriculum_id' => $curriculumId],
+        );
+
+        foreach ($advisors as $option) {
+            if (! is_array($option)) {
                 continue;
             }
 
-            $externalId = $person['external_id'] ?? null;
-            $names = collect(['full_name', 'full_name_th', 'full_name_en'])
-                ->map(fn (string $field): mixed => $person[$field] ?? null)
-                ->filter(fn (mixed $name): bool => is_scalar($name) && trim((string) $name) !== '')
-                ->map(fn (mixed $name): string => trim((string) $name))
-                ->unique()
-                ->values()
-                ->all();
+            $teacherId = $this->stringOptionId($option);
+            $names = $this->optionNames($option);
 
-            if (! is_scalar($externalId) || trim((string) $externalId) === '' || $names === []) {
+            if ($teacherId === null || $names === []) {
                 continue;
             }
 
-            $teacherId = mb_substr(trim((string) $externalId), 0, 50);
             $advisor = [
                 'id' => $teacherId,
                 'name' => mb_substr($names[0], 0, 255),
@@ -378,7 +388,67 @@ class StudentImportService
         return $lookup;
     }
 
-    private function advisor(string $value, array $lookup, array &$errors): array
+    private function masterDataLookup(ListOfValueType $type): array
+    {
+        $lookup = [];
+
+        foreach ($this->listOfValueService->get($type) as $option) {
+            if (! is_array($option)) {
+                continue;
+            }
+
+            $id = $this->integerOptionId($option);
+
+            if ($id === null) {
+                continue;
+            }
+
+            foreach ($this->optionNames($option) as $name) {
+                $key = $this->normalizedKey($name);
+
+                if ($key !== '') {
+                    $lookup[$key] ??= $id;
+                }
+            }
+        }
+
+        return $lookup;
+    }
+
+    private function optionNames(array $option): array
+    {
+        return collect(self::OPTION_NAME_FIELDS)
+            ->map(fn (string $field): mixed => $option[$field] ?? null)
+            ->filter(fn (mixed $name): bool => is_scalar($name) && trim((string) $name) !== '')
+            ->map(fn (mixed $name): string => trim((string) $name))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function integerOptionId(array $option): ?int
+    {
+        $id = filter_var(
+            $option['id'] ?? null,
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]],
+        );
+
+        return $id === false ? null : $id;
+    }
+
+    private function stringOptionId(array $option): ?string
+    {
+        $id = $option['id'] ?? null;
+
+        if (! is_scalar($id) || trim((string) $id) === '') {
+            return null;
+        }
+
+        return mb_substr(trim((string) $id), 0, 50);
+    }
+
+    private function resolveAdvisor(string $value, array $lookup, array &$errors): array
     {
         $key = $this->normalizedKey($value);
 
@@ -403,26 +473,7 @@ class StudentImportService
         return [$matches[0]['id'], $matches[0]['name']];
     }
 
-    private function lookup(string $table, array $columns): array
-    {
-        $query = DB::table($table)->select(['id', ...$columns]);
-
-        $lookup = [];
-
-        foreach ($query->get() as $row) {
-            foreach ($columns as $column) {
-                $key = $this->normalizedKey($row->{$column});
-
-                if ($key !== '') {
-                    $lookup[$key] ??= (int) $row->id;
-                }
-            }
-        }
-
-        return $lookup;
-    }
-
-    private function masterId(
+    private function resolveMasterDataId(
         string $value,
         array $lookup,
         string $label,
@@ -440,7 +491,7 @@ class StudentImportService
         }
 
         if (! isset($lookup[$key])) {
-            $errors[] = "ไม่พบ {$label} \"{$value}\" ในฐานข้อมูล";
+            $errors[] = "ไม่พบ {$label} \"{$value}\" ในรายการข้อมูลอ้างอิง";
 
             return null;
         }
