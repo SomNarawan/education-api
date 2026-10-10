@@ -4,6 +4,7 @@ namespace App\Services\Students;
 
 use App\Actions\Students\SaveStudent;
 use App\Constants\Status;
+use App\Constants\StudySemester;
 use App\Contracts\CmisApi;
 use App\Models\DataImport;
 use App\Models\ImportType;
@@ -32,6 +33,8 @@ class StudentImportService
         '',
         '',
         '',
+        'การเข้าเรียน',
+        '',
         '',
         'อาจารย์ที่ปรึกษา',
         'ช่องทางรับเข้า',
@@ -55,6 +58,8 @@ class StudentImportService
         'เบอร์โทร',
         'อีเมล',
         'ปีเข้าเรียน (พ.ศ.)',
+        'ปี',
+        'เทอม',
         'อาจารย์ที่ปรึกษา',
         'ช่องทางรับเข้า',
         'โรงเรียน ม.ปลาย',
@@ -67,12 +72,13 @@ class StudentImportService
     ];
 
     private const REQUIRED_HEADER_INDEXES = [
-        0, 2, 3, 4, 9, 10, 11, 18,
+        0, 2, 3, 4, 9, 10, 11, 12, 13, 20,
     ];
 
     private const HEADER_MERGES = [
         'B1:I1',
-        'N1:R1',
+        'J1:L1',
+        'P1:T1',
     ];
 
     public function __construct(
@@ -278,13 +284,13 @@ class StudentImportService
     ): array {
         $masterErrors = [];
         $titleId = $this->masterId($row[2], $masterData['titles'], 'คำนำหน้า', true, $masterErrors);
-        $admissionChannelId = $this->masterId($row[11], $masterData['admission_channels'], 'ช่องทางรับเข้า', true, $masterErrors);
-        $highSchoolId = $this->masterId($row[12], $masterData['high_schools'], 'โรงเรียน ม.ปลาย', false, $masterErrors);
-        $guardianTitleId = $this->masterId($row[13], $masterData['titles'], 'คำนำหน้าผู้ปกครอง', false, $masterErrors);
-        $relationshipId = $this->masterId($row[16], $masterData['relationships'], 'ความสัมพันธ์', false, $masterErrors);
-        $studentStatusId = $this->masterId($row[18], $masterData['student_statuses'], 'สถานะปัจจุบัน', true, $masterErrors);
+        $admissionChannelId = $this->masterId($row[13], $masterData['admission_channels'], 'ช่องทางรับเข้า', true, $masterErrors);
+        $highSchoolId = $this->masterId($row[14], $masterData['high_schools'], 'โรงเรียน ม.ปลาย', false, $masterErrors);
+        $guardianTitleId = $this->masterId($row[15], $masterData['titles'], 'คำนำหน้าผู้ปกครอง', false, $masterErrors);
+        $relationshipId = $this->masterId($row[18], $masterData['relationships'], 'ความสัมพันธ์', false, $masterErrors);
+        $studentStatusId = $this->masterId($row[20], $masterData['student_statuses'], 'สถานะปัจจุบัน', true, $masterErrors);
         [$teacherId, $teacherFullName] = $this->advisor(
-            $row[10],
+            $row[12],
             $masterData['advisors'],
             $masterErrors,
         );
@@ -305,15 +311,17 @@ class StudentImportService
             'study_plan_id' => $studyPlanId,
             'study_plan_name_th' => $studyPlanNameTh,
             'entry_year' => $this->entryYear($row[9]),
+            'study_year' => $row[10] === '' ? null : $row[10],
+            'study_semester' => $this->studySemester($row[11]),
             'teacher_id' => $teacherId,
             'teacher_full_name' => $teacherFullName,
             'admission_channel_id' => $admissionChannelId,
             'high_school_id' => $highSchoolId,
             'guardian_title_id' => $guardianTitleId,
-            'guardian_first_name_th' => $this->optionalCell($row[14]),
-            'guardian_last_name_th' => $this->optionalCell($row[15]),
+            'guardian_first_name_th' => $this->optionalCell($row[16]),
+            'guardian_last_name_th' => $this->optionalCell($row[17]),
             'guardian_relationship_id' => $relationshipId,
-            'guardian_phone' => $this->optionalCell($this->phone($row[17])),
+            'guardian_phone' => $this->optionalCell($this->phone($row[19])),
             'student_status_id' => $studentStatusId,
         ], $masterErrors];
     }
@@ -476,6 +484,13 @@ class StudentImportService
             'study_plan_id' => ['required', 'integer', 'min:1'],
             'study_plan_name_th' => ['required', 'string', 'max:255'],
             'entry_year' => ['required', 'integer', 'between:1901,2155'],
+            'study_year' => ['bail', 'required', 'integer', Rule::in(range(1, 8))],
+            'study_semester' => [
+                'bail',
+                'required',
+                'integer',
+                Rule::in(StudySemester::values()),
+            ],
             'teacher_id' => ['required', 'string', 'max:50'],
             'teacher_full_name' => ['required', 'string', 'max:255'],
             'admission_channel_id' => ['required', 'integer', Rule::exists('admission_channels', 'id')],
@@ -500,6 +515,7 @@ class StudentImportService
             'max' => ':attribute ต้องยาวไม่เกิน :max ตัวอักษร',
             'between' => ':attribute ต้องอยู่ระหว่าง :min ถึง :max',
             'min' => ':attribute ต้องไม่น้อยกว่า :min',
+            'in' => ':attribute ไม่อยู่ในตัวเลือกที่กำหนด',
             'unique' => ':attribute มีอยู่ในระบบแล้ว',
         ];
     }
@@ -517,6 +533,8 @@ class StudentImportService
             'email' => 'อีเมล',
             'system_department_id' => 'ภาควิชา',
             'entry_year' => 'ปีเข้าเรียน',
+            'study_year' => 'ปี',
+            'study_semester' => 'เทอม',
             'teacher_id' => 'อาจารย์ที่ปรึกษา',
             'teacher_full_name' => 'อาจารย์ที่ปรึกษา',
             'guardian_first_name_th' => 'ชื่อผู้ปกครอง',
@@ -537,14 +555,14 @@ class StudentImportService
 
         $workbook
             ->addSheet([...$successHeaders, ...$this->excelRows($successRows)], 'Success')
-            ->setColWidth('A:S', 18)
+            ->setColWidth('A:U', 18)
             ->freezePanes('A3');
         $this->mergeGroupHeaders($workbook);
 
         $workbook
             ->addSheet([...$failedHeaders, ...$this->excelRows($failedRows)], 'Fail')
-            ->setColWidth('A:S', 18)
-            ->setColWidth('T', 60)
+            ->setColWidth('A:U', 18)
+            ->setColWidth('V', 60)
             ->freezePanes('A3');
         $this->mergeGroupHeaders($workbook);
 
@@ -656,6 +674,15 @@ class StudentImportService
         $year = (int) $value;
 
         return $year >= 2400 ? $year - 543 : $year;
+    }
+
+    private function studySemester(string $value): mixed
+    {
+        if ($value === '') {
+            return null;
+        }
+
+        return StudySemester::fromInput($value) ?? $value;
     }
 
     private function phone(string $value): string

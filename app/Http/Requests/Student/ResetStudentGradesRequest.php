@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Student;
 
 use App\Constants\HttpStatus;
+use App\Constants\StudySemester;
 use App\Helpers\ApiResponse;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -33,7 +34,7 @@ class ResetStudentGradesRequest extends FormRequest
                 'required_if:scope,semester',
                 'prohibited_unless:scope,semester',
                 'integer',
-                'between:1,3',
+                Rule::in(StudySemester::values()),
             ],
         ];
     }

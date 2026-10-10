@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Constants\Status;
+use App\Constants\StudySemester;
 use App\Contracts\CmisApi;
 use App\Enums\ListOfValueType;
 use App\Models\AdmissionChannel;
@@ -56,6 +57,7 @@ class ListOfValueService
                 null,
                 $includeIds,
             ),
+            ListOfValueType::StudySemesters => collect(StudySemester::options()),
             ListOfValueType::NoteTypes => $this->options(
                 NoteType::query()->where('status', Status::ACTIVE),
                 'note',

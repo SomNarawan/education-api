@@ -2,6 +2,7 @@
 
 namespace App\Services\Grades;
 
+use App\Constants\StudySemester;
 use RuntimeException;
 use Shuchkin\SimpleXLSX;
 
@@ -175,14 +176,13 @@ class GradeImportFileReader
 
     private function semester(string $value, int $rowNumber): array
     {
-        $normalized = mb_strtolower(trim($value));
+        $semester = StudySemester::fromInput($value);
 
-        return match ($normalized) {
-            '1', 'ภาคต้น', 'ต้น', 'first' => [1, 'ภาคต้น'],
-            '2', 'ภาคปลาย', 'ปลาย', 'second' => [2, 'ภาคปลาย'],
-            '3', 'ภาคฤดูร้อน', 'ฤดูร้อน', 'summer' => [3, 'ภาคฤดูร้อน'],
-            default => throw new RuntimeException("แถว {$rowNumber}: ภาคการศึกษาไม่ถูกต้อง"),
-        };
+        if ($semester === null) {
+            throw new RuntimeException("แถว {$rowNumber}: ภาคการศึกษาไม่ถูกต้อง");
+        }
+
+        return [$semester, StudySemester::nameTh($semester)];
     }
 
     private function academicYear(int $year): int

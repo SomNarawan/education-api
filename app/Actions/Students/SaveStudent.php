@@ -2,8 +2,8 @@
 
 namespace App\Actions\Students;
 
+use App\Constants\StudySemester;
 use App\Models\Student;
-use App\Services\Students\AcademicStandingCalculator;
 use Illuminate\Support\Arr;
 
 class SaveStudent
@@ -15,10 +15,6 @@ class SaveStudent
         'not_passed_credits',
         'overed_credits',
     ];
-
-    public function __construct(
-        private readonly AcademicStandingCalculator $standingCalculator,
-    ) {}
 
     public function create(array $attributes): Student
     {
@@ -33,8 +29,11 @@ class SaveStudent
 
     public function update(Student $student, array $attributes): Student
     {
-        if (array_key_exists('entry_year', $attributes)) {
-            $attributes = $this->addAcademicStanding($attributes);
+        if (
+            array_key_exists('study_year', $attributes) ||
+            array_key_exists('study_semester', $attributes)
+        ) {
+            $attributes = $this->addAcademicStanding($attributes, $student);
         }
 
         $student->update($attributes);
@@ -42,11 +41,18 @@ class SaveStudent
         return $student->refresh();
     }
 
-    private function addAcademicStanding(array $attributes): array
+    private function addAcademicStanding(array $attributes, ?Student $student = null): array
     {
+        $studyYear = (int) ($attributes['study_year'] ?? $student?->study_year);
+        $studySemester = (int) ($attributes['study_semester'] ?? $student?->study_semester);
+
         return [
             ...Arr::except($attributes, self::MANAGED_ACADEMIC_FIELDS),
-            ...$this->standingCalculator->calculate((int) $attributes['entry_year']),
+            'study_period' => sprintf(
+                'ปีที่ %d %s',
+                $studyYear,
+                StudySemester::nameTh($studySemester),
+            ),
         ];
     }
 }

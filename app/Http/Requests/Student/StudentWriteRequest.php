@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Student;
 
 use App\Constants\Status;
+use App\Constants\StudySemester;
 use App\Contracts\CmisApi;
 use App\Rules\ValidStudyPlan;
 use Illuminate\Foundation\Http\FormRequest;
@@ -72,6 +73,11 @@ class StudentWriteRequest extends FormRequest
                 Rule::exists('system_departments', 'id')->where('status', Status::ACTIVE),
             ]),
             'entry_year' => $this->requiredRules(['integer', 'between:1901,2155']),
+            'study_year' => $this->requiredRules(['integer', 'min:1']),
+            'study_semester' => $this->requiredRules([
+                'integer',
+                Rule::in(StudySemester::values()),
+            ]),
             'guardian_title_id' => ['sometimes', 'nullable', 'integer', 'exists:titles,id'],
             'guardian_first_name_th' => ['sometimes', 'nullable', 'string', 'max:50'],
             'guardian_last_name_th' => ['sometimes', 'nullable', 'string', 'max:50'],

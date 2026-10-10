@@ -8,6 +8,7 @@ enum ListOfValueType: string
     case AdmissionChannels = 'admission-channels';
     case Relationships = 'relationships';
     case StudentStatuses = 'student-statuses';
+    case StudySemesters = 'study-semesters';
     case NoteTypes = 'note-types';
     case ImportTypes = 'import-types';
     case HighSchools = 'high-schools';
