@@ -67,11 +67,10 @@ class StudentWriteRequest extends FormRequest
                 ),
             ]),
             'study_plan_name_th' => $this->requiredRules(['string', 'max:255']),
-            'system_department_id' => [
-                'sometimes',
+            'system_department_id' => $this->requiredRules([
                 'integer',
                 Rule::exists('system_departments', 'id')->where('status', Status::ACTIVE),
-            ],
+            ]),
             'entry_year' => $this->requiredRules(['integer', 'between:1901,2155']),
             'guardian_title_id' => ['sometimes', 'nullable', 'integer', 'exists:titles,id'],
             'guardian_first_name_th' => ['sometimes', 'nullable', 'string', 'max:50'],

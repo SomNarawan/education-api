@@ -4,7 +4,6 @@ namespace App\Actions\Students;
 
 use App\Models\Student;
 use App\Services\Students\AcademicStandingCalculator;
-use App\Services\Students\StudentDepartmentResolver;
 use Illuminate\Support\Arr;
 
 class SaveStudent
@@ -18,13 +17,11 @@ class SaveStudent
     ];
 
     public function __construct(
-        private readonly StudentDepartmentResolver $departmentResolver,
         private readonly AcademicStandingCalculator $standingCalculator,
     ) {}
 
     public function create(array $attributes): Student
     {
-        $attributes['system_department_id'] = $this->departmentResolver->resolve($attributes);
         $attributes = $this->addAcademicStanding($attributes);
 
         $student = new Student;
@@ -36,14 +33,6 @@ class SaveStudent
 
     public function update(Student $student, array $attributes): Student
     {
-        if (
-            ! array_key_exists('system_department_id', $attributes)
-            && array_key_exists('study_plan_id', $attributes)
-            && (int) $attributes['study_plan_id'] !== (int) $student->study_plan_id
-        ) {
-            $attributes['system_department_id'] = $this->departmentResolver->resolve($attributes);
-        }
-
         if (array_key_exists('entry_year', $attributes)) {
             $attributes = $this->addAcademicStanding($attributes);
         }
