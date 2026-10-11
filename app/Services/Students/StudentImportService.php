@@ -119,6 +119,7 @@ class StudentImportService
 
         $curriculumCode = mb_substr(trim($curriculumCode), 0, 255);
         $studyPlanNameTh = mb_substr(trim($studyPlanNameTh), 0, 255);
+        $importedBy = $this->importedBy($claims);
 
         $import = DataImport::query()->create([
             'import_type_id' => $importType->id,
@@ -128,7 +129,7 @@ class StudentImportService
             'curriculum_plan_name_th' => $studyPlanNameTh,
             'file_name' => $file->getClientOriginalName(),
             'status' => Status::PROCESSING,
-            'imported_by' => $this->importedBy($claims),
+            'imported_by' => $importedBy,
             'started_at' => now(),
         ]);
 
@@ -181,14 +182,18 @@ class StudentImportService
                 }
 
                 try {
-                    DB::transaction(function () use ($student, $validator): void {
+                    DB::transaction(function () use ($student, $validator, $importedBy): void {
                         if ($student === null) {
                             $this->saveStudent->create($validator->validated());
 
                             return;
                         }
 
-                        $this->saveStudent->update($student, $validator->validated());
+                        $this->saveStudent->update(
+                            $student,
+                            $validator->validated(),
+                            $importedBy,
+                        );
                     });
                     $successRows[] = $sourceRow;
                 } catch (ValidationException $exception) {

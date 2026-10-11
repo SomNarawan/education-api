@@ -4,7 +4,9 @@ namespace App\Actions\Students;
 
 use App\Constants\StudySemester;
 use App\Models\Student;
+use App\Models\StudentGuardianPhoneHistory;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 
 class SaveStudent
 {
@@ -27,18 +29,37 @@ class SaveStudent
         return $student->refresh();
     }
 
-    public function update(Student $student, array $attributes): Student
+    public function update(Student $student, array $attributes, ?string $updatedBy = null): Student
     {
-        if (
-            array_key_exists('study_year', $attributes) ||
-            array_key_exists('study_semester', $attributes)
-        ) {
-            $attributes = $this->addAcademicStanding($attributes, $student);
-        }
+        return DB::transaction(function () use ($student, $attributes, $updatedBy): Student {
+            $student = Student::query()
+                ->lockForUpdate()
+                ->findOrFail($student->getKey());
 
-        $student->update($attributes);
+            if (
+                array_key_exists('study_year', $attributes) ||
+                array_key_exists('study_semester', $attributes)
+            ) {
+                $attributes = $this->addAcademicStanding($attributes, $student);
+            }
 
-        return $student->refresh();
+            $guardianPhoneChanged = array_key_exists('guardian_phone', $attributes)
+                && $student->guardian_phone !== $attributes['guardian_phone'];
+
+            if ($guardianPhoneChanged) {
+                StudentGuardianPhoneHistory::query()->create([
+                    'student_id' => $student->id,
+                    'old_phone' => $student->guardian_phone,
+                    'new_phone' => $attributes['guardian_phone'],
+                    'updated_by' => $updatedBy,
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $student->update($attributes);
+
+            return $student->refresh();
+        });
     }
 
     private function addAcademicStanding(array $attributes, ?Student $student = null): array

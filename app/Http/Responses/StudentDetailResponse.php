@@ -46,6 +46,17 @@ class StudentDetailResponse extends JsonResource
             'guardian_relationship_id' => $this->guardian_relationship_id,
             'guardian_relationship_name' => $this->guardianRelationship?->relationship_name,
             'guardian_phone' => $this->guardian_phone,
+            'guardian_phone_histories' => $this->guardianPhoneHistories
+                ->map(fn ($history): array => [
+                    'id' => $history->id,
+                    'student_id' => $history->student_id,
+                    'old_phone' => $history->old_phone,
+                    'new_phone' => $history->new_phone,
+                    'updated_by' => $history->updated_by,
+                    'updated_at' => $history->updated_at?->toISOString(),
+                ])
+                ->values()
+                ->all(),
             'high_school_id' => $this->high_school_id,
             'high_school_name' => $this->highSchool?->school_name,
             'high_school_address' => ThaiAddressFormatter::format(

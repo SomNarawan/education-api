@@ -135,7 +135,20 @@ class StudentController extends Controller
             return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
         }
 
-        $this->saveStudent->update($student, $request->validated());
+        $attributes = $request->validated();
+        $updatesGuardianPhone = array_key_exists('guardian_phone', $attributes);
+        $updatedBy = $updatesGuardianPhone
+            ? $this->actorFromJwt($request)
+            : null;
+
+        if ($updatesGuardianPhone && $updatedBy === null) {
+            return ApiResponse::error(
+                'JWT does not contain name, nontri_id, or sub',
+                HttpStatus::UNPROCESSABLE_ENTITY['code']
+            );
+        }
+
+        $this->saveStudent->update($student, $attributes, $updatedBy);
         $student = $this->studentQuery->detail($student->id);
 
         return ApiResponse::success(

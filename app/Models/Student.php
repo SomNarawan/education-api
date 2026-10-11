@@ -122,4 +122,11 @@ class Student extends Model
     {
         return $this->hasMany(Note::class, 'student_id');
     }
+
+    public function guardianPhoneHistories(): HasMany
+    {
+        return $this->hasMany(StudentGuardianPhoneHistory::class, 'student_id')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id');
+    }
 }

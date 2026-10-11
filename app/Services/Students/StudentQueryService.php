@@ -81,6 +81,7 @@ class StudentQueryService
             'systemDepartment.systemFaculty',
             'guardianTitle',
             'guardianRelationship',
+            'guardianPhoneHistories',
         ]);
     }
 
