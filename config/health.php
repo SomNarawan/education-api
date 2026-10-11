@@ -23,4 +23,11 @@ return [
     // Must exceed the longest job: the worker does not loop while a job runs.
     'queue_worker_max_silence' => (int) env('HEALTH_QUEUE_WORKER_MAX_SILENCE', 180),
 
+    // External services (CMIS, Personnel API) are non-critical: when they fail
+    // the status is "degraded" (still 200), not "down" (503). Their results are
+    // cached this many seconds so frequent probes don't load those services;
+    // 0 = check on every request.
+    'external_cache_seconds' => (int) env('HEALTH_EXTERNAL_CACHE_SECONDS', 60),
+    'external_timeout' => (int) env('HEALTH_EXTERNAL_TIMEOUT', 3),
+
 ];

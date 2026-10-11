@@ -12,7 +12,8 @@ class HealthController extends Controller
     /**
      * API: GET /api/health[?token=<HEALTH_TOKEN>]
      *
-     * 200 when every check passes, 503 otherwise.
+     * 200 when status is "ok" or "degraded" (only a non-critical check failed),
+     * 503 when it is "down" (a critical check failed).
      */
     public function __invoke(Request $request, HealthCheckService $health): JsonResponse
     {
@@ -21,7 +22,7 @@ class HealthController extends Controller
 
         return response()->json(
             $report,
-            $report['status'] === 'ok' ? 200 : 503,
+            $report['status'] === 'down' ? 503 : 200,
             ['Cache-Control' => 'no-store'],
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT
         );

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Closure;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use PDO;
@@ -12,9 +13,15 @@ use Throwable;
  * Builds the GET /api/health report: one entry per dependency, each with an
  * "ok" flag. Details (counts, error messages) are only
  * included for callers that present config('health.token').
+ *
+ * Critical checks (this API's own dependencies) turn the status "down" (503).
+ * Non-critical ones (services we only call out to) turn it "degraded" but keep
+ * 200, so an outage elsewhere never makes this API look dead to a monitor.
  */
 class HealthCheckService
 {
+    private const CRITICAL = ['database', 'migrations', 'queue', 'storage'];
+
     public function isAuthorized(?string $token): bool
     {
         $expected = (string) config('health.token');
@@ -23,7 +30,7 @@ class HealthCheckService
     }
 
     /**
-     * @return array{status: string, checked_at: string, checks: array<string, array<string, mixed>>}
+     * @return array{status: string, message: string, checked_at: string, checks: array<string, array<string, mixed>>}
      */
     public function report(bool $detailed): array
     {
@@ -33,16 +40,29 @@ class HealthCheckService
             'queue' => $this->run(fn () => $this->queue()),
             'storage' => $this->run(fn () => $this->storage()),
             'frontend' => $this->run(fn () => $this->frontend()),
+            'cmis' => $this->cached('cmis', fn () => $this->cmis()),
+            'personnel_api' => $this->cached('personnel_api', fn () => $this->personnelApi()),
         ];
 
-        $healthy = collect($checks)->every(fn (array $check) => $check['ok']);
+        foreach ($checks as $name => &$check) {
+            $check['critical'] = in_array($name, self::CRITICAL, true);
+        }
+        unset($check);
+
+        $failed = collect($checks)->reject(fn (array $check) => $check['ok']);
+        $status = match (true) {
+            $failed->contains('critical', true) => 'down',
+            $failed->isNotEmpty() => 'degraded',
+            default => 'ok',
+        };
 
         $report = [
-            'status' => $healthy ? 'ok' : 'down',
+            'status' => $status,
+            'message' => $this->message($status, $failed->keys()->all()),
             'checked_at' => now()->toIso8601String(),
             'checks' => $detailed
                 ? $checks
-                : array_map(fn (array $check) => array_intersect_key($check, array_flip(['ok', 'skipped'])), $checks),
+                : array_map(fn (array $check) => array_intersect_key($check, array_flip(['ok', 'skipped', 'critical'])), $checks),
         ];
 
         if ($detailed) {
@@ -50,6 +70,27 @@ class HealthCheckService
         }
 
         return $report;
+    }
+
+    /**
+     * One line telling a person reading the response what the status means.
+     * Only names checks, which callers without a token already see.
+     *
+     * @param  list<string>  $failed
+     */
+    private function message(string $status, array $failed): string
+    {
+        $critical = array_values(array_intersect($failed, self::CRITICAL));
+        $others = array_values(array_diff($failed, self::CRITICAL));
+
+        return match ($status) {
+            'ok' => 'All checks passed. The API is working normally.',
+            'degraded' => 'The API is working, but non-critical services are failing: '.implode(', ', $others)
+                .'. Features that depend on them may not work.',
+            'down' => 'Critical checks failed: '.implode(', ', $critical)
+                .'. The API cannot serve requests normally.'
+                .($others === [] ? '' : ' Also failing: '.implode(', ', $others).'.'),
+        };
     }
 
     /**
@@ -67,6 +108,29 @@ class HealthCheckService
         }
 
         return $result + ['ms' => (int) round((microtime(true) - $started) * 1000)];
+    }
+
+    /**
+     * Like run(), but reuses the result for config('health.external_cache_seconds')
+     * so frequent probes of this public endpoint don't hammer other services.
+     *
+     * @param  Closure(): array<string, mixed>  $check
+     * @return array<string, mixed>
+     */
+    private function cached(string $key, Closure $check): array
+    {
+        $ttl = (int) config('health.external_cache_seconds');
+
+        if ($ttl <= 0) {
+            return $this->run($check);
+        }
+
+        try {
+            return Cache::remember("health:check:{$key}", $ttl, fn () => $this->run($check) + ['checked_at' => now()->toIso8601String()]);
+        } catch (Throwable) {
+            // A broken cache store must not hide the dependency's own state.
+            return $this->run($check);
+        }
     }
 
     private function database(): array
@@ -165,5 +229,55 @@ class HealthCheckService
             'url' => $url,
             'http_status' => $response->status(),
         ];
+    }
+
+    private function cmis(): array
+    {
+        $baseUrl = config('cmis.url');
+
+        if (! $baseUrl) {
+            return ['ok' => true, 'skipped' => true];
+        }
+
+        return $this->probe(
+            $this->joinUrl($baseUrl, config('cmis.base_path'), config('cmis.endpoints.curriculums')),
+            (bool) config('cmis.verify_ssl', true)
+        );
+    }
+
+    private function personnelApi(): array
+    {
+        $baseUrl = config('services.personnel_api.url');
+
+        if (! $baseUrl) {
+            return ['ok' => true, 'skipped' => true];
+        }
+
+        // PersonnelApiService does not verify SSL either.
+        return $this->probe(
+            $this->joinUrl($baseUrl, config('services.personnel_api.base_path'), config('services.personnel_api.endpoints.all_faculty')),
+            false
+        );
+    }
+
+    private function probe(string $url, bool $verifySsl): array
+    {
+        $response = Http::withOptions(['verify' => $verifySsl])
+            ->acceptJson()
+            ->timeout((int) config('health.external_timeout'))
+            ->get($url);
+
+        return [
+            'ok' => $response->successful(),
+            'url' => $url,
+            'http_status' => $response->status(),
+        ] + ($response->successful() ? [] : ['error' => "HTTP {$response->status()}"]);
+    }
+
+    private function joinUrl(string $baseUrl, ?string ...$parts): string
+    {
+        $parts = array_map(fn (?string $part) => trim((string) $part, '/'), $parts);
+
+        return implode('/', array_filter([rtrim($baseUrl, '/'), ...$parts], fn (string $part) => $part !== ''));
     }
 }
