@@ -267,7 +267,7 @@ class StudentGradeJsonGenerator
             $attempt['credit'] = is_numeric($planCourse['credit'] ?? null)
                 ? (float) $planCourse['credit']
                 : null;
-            unset($attempt['_source_row']);
+            unset($attempt['_source_row'], $attempt['_source_values']);
 
             return $attempt;
         }, $attempts);

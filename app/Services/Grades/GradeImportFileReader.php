@@ -8,6 +8,15 @@ use Shuchkin\SimpleXLSX;
 
 class GradeImportFileReader
 {
+    private const RESULT_FIELDS = [
+        'student_code',
+        'course_code',
+        'registration_type',
+        'grade_letter',
+        'academic_year',
+        'semester',
+    ];
+
     private const HEADER_ALIASES = [
         'student_code' => ['STDID', 'STUDENTID', 'STUDENTCODE', 'รหัสนิสิต'],
         'course_code' => ['SUBID', 'SUBJECTID', 'COURSEID', 'COURSECODE', 'รหัสวิชา'],
@@ -40,6 +49,17 @@ class GradeImportFileReader
 
     public function read(string $absolutePath): array
     {
+        $result = $this->readWithFailures($absolutePath);
+
+        if ($result['failed_rows'] !== []) {
+            throw new RuntimeException(implode("\n", array_column($result['failed_rows'], 'error')));
+        }
+
+        return $result['rows'];
+    }
+
+    public function readWithFailures(string $absolutePath): array
+    {
         $extension = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
 
         if ($extension !== 'xlsx') {
@@ -64,7 +84,7 @@ class GradeImportFileReader
     {
         [$headerIndex, $columns] = $this->findHeader($rows);
         $result = [];
-        $errors = [];
+        $failedRows = [];
 
         foreach (array_slice($rows, $headerIndex + 1, null, true) as $index => $row) {
             if ($this->isEmptyRow($row)) {
@@ -72,27 +92,29 @@ class GradeImportFileReader
             }
 
             $rowNumber = $index + 1;
+            $sourceRow = $this->sourceRow($row, $columns);
 
             try {
-                $result[] = $this->normalizeRow($row, $columns, $rowNumber);
+                $result[] = [
+                    ...$this->normalizeRow($row, $columns, $rowNumber),
+                    '_source_values' => $sourceRow,
+                ];
             } catch (RuntimeException $exception) {
-                $errors[] = $exception->getMessage();
-
-                if (count($errors) >= 10) {
-                    break;
-                }
+                $failedRows[] = [
+                    'values' => $sourceRow,
+                    'error' => $exception->getMessage(),
+                ];
             }
         }
 
-        if ($errors !== []) {
-            throw new RuntimeException(implode("\n", $errors));
-        }
-
-        if ($result === []) {
+        if ($result === [] && $failedRows === []) {
             throw new RuntimeException('ไม่พบข้อมูลผลการเรียนในไฟล์');
         }
 
-        return $result;
+        return [
+            'rows' => $result,
+            'failed_rows' => $failedRows,
+        ];
     }
 
     private function findHeader(array $rows): array
@@ -158,11 +180,21 @@ class GradeImportFileReader
             'section' => $value('section'),
             'grade_letter' => $grade,
             'grade_point' => self::GRADE_POINTS[$grade] ?? null,
-            'academic_year' => $this->academicYear((int) $academicYear),
+            'academic_year' => $this->academicYear((int) $academicYear, $rowNumber),
             'semester_order' => $semesterOrder,
             'semester' => $semesterName,
             '_source_row' => $rowNumber,
         ];
+    }
+
+    private function sourceRow(array $row, array $columns): array
+    {
+        return array_map(
+            fn (string $field): string => array_key_exists($field, $columns)
+                ? $this->cell($row[$columns[$field]] ?? null)
+                : '',
+            self::RESULT_FIELDS,
+        );
     }
 
     private function semester(string $value, int $rowNumber): array
@@ -176,7 +208,7 @@ class GradeImportFileReader
         return [$semester, StudySemester::nameTh($semester)];
     }
 
-    private function academicYear(int $year): int
+    private function academicYear(int $year, int $rowNumber): int
     {
         if ($year >= 2400) {
             return $year - 543;
@@ -190,7 +222,7 @@ class GradeImportFileReader
             return $year + 1957;
         }
 
-        throw new RuntimeException('ปีการศึกษาไม่ถูกต้อง');
+        throw new RuntimeException("แถว {$rowNumber}: ปีการศึกษาไม่ถูกต้อง");
     }
 
     private function enrollmentType(string $value): string

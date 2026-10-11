@@ -6,6 +6,7 @@ use App\Constants\Status;
 use App\Models\DataImport;
 use App\Models\Student;
 use App\Services\Grades\GradeImportFileReader;
+use App\Services\Grades\GradeImportResultWriter;
 use App\Services\Grades\StudentGradeJsonGenerator;
 use App\Services\Grades\StudentGradePlanResolver;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -28,6 +29,7 @@ class ProcessGradeImport implements ShouldQueue
 
     public function handle(
         GradeImportFileReader $reader,
+        GradeImportResultWriter $resultWriter,
         StudentGradePlanResolver $planResolver,
         StudentGradeJsonGenerator $generator,
     ): void {
@@ -43,7 +45,10 @@ class ProcessGradeImport implements ShouldQueue
         ]);
 
         try {
-            $rows = $reader->read(Storage::disk('local')->path($this->sourcePath));
+            $readResult = $reader->readWithFailures(
+                Storage::disk('local')->path($this->sourcePath),
+            );
+            $rows = $readResult['rows'];
             $groupedRows = [];
 
             foreach ($rows as $row) {
@@ -54,15 +59,14 @@ class ProcessGradeImport implements ShouldQueue
                 ->whereIn('student_code', array_keys($groupedRows))
                 ->get(['student_code', 'curriculum_id', 'study_plan_id'])
                 ->keyBy(fn (Student $student): string => (string) $student->student_code);
-            $import->update([
-                'total_count' => count($groupedRows),
-                'success_count' => 0,
-                'failed_count' => 0,
-            ]);
-
-            $successCount = 0;
-            $failedCount = 0;
-            $errors = [];
+            $successRows = [];
+            $failedRows = array_map(
+                fn (array $failure): array => [
+                    ...$failure['values'],
+                    $failure['error'],
+                ],
+                $readResult['failed_rows'],
+            );
 
             foreach ($groupedRows as $studentCode => $studentRows) {
                 try {
@@ -78,20 +82,32 @@ class ProcessGradeImport implements ShouldQueue
                         $resolvedPlan['study_plan_id'],
                         $import->id,
                     );
-                    $successCount++;
+
+                    foreach ($studentRows as $row) {
+                        $successRows[] = $row['_source_values'];
+                    }
                 } catch (Throwable $exception) {
                     report($exception);
-                    $failedCount++;
-                    $errors[] = "{$studentCode}: {$exception->getMessage()}";
-                }
 
-                $import->update([
-                    'success_count' => $successCount,
-                    'failed_count' => $failedCount,
-                ]);
+                    foreach ($studentRows as $row) {
+                        $failedRows[] = [
+                            ...$row['_source_values'],
+                            $this->failureReason($row, $exception),
+                        ];
+                    }
+                }
             }
 
+            $resultPath = $resultWriter->write($import->id, $successRows, $failedRows);
+            $successCount = count($successRows);
+            $failedCount = count($failedRows);
+            $errors = array_column($failedRows, 6);
+
             $import->update([
+                'file_result_path' => $resultPath,
+                'total_count' => $successCount + $failedCount,
+                'success_count' => $successCount,
+                'failed_count' => $failedCount,
                 'status' => $failedCount === 0
                     ? Status::COMPLETED
                     : ($successCount > 0 ? Status::COMPLETED_WITH_ERRORS : Status::FAILED),
@@ -117,5 +133,18 @@ class ProcessGradeImport implements ShouldQueue
             'error_message' => mb_substr($exception?->getMessage() ?? 'งานนำเข้าเกรดล้มเหลว', 0, 4000),
             'completed_at' => now(),
         ]);
+    }
+
+    private function failureReason(array $row, Throwable $exception): string
+    {
+        $message = trim($exception->getMessage());
+
+        if (preg_match('/^แถว\s+\d+:/u', $message) === 1) {
+            return $message;
+        }
+
+        return "แถว {$row['_source_row']}: ".($message !== ''
+            ? $message
+            : 'ไม่สามารถนำเข้าข้อมูลได้');
     }
 }
