@@ -27,7 +27,9 @@ services:
       - mysql
 
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.api
     container_name: api
     environment:
       APP_KEY: ${APP_KEY}
@@ -77,6 +79,9 @@ services:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3009/api}
         VITE_BASE_PATH: ${VITE_BASE_PATH:-}
         VITE_MOCK_LOGIN_ENABLED: ${MOCK_LOGIN_ENABLED:-false}
+        # Staff bundle only (admin/teacher). The student app is a separate
+        # build with VITE_APP_MODE=student and is not deployed yet.
+        VITE_APP_MODE: staff
     container_name: web
     ports:
       - "3008:80"
