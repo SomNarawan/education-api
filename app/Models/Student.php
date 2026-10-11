@@ -74,6 +74,24 @@ class Student extends Model
         'deleted_at' => 'datetime',
     ];
 
+    public function registeredCredits(): ?int
+    {
+        $credits = [
+            $this->passed_credits,
+            $this->not_passed_credits,
+            $this->overed_credits,
+        ];
+
+        if (count(array_filter($credits, fn ($credit): bool => $credit !== null)) === 0) {
+            return null;
+        }
+
+        return array_sum(array_map(
+            fn ($credit): int => (int) ($credit ?? 0),
+            $credits,
+        ));
+    }
+
     public function scopeStudying(Builder $query): Builder
     {
         return $query->whereHas(

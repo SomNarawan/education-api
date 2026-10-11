@@ -12,7 +12,6 @@ class GradeImportFileReader
         'student_code' => ['STDID', 'STUDENTID', 'STUDENTCODE', 'รหัสนิสิต'],
         'course_code' => ['SUBID', 'SUBJECTID', 'COURSEID', 'COURSECODE', 'รหัสวิชา'],
         'registration_type' => ['REGISTYPE', 'REGISTRATIONTYPE', 'ENROLLMENTTYPE', 'ประเภทลงทะเบียน', 'ประเภท'],
-        'credit' => ['CREDIT', 'CREDITS', 'หน่วยกิต'],
         'section' => ['SEC', 'SECTION', 'หมู่เรียน'],
         'grade_letter' => ['GRADE', 'GRADELETTER', 'เกรด'],
         'academic_year' => ['YEAR', 'ACADEMICYEAR', 'ปีการศึกษา', 'ปี'],
@@ -130,10 +129,6 @@ class GradeImportFileReader
             : '';
         $studentCode = $this->digits($value('student_code'));
         $courseCode = $this->digits($value('course_code'));
-        $creditValue = $value('credit');
-        $credit = $creditValue === ''
-            ? null
-            : filter_var($creditValue, FILTER_VALIDATE_FLOAT);
         $grade = strtoupper($value('grade_letter'));
         $academicYear = filter_var($value('academic_year'), FILTER_VALIDATE_INT);
 
@@ -143,10 +138,6 @@ class GradeImportFileReader
 
         if ($courseCode === '' || strlen($courseCode) > 8) {
             throw new RuntimeException("แถว {$rowNumber}: รหัสวิชาไม่ถูกต้อง");
-        }
-
-        if ($credit !== null && ($credit === false || $credit < 0)) {
-            throw new RuntimeException("แถว {$rowNumber}: หน่วยกิตไม่ถูกต้อง");
         }
 
         if (! array_key_exists($grade, self::GRADE_POINTS)
@@ -164,13 +155,13 @@ class GradeImportFileReader
             'student_code' => str_pad($studentCode, 10, '0', STR_PAD_LEFT),
             'course_code' => str_pad($courseCode, 8, '0', STR_PAD_LEFT),
             'enrollment_type' => $this->enrollmentType($value('registration_type')),
-            'credit' => $credit === null ? null : (float) $credit,
             'section' => $value('section'),
             'grade_letter' => $grade,
             'grade_point' => self::GRADE_POINTS[$grade] ?? null,
             'academic_year' => $this->academicYear((int) $academicYear),
             'semester_order' => $semesterOrder,
             'semester' => $semesterName,
+            '_source_row' => $rowNumber,
         ];
     }
 

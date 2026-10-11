@@ -19,6 +19,7 @@ class StudentListResponse extends JsonResource
             'study_plan_name' => $this->study_plan_name_th,
             'curriculum_plan_name' => $this->study_plan_name_th,
             'required_credits' => null,
+            'registered_credits' => $this->registeredCredits(),
             'passed_credits' => $this->passed_credits === null ? null : (int) $this->passed_credits,
             'not_passed_credits' => $this->not_passed_credits === null ? null : (int) $this->not_passed_credits,
             'overed_credits' => $this->overed_credits === null ? null : (int) $this->overed_credits,

@@ -15,6 +15,10 @@ class StudentGradeJsonGenerator
 
     private const ACADEMIC_GRADES = ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F'];
 
+    public function __construct(
+        private readonly StudentCreditSummaryCalculator $creditSummaryCalculator,
+    ) {}
+
     public function generate(
         string $studentCode,
         array $newAttempts,
@@ -146,9 +150,8 @@ class StudentGradeJsonGenerator
 
         $semesterGraph = $this->semesterGraph($attempts, $assigned, $over);
         $academicSummary = $this->academicSummary(
-            $slots,
-            $notPass,
-            $over,
+            array_column($assigned, 'aggregate'),
+            array_column($over, 'aggregate'),
             $semesterGraph,
         );
 
@@ -249,13 +252,22 @@ class StudentGradeJsonGenerator
         return array_map(function (array $attempt) use ($planRows): array {
             $courseCode = $this->normalizeCode($attempt['course_code'] ?? '');
             $planCourse = $this->planCourse($planRows, $courseCode);
-            $attempt['_is_in_plan'] = $planCourse !== null;
 
-            if (! isset($attempt['credit']) || ! is_numeric($attempt['credit'])) {
-                $attempt['credit'] = is_numeric($planCourse['credit'] ?? null)
-                    ? (float) $planCourse['credit']
-                    : null;
+            if ($planCourse === null) {
+                $row = isset($attempt['_source_row'])
+                    ? "แถว {$attempt['_source_row']}: "
+                    : '';
+
+                throw new RuntimeException(
+                    "{$row}ไม่พบรายวิชา {$courseCode} ในข้อมูลจาก provider กรุณาเพิ่มรายวิชานี้ก่อน",
+                );
             }
+
+            $attempt['_is_in_plan'] = true;
+            $attempt['credit'] = is_numeric($planCourse['credit'] ?? null)
+                ? (float) $planCourse['credit']
+                : null;
+            unset($attempt['_source_row']);
 
             return $attempt;
         }, $attempts);
@@ -879,9 +891,8 @@ class StudentGradeJsonGenerator
     }
 
     private function academicSummary(
-        array $slots,
-        array $notPass,
-        array $over,
+        array $assignedAggregates,
+        array $overAggregates,
         array $semesterGraph,
     ): array {
         $latestSemester = $semesterGraph[array_key_last($semesterGraph)] ?? [];
@@ -889,19 +900,10 @@ class StudentGradeJsonGenerator
         return [
             'gpa' => (float) ($latestSemester['gpa'] ?? 0),
             'gpax' => (float) ($latestSemester['gpax'] ?? 0),
-            'passed_credits' => $this->number(array_sum(array_column($slots, '_completed_credit'))),
-            'not_passed_credits' => $this->number(array_sum(array_map(
-                fn (array $record): float => is_numeric($record['credit'] ?? null)
-                    ? (float) $record['credit']
-                    : 0,
-                $notPass,
-            ))),
-            'overed_credits' => $this->number(array_sum(array_map(
-                fn (array $item): float => $this->completesCredit($item['aggregate'])
-                    ? (float) $item['aggregate']['credit']
-                    : 0,
-                $over,
-            ))),
+            ...$this->creditSummaryCalculator->calculate(
+                $assignedAggregates,
+                $overAggregates,
+            ),
         ];
     }
 

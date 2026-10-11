@@ -76,6 +76,7 @@ class StudentDetailResponse extends JsonResource
             'faculty_id' => $this->systemDepartment?->system_faculty_id,
             'faculty_name' => $this->systemDepartment?->systemFaculty?->th_name,
             'required_credits' => null,
+            'registered_credits' => $this->registeredCredits(),
             'passed_credits' => $this->passed_credits === null ? null : (int) $this->passed_credits,
             'not_passed_credits' => $this->not_passed_credits === null ? null : (int) $this->not_passed_credits,
             'overed_credits' => $this->overed_credits === null ? null : (int) $this->overed_credits,
