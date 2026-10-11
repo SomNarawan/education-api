@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\CurriculumCategoryController;
 use App\Http\Controllers\Api\CurriculumPlanCourseController;
 use App\Http\Controllers\Api\DataImportController;
 use App\Http\Controllers\Api\GradeImportController;
+use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\HighSchoolController;
 use App\Http\Controllers\Api\ImportTypeController;
 use App\Http\Controllers\Api\ListOfValueController;
@@ -26,6 +27,8 @@ use App\Http\Controllers\MockLoginController;
 use App\Http\Middleware\AuthenticateJwt;
 use App\Http\Middleware\AuthenticatePortalMainApiKey;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/health', HealthController::class)->withoutMiddleware(AuthenticateJwt::class);
 
 Route::prefix('mock-login')->withoutMiddleware(AuthenticateJwt::class)->group(function (): void {
     Route::get('/', [MockLoginController::class, 'picker']);
