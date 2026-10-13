@@ -2,6 +2,7 @@
 
 namespace App\Services\Grades;
 
+use App\Exceptions\GradeImportRowException;
 use App\Models\Student;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -254,13 +255,11 @@ class StudentGradeJsonGenerator
             $planCourse = $this->planCourse($planRows, $courseCode);
 
             if ($planCourse === null) {
-                $row = isset($attempt['_source_row'])
-                    ? "แถว {$attempt['_source_row']}: "
-                    : '';
+                $message = "ไม่พบรายวิชา {$courseCode} ในข้อมูลจาก provider กรุณาเพิ่มรายวิชานี้ก่อน";
 
-                throw new RuntimeException(
-                    "{$row}ไม่พบรายวิชา {$courseCode} ในข้อมูลจาก provider กรุณาเพิ่มรายวิชานี้ก่อน",
-                );
+                throw isset($attempt['_source_row'])
+                    ? new GradeImportRowException((int) $attempt['_source_row'], $message)
+                    : new RuntimeException($message);
             }
 
             $attempt['_is_in_plan'] = true;

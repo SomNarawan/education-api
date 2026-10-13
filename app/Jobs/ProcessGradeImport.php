@@ -7,8 +7,7 @@ use App\Models\DataImport;
 use App\Models\Student;
 use App\Services\Grades\GradeImportFileReader;
 use App\Services\Grades\GradeImportResultWriter;
-use App\Services\Grades\StudentGradeJsonGenerator;
-use App\Services\Grades\StudentGradePlanResolver;
+use App\Services\Grades\GradeImportStudentRowsProcessor;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Storage;
@@ -30,8 +29,7 @@ class ProcessGradeImport implements ShouldQueue
     public function handle(
         GradeImportFileReader $reader,
         GradeImportResultWriter $resultWriter,
-        StudentGradePlanResolver $planResolver,
-        StudentGradeJsonGenerator $generator,
+        GradeImportStudentRowsProcessor $studentRowsProcessor,
     ): void {
         $import = DataImport::query()->find($this->importId);
 
@@ -69,33 +67,14 @@ class ProcessGradeImport implements ShouldQueue
             );
 
             foreach ($groupedRows as $studentCode => $studentRows) {
-                try {
-                    $resolvedPlan = $planResolver->resolve(
-                        $students->get((string) $studentCode),
-                        (int) $import->curriculum_id,
-                    );
-
-                    $generator->generate(
-                        $studentCode,
-                        $studentRows,
-                        $resolvedPlan['courses'],
-                        $resolvedPlan['study_plan_id'],
-                        $import->id,
-                    );
-
-                    foreach ($studentRows as $row) {
-                        $successRows[] = $row['_source_values'];
-                    }
-                } catch (Throwable $exception) {
-                    report($exception);
-
-                    foreach ($studentRows as $row) {
-                        $failedRows[] = [
-                            ...$row['_source_values'],
-                            $this->failureReason($row, $exception),
-                        ];
-                    }
-                }
+                $processed = $studentRowsProcessor->process(
+                    $students->get((string) $studentCode),
+                    (int) $import->curriculum_id,
+                    $import->id,
+                    $studentRows,
+                );
+                array_push($successRows, ...$processed['successful_rows']);
+                array_push($failedRows, ...$processed['failed_rows']);
             }
 
             $resultPath = $resultWriter->write($import->id, $successRows, $failedRows);
@@ -133,18 +112,5 @@ class ProcessGradeImport implements ShouldQueue
             'error_message' => mb_substr($exception?->getMessage() ?? 'งานนำเข้าเกรดล้มเหลว', 0, 4000),
             'completed_at' => now(),
         ]);
-    }
-
-    private function failureReason(array $row, Throwable $exception): string
-    {
-        $message = trim($exception->getMessage());
-
-        if (preg_match('/^แถว\s+\d+:/u', $message) === 1) {
-            return $message;
-        }
-
-        return "แถว {$row['_source_row']}: ".($message !== ''
-            ? $message
-            : 'ไม่สามารถนำเข้าข้อมูลได้');
     }
 }
