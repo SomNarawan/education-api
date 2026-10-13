@@ -255,7 +255,7 @@ class StudentGradeJsonGenerator
             $planCourse = $this->planCourse($planRows, $courseCode);
 
             if ($planCourse === null) {
-                $message = "ไม่พบรายวิชา {$courseCode} ในข้อมูลจาก provider กรุณาเพิ่มรายวิชานี้ก่อน";
+                $message = "ไม่พบรายวิชา {$courseCode} ในระบบ กรุณาเพิ่มรายวิชานี้ก่อน";
 
                 throw isset($attempt['_source_row'])
                     ? new GradeImportRowException((int) $attempt['_source_row'], $message)
