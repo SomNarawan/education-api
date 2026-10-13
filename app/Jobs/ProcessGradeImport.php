@@ -80,8 +80,6 @@ class ProcessGradeImport implements ShouldQueue
             $resultPath = $resultWriter->write($import->id, $successRows, $failedRows);
             $successCount = count($successRows);
             $failedCount = count($failedRows);
-            $errors = array_column($failedRows, 6);
-
             $import->update([
                 'file_result_path' => $resultPath,
                 'total_count' => $successCount + $failedCount,
@@ -90,9 +88,7 @@ class ProcessGradeImport implements ShouldQueue
                 'status' => $failedCount === 0
                     ? Status::COMPLETED
                     : ($successCount > 0 ? Status::COMPLETED_WITH_ERRORS : Status::FAILED),
-                'error_message' => $errors === []
-                    ? null
-                    : mb_substr(implode("\n", array_slice($errors, 0, 20)), 0, 4000),
+                'error_message' => null,
                 'completed_at' => now(),
             ]);
         } catch (Throwable $exception) {
