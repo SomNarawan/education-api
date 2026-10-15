@@ -118,29 +118,170 @@ MOCK_LOGIN_ENABLED=true
 `FRONTEND_URL` รองรับหลาย origin คั่นด้วย comma สำหรับ CORS ส่วน `MOCK_LOGIN_FRONTEND_URL`
 กำหนด URL เดียวที่ backend จะ redirect กลับหลัง Mock Login
 
-เมื่อต้อง deploy บน server ให้ใช้ไฟล์ env production แทน default ของ compose:
+### Deploy บน server
+
+ระบบแบ่งเป็น 2 stack บน 2 server (แนวทางเดียวกับ CMIS):
+
+```text
+Students (browser)
+https://eng.kps.ku.ac.th/kukps-eng-education-ssd-public/
+     │
+     ▼
+┌─ Server A: eng.kps.ku.ac.th ─────────────────────────────────────────────────┐
+│ Reverse proxy :443 (existing)                                                │
+│   /kukps-eng-education-ssd-public/ → :3007  (prefix kept or stripped)        │
+│   │                                                                          │
+│ ┌─▼─ stack: kukps-eng-education-ssd-public ────────────────────────────────┐ │
+│ │ education-web/docker-compose.public.yml                                  │ │
+│ │                                                                          │ │
+│ │ web-public :3007  nginx  (education-web/Dockerfile, mode student)        │ │
+│ │   container kukps-eng-education-ssd-web-public                           │ │
+│ │   base /kukps-eng-education-ssd-public  (nginx strips it)                │ │
+│ │   /                    static files (student site + student mock login)  │ │
+│ │   /healthz             this container + HEALTHCHECK                      │ │
+│ │   /api/*               proxy, HTTPS  ==> Server B :3009 (see below)      │ │
+│ │   /api/health          same proxy, says which hop failed                 │ │
+│ │   /api/portal-main-student/*   404 (server-to-server only)               │ │
+│ │   env API_UPSTREAM=                                                      │ │
+│ │     https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api          │ │
+│ └──────────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+Staff / advisors (browser, any network)
+https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd/
+     │
+     ▼
+┌─ Server B: office.eng.kps.ku.ac.th ──────────────────────────────────────────┐
+│ Reverse proxy :443 (existing)                                                │
+│   /kukps-eng-education-ssd/      → :3008  (prefix kept or stripped)          │
+│   /kukps-eng-education-ssd-api/  → :3009  (must strip the prefix)            │
+│   │                                  ▲                                       │
+│   │                                  └── from Server A web-public /api/*     │
+│ ┌─▼─ stack: kukps-eng-education-ssd ───────────────────────────────────────┐ │
+│ │ education-api/docker-compose.yml          network: education-network     │ │
+│ │                                                                          │ │
+│ │ web :3008  nginx  (education-web/Dockerfile, mode staff)                 │ │
+│ │   container kukps-eng-education-ssd-web                                  │ │
+│ │   base /kukps-eng-education-ssd  (nginx strips it)                       │ │
+│ │   /                    static files (staff site + staff mock login)      │ │
+│ │   /healthz             this container + HEALTHCHECK                      │ │
+│ │   browser calls the API directly (CORS: FRONTEND_URL)                    │ │
+│ │                                                                          │ │
+│ │ api :3009  Laravel  (education-api/Dockerfile.api)                       │ │
+│ │   container kukps-eng-education-ssd-api                                  │ │
+│ │   /api/*               staff site (direct) + student site (via Server A) │ │
+│ │   /api/mock-login/*    issues a JWT, redirects to the staff/student site │ │
+│ │   /api/health          api, mysql, queue, storage, web, CMIS, Personnel  │ │
+│ │   /up                  process only, HEALTHCHECK                         │ │
+│ │   start: wait mysql → optimize → serve   (no migrate)                    │ │
+│ │   outbound: CMIS API, Personnel API                                      │ │
+│ │                                                                          │ │
+│ │ queue :3012  queue:work  (same image as api, command "queue")            │ │
+│ │   container kukps-eng-education-ssd-queue                                │ │
+│ │   runs ProcessGradeImport from the jobs table                            │ │
+│ │   /healthz             worker heartbeat + HEALTHCHECK                    │ │
+│ │                                                                          │ │
+│ │   api + queue share volumes:                                             │ │
+│ │     education_api_storage → storage/app              (import files)      │ │
+│ │     education_api_cache   → storage/framework/cache  (heartbeat)         │ │
+│ │     education_api_logs    → storage/logs                                 │ │
+│ │   │ host "mysql"                                                         │ │
+│ │   ▼                                                                      │ │
+│ │ mysql :3306, not published   (mysql:8.0)                                 │ │
+│ │   container kukps-eng-education-ssd-mysql                                │ │
+│ │   database education_dss, volume dbdata                                  │ │
+│ │   first start (empty volume): loads docker/db/*.sql                      │ │
+│ │ phpmyadmin :80 → host :8080   (phpmyadmin:5.2, MySQL login required)     │ │
+│ └──────────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+
+| Stack | Server | Container | Port | URL / หน้าที่ |
+| --- | --- | --- | --- | --- |
+| kukps-eng-education-ssd (`docker-compose.yml` ใน repo นี้) | office.eng.kps.ku.ac.th | `kukps-eng-education-ssd-web` | 3008 | เว็บเจ้าหน้าที่/อาจารย์ `https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd/` |
+| | | `kukps-eng-education-ssd-api` | 3009 | API `https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api/` |
+| | | `kukps-eng-education-ssd-queue` | 3012 | queue worker (import เกรด) — port นี้มีแค่ `/healthz` |
+| | | `kukps-eng-education-ssd-mysql` | — | ฐานข้อมูล `education_dss` (ไม่เปิด port ออกนอก) |
+| | | `kukps-eng-education-ssd-phpmyadmin` | 8080 | ต้อง login ด้วย user/password ของ MySQL |
+| kukps-eng-education-ssd-public (`../education-web/docker-compose.public.yml`) | eng.kps.ku.ac.th | `kukps-eng-education-ssd-web-public` | 3007 | เว็บนิสิต `https://eng.kps.ku.ac.th/kukps-eng-education-ssd-public/` |
+
+Reverse proxy (:443) ของแต่ละ server ต้องตั้ง:
+
+```text
+office.eng.kps.ku.ac.th
+  /kukps-eng-education-ssd/          -> :3008   (ตัด prefix หรือไม่ก็ได้)
+  /kukps-eng-education-ssd-api/      -> :3009   (ต้องตัด prefix ออก)
+eng.kps.ku.ac.th
+  /kukps-eng-education-ssd-public/   -> :3007   (ตัด prefix หรือไม่ก็ได้)
+```
+
+เว็บนิสิตเรียก API ผ่าน `<base path>/api/*` ของตัวเอง แล้ว nginx ใน container ส่งต่อไปที่
+`https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api` (ไม่ต้องตั้ง CORS ให้เว็บนิสิต)
+ดังนั้น server eng.kps.ku.ac.th ต้องเชื่อมต่อ office.eng.kps.ku.ac.th ทาง HTTPS ได้
+
+**1. office.eng.kps.ku.ac.th** — API, queue, เว็บเจ้าหน้าที่, ฐานข้อมูล
 
 ```bash
+# ต้องมีโฟลเดอร์ ../education-web อยู่ข้าง ๆ (ใช้ build เว็บเจ้าหน้าที่)
 cp .env.production.example .env.production
-# ใส่ APP_KEY, JWT_SECRET, DB_PASSWORD, PORTAL_MAIN_API_KEY และค่า production อื่น ๆ ให้ครบ
-# PORTAL_MAIN_API_KEY สร้างด้วย: openssl rand -hex 32
+# ใส่ APP_KEY, JWT_SECRET, DB_PASSWORD, PORTAL_MAIN_API_KEY, HEALTH_TOKEN และค่า production อื่น ๆ ให้ครบ
+# APP_KEY สร้างด้วย: php artisan key:generate --show
+# PORTAL_MAIN_API_KEY / HEALTH_TOKEN สร้างด้วย: openssl rand -hex 32
+
+# ครั้งแรก: วางไฟล์ dump ไว้ที่ docker/db/education_dss.sql — mysql จะโหลดเฉพาะตอน volume ยังว่าง
 docker compose --env-file .env.production up -d --build
 ```
 
-ค่าที่ต้องเป็น URL จริงบน server:
+ถ้าเคย deploy ด้วย compose เวอร์ชันเดิม (container ชื่อ `api`, `web`, `mysql`, `phpmyadmin`)
+ให้ `docker compose --env-file .env.production down` ก่อน แล้วค่อย `up` — ข้อมูลใน volume `dbdata` ยังอยู่
 
-```env
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api
-FRONTEND_URL=https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd
-MOCK_LOGIN_FRONTEND_URL=https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd
-VITE_API_URL=https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api/api
+**2. eng.kps.ku.ac.th** — เว็บนิสิต
+
+```bash
+cd ../education-web
+docker compose -f docker-compose.public.yml up -d --build
 ```
 
-สรุปคือ `FRONTEND_URL` ใช้กำหนด CORS, `MOCK_LOGIN_FRONTEND_URL` ใช้กำหนดปลายทาง
-redirect ของ Mock Login และ `VITE_API_URL` ถูกฝังตอน build frontend เวลาเปลี่ยนจาก local
-เป็น server ต้องตั้งค่าทั้งหมดให้ตรงกับ URL จริงและ rebuild frontend container ใหม่
+ค่าที่เปลี่ยนได้ (ตั้งใน shell หรือ `--env-file`): `WEB_PUBLIC_API_UPSTREAM`, `WEB_PUBLIC_BASE_PATH`,
+`WEB_PUBLIC_MOCK_LOGIN_ENABLED` (ค่าเริ่มต้น `true` — ตั้งเป็น `false` เมื่อมี SSO จริง), `WEB_PUBLIC_EXTERNAL_PORT`
+
+**Mock Login (ใช้แทน SSO ชั่วคราว)**
+
+ต้องเปิดทั้ง 2 ฝั่ง ไม่อย่างนั้นปุ่ม login จะไม่ทำงาน:
+
+| ที่ไหน | ค่า |
+| --- | --- |
+| `.env.production` (server office) | `MOCK_LOGIN_ENABLED=true`, `APP_ENV=staging` (ถ้าเป็น `production` API จะตอบ 404) |
+| | `MOCK_LOGIN_FRONTEND_URL=https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd` |
+| | `MOCK_LOGIN_STUDENT_FRONTEND_URL=https://eng.kps.ku.ac.th/kukps-eng-education-ssd-public` |
+| | `MOCK_LOGIN_ADMIN_NONTRI_IDS=...` (คนที่ได้ทั้ง role teacher + admin) |
+| เว็บเจ้าหน้าที่ | build ด้วย `MOCK_LOGIN_ENABLED` ตัวเดียวกันใน `.env.production` |
+| เว็บนิสิต (server eng) | `WEB_PUBLIC_MOCK_LOGIN_ENABLED` ค่าเริ่มต้น `true` อยู่แล้ว |
+
+ลำดับการ login: เบราว์เซอร์เปิด `<API>/api/mock-login/...` → API ออก JWT แล้ว redirect กลับไปที่
+`<เว็บ>/auth/callback?token=...` — ฝั่งนิสิตวิ่งผ่าน proxy ของ Server A ทั้งหมด
+ถ้าแก้ค่า `MOCK_LOGIN_*` ฝั่ง API แค่ `up -d` ใหม่ แต่ถ้าแก้ค่า `VITE_*` / `*_MOCK_LOGIN_ENABLED` ของเว็บ ต้อง `--build`
+
+**ตรวจสถานะ**
+
+| URL | ตรวจอะไร |
+| --- | --- |
+| `.../kukps-eng-education-ssd-api/api/health` | api + ฐานข้อมูล + queue worker + storage + เว็บเจ้าหน้าที่ + CMIS/Personnel API (`?token=<HEALTH_TOKEN>` ดูรายละเอียด) |
+| `.../kukps-eng-education-ssd-api/up` | process ของ api เท่านั้น (Docker HEALTHCHECK) |
+| `http://<office server>:3012/healthz` | queue worker ยังทำงานอยู่ไหม (Docker HEALTHCHECK) |
+| `.../kukps-eng-education-ssd/healthz` | container เว็บเจ้าหน้าที่ |
+| `https://eng.kps.ku.ac.th/kukps-eng-education-ssd-public/healthz` | container เว็บนิสิต |
+| `https://eng.kps.ku.ac.th/kukps-eng-education-ssd-public/api/health` | ทั้งเส้นทาง เว็บนิสิต → server office → api → ฐานข้อมูล (ถ้าต่อไม่ได้จะบอกว่าขาดช่วงไหน) |
+
+api และ queue ใช้ image เดียวกัน และแชร์ volume `storage/app` (ไฟล์ import/ผลลัพธ์),
+`storage/framework/cache` (heartbeat ของ queue) และ `storage/logs` — ถ้าแก้โค้ดต้อง `up -d --build`
+ใหม่ทั้งคู่ (compose ทำให้อัตโนมัติ)
+
+สรุปคือ `FRONTEND_URL` ใช้กำหนด CORS (เฉพาะเว็บเจ้าหน้าที่), `MOCK_LOGIN_FRONTEND_URL` /
+`MOCK_LOGIN_STUDENT_FRONTEND_URL` ใช้กำหนดปลายทาง redirect ของ Mock Login ฝั่งเจ้าหน้าที่/นิสิต
+และ `VITE_API_URL` ถูกฝังตอน build frontend เวลาเปลี่ยนจาก local เป็น server ต้องตั้งค่าทั้งหมด
+ให้ตรงกับ URL จริงและ rebuild frontend container ใหม่
 
 ## Database Setup
 

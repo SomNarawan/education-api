@@ -27,3 +27,5 @@ Thumbs.db
 /docker/db/*.sql
 Makefile.*
 *.gz
+# Local deploy test settings (generated secrets)
+/.env.docker

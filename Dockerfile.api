@@ -1,27 +1,70 @@
-# ---- vendor build stage ----
-FROM composer:2 AS vendor
-WORKDIR /app
+# syntax=docker/dockerfile:1
+
+# kukps-eng-education-ssd API - deployed on office.eng.kps.ku.ac.th.
+# One image, two containers (docker-compose.yml):
+#   api   (default command) - HTTP on :3009
+#   queue (command "queue") - queue:work, plus a status endpoint on :3012
+#
+#   docker build -f Dockerfile.api -t kukps-eng-education-ssd-api .
+#   docker run -d --env-file .env.production -p 3009:3009 kukps-eng-education-ssd-api
+#   docker run -d --env-file .env.production -p 3012:3012 kukps-eng-education-ssd-api queue
+#
+# The two containers must share storage/app (uploaded import files and their
+# results) and storage/framework/cache (the queue worker's heartbeat).
+
+# ---- base: PHP runtime with only the extensions the app needs ----
+# pdo_mysql: database, opcache: speed, pcntl: lets queue:work stop cleanly on
+# docker stop. Everything else (mbstring, dom, xml, zlib, ...) ships with the image.
+FROM php:8.2-cli-alpine AS base
+
+COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
+RUN install-php-extensions pdo_mysql opcache pcntl
+
+# Imports accept files up to 20 MB (ImportStudentsRequest, ImportGradesRequest).
+RUN printf 'upload_max_filesize=25M\npost_max_size=25M\nmemory_limit=256M\n' \
+        > /usr/local/etc/php/conf.d/app.ini
+
+WORKDIR /var/www/html
+
+# ---- vendor: production composer dependencies only (no dev packages) ----
+FROM base AS vendor
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+RUN composer install --no-dev --no-interaction --prefer-dist --no-progress --no-scripts --no-autoloader
+
 COPY . .
-RUN composer dump-autoload --optimize --no-dev
+RUN mkdir -p bootstrap/cache \
+    && composer dump-autoload --no-dev --optimize
 
-# ---- runtime stage (nginx + php-fpm bundled) ----
-FROM webdevops/php-nginx:8.2-alpine
+# ---- runtime ----
+FROM base
 
-ENV WEB_DOCUMENT_ROOT=/app/public \
-    PHP_MEMORY_LIMIT=256M \
-    PHP_DISPLAY_ERRORS=0
+# Lets `php -S` serve requests in parallel instead of one at a time.
+ENV PHP_CLI_SERVER_WORKERS=4
 
-WORKDIR /app
-COPY --from=vendor /app ./
+COPY --from=vendor /var/www/html /var/www/html
 
-# ----------------- ส่วนที่เพิ่มเข้ามา -----------------
-# 1. ลบ config เริ่มต้นที่ทำให้เกิด error port 80 และ 443 ชนกัน
-RUN rm -f /opt/docker/etc/nginx/vhost.conf /opt/docker/etc/nginx/vhost.ssl.conf
+RUN mkdir -p \
+        storage/app/private \
+        storage/app/public \
+        storage/framework/cache/data \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs \
+        bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod +x docker/entrypoint.sh
 
-# 2. Copy ไฟล์ vhost.conf ของเราเข้าไปแทนที่
-COPY vhost.conf /opt/docker/etc/nginx/vhost.conf
-# --------------------------------------------------
+USER www-data
 
-RUN chown -R application:application storage bootstrap/cache
+EXPOSE 3009 3012
+
+# Liveness of the api container only (Laravel's /up). Whether the database,
+# queue worker etc. work is /api/health. The queue container overrides this.
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 --start-period=60s \
+    CMD wget -qO /dev/null http://127.0.0.1:3009/up || exit 1
+
+ENTRYPOINT ["docker/entrypoint.sh"]
+CMD ["sh", "-c", "cd public && exec php -S 0.0.0.0:3009 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"]

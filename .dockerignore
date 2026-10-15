@@ -1,10 +1,40 @@
-.env
-.env.*
 .git
 .gitignore
-node_modules
+.github
+.vscode
+.idea
+.claude
+docs
+*.log
+.DS_Store
+
+# Secrets / local config - the containers get their env from docker-compose
+.env
+.env.*
+
+# Installed inside the image instead
 vendor
+node_modules
+
+# The database dump is loaded by the mysql container, never baked into the image
 docker/db/*.sql
+
+# Not needed at runtime
+tests
+phpunit.xml
+.phpunit.result.cache
+.phpunit.cache
+package.json
+package-lock.json
+vite.config.js
+README.md
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+database/database.sqlite
+
+# Generated locally - must not leak into the image (stale caches / dev packages)
+bootstrap/cache/*.php
 storage/app/private/*
 !storage/app/private/.gitignore
 !storage/app/private/data
@@ -13,7 +43,3 @@ storage/framework/cache/*
 storage/framework/sessions/*
 storage/framework/views/*
 storage/logs/*
-.phpunit.result.cache
-.phpunit.cache
-tests
-README.md
