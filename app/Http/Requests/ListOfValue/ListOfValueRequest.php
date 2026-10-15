@@ -15,6 +15,7 @@ class ListOfValueRequest extends FormRequest
             ListOfValueType::Curriculums,
             ListOfValueType::StudyPlans,
             ListOfValueType::CurriculumPersonnel,
+            ListOfValueType::Students,
         ], true);
 
         return [

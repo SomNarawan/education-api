@@ -13,6 +13,7 @@ use App\Models\ImportType;
 use App\Models\NoteType;
 use App\Models\Province;
 use App\Models\Relationship;
+use App\Models\Student;
 use App\Models\StudentStatus;
 use App\Models\Subdistrict;
 use App\Models\SystemDepartment;
@@ -113,7 +114,31 @@ class ListOfValueService
             ListOfValueType::CurriculumPersonnel => $this->curriculumPersonnelOptions(
                 (int) $filters['curriculum_id'],
             ),
+            ListOfValueType::Students => $this->studentOptions(),
         };
+    }
+
+    private function studentOptions(): Collection
+    {
+        return Student::query()
+            ->studying()
+            ->orderBy('student_code')
+            ->get([
+                'id',
+                'student_code',
+                'first_name_th',
+                'last_name_th',
+            ])
+            ->map(fn (Student $student): array => [
+                'id' => (int) $student->getKey(),
+                'name_th' => trim(
+                    $student->student_code.' - '
+                    .$student->first_name_th.' '
+                    .$student->last_name_th
+                ),
+                'name_en' => null,
+            ])
+            ->values();
     }
 
     private function studyPlanOptions(int $curriculumId): Collection

@@ -20,4 +20,5 @@ enum ListOfValueType: string
     case Curriculums = 'curriculums';
     case StudyPlans = 'study-plans';
     case CurriculumPersonnel = 'curriculum-personnel';
+    case Students = 'students';
 }
