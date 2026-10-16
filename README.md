@@ -134,7 +134,7 @@ https://eng.kps.ku.ac.th/kukps-eng-education-ssd-public/
 │ ┌─▼─ stack: kukps-eng-education-ssd-public ────────────────────────────────┐ │
 │ │ education-web/docker-compose.public.yml                                  │ │
 │ │                                                                          │ │
-│ │ web-public :3007  nginx  (education-web/Dockerfile, mode student)        │ │
+│ │ web-public :3007  nginx  (education-web/Dockerfile.public)               │ │
 │ │   container kukps-eng-education-ssd-web-public                           │ │
 │ │   base /kukps-eng-education-ssd-public  (nginx strips it)                │ │
 │ │   /                    static files (student site + student mock login)  │ │
@@ -160,7 +160,7 @@ https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd/
 │ ┌─▼─ stack: kukps-eng-education-ssd ───────────────────────────────────────┐ │
 │ │ education-api/docker-compose.yml          network: education-network     │ │
 │ │                                                                          │ │
-│ │ web :3008  nginx  (education-web/Dockerfile, mode staff)                 │ │
+│ │ web :3008  nginx  (education-web/Dockerfile.private)                     │ │
 │ │   container kukps-eng-education-ssd-web                                  │ │
 │ │   base /kukps-eng-education-ssd  (nginx strips it)                       │ │
 │ │   /                    static files (staff site + staff mock login)      │ │

@@ -130,8 +130,8 @@ services:
     image: kukps-eng-education-ssd-web:latest
     build:
       context: ../education-web
+      dockerfile: Dockerfile.private
       args:
-        VITE_APP_MODE: staff
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3009/api}
         VITE_BASE_PATH: ${VITE_BASE_PATH:-}
         VITE_MOCK_LOGIN_ENABLED: ${MOCK_LOGIN_ENABLED:-false}
