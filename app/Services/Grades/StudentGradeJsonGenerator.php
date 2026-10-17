@@ -4,6 +4,9 @@ namespace App\Services\Grades;
 
 use App\Exceptions\GradeImportRowException;
 use App\Models\Student;
+use App\Services\Storage\LocalJsonFileStore;
+use App\Services\StudyPlans\StudentStudyPlanStore;
+use App\Services\StudyPlans\StudyPlanPayload;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -18,6 +21,9 @@ class StudentGradeJsonGenerator
 
     public function __construct(
         private readonly StudentCreditSummaryCalculator $creditSummaryCalculator,
+        private readonly StudyPlanPayload $studyPlanPayload,
+        private readonly StudentStudyPlanStore $studyPlanStore,
+        private readonly LocalJsonFileStore $jsonFiles,
     ) {}
 
     public function generate(
@@ -27,21 +33,43 @@ class StudentGradeJsonGenerator
         int $studyPlanId,
         ?int $importId = null,
     ): void {
-        [$planRows, $totalCredits] = $this->plan($planResponse, $studyPlanId);
+        [$planRows, $totalCredits] = $this->studyPlanPayload
+            ->coursesAndTotalCredits($planResponse, $studyPlanId);
         $newAttempts = $this->withPlanCredits($newAttempts, $planRows);
         $attempts = $this->mergeAttempts($studentCode, $newAttempts);
-        $attempts = $this->withPlanCredits($attempts, $planRows);
+        $attempts = $this->withPlanCredits($attempts, $planRows, true);
+        $this->writeGeneratedData(
+            $studentCode,
+            $attempts,
+            $planRows,
+            $totalCredits,
+            $importId,
+        );
+        $this->studyPlanStore->put($studentCode, $planResponse);
+    }
+
+    public function recalculate(
+        string $studentCode,
+        array $planResponse,
+        int $studyPlanId,
+    ): bool {
+        $attempts = $this->storedAttempts($studentCode);
+
+        if ($attempts === null) {
+            return false;
+        }
+
+        [$planRows, $totalCredits] = $this->studyPlanPayload
+            ->coursesAndTotalCredits($planResponse, $studyPlanId);
+        $attempts = $this->withPlanCredits($attempts, $planRows, true);
         $this->writeGeneratedData(
             $studentCode,
             $attempts,
             $planRows,
             $totalCredits,
         );
-        $this->writeStudyPlanSyncLog(
-            $studentCode,
-            $importId,
-            $planResponse,
-        );
+
+        return true;
     }
 
     public function resetAll(string $studentCode): ?int
@@ -76,8 +104,9 @@ class StudentGradeJsonGenerator
             return 0;
         }
 
-        [$planRows, $totalCredits] = $this->plan($planResponse, $studyPlanId);
-        $attempts = $this->withPlanCredits($attempts, $planRows);
+        [$planRows, $totalCredits] = $this->studyPlanPayload
+            ->coursesAndTotalCredits($planResponse, $studyPlanId);
+        $attempts = $this->withPlanCredits($attempts, $planRows, true);
         $standing = $this->studentStanding($studentCode);
         $entryYear = $this->entryYear($studentCode, $standing, $attempts, $planRows);
         $attempts = array_map(
@@ -120,7 +149,10 @@ class StudentGradeJsonGenerator
         array $attempts,
         array $planRows,
         float $totalCredits,
+        ?int $sourceImportId = null,
     ): void {
+        $sourceImportId ??= $this->storedSourceImportId($studentCode);
+        $attempts = $this->withoutAttemptSourceImportIds($attempts);
         $standing = $this->studentStanding($studentCode);
         $entryYear = $this->entryYear($studentCode, $standing, $attempts, $planRows);
         $attempts = array_map(
@@ -130,7 +162,10 @@ class StudentGradeJsonGenerator
             ],
             $attempts,
         );
-        $this->writeJson("data/grade_attempts/{$studentCode}.json", $attempts);
+        $this->jsonFiles->write("data/grade_attempts/{$studentCode}.json", [
+            'source_import_id' => $sourceImportId,
+            'grade_attempts' => $attempts,
+        ]);
         $aggregates = $this->aggregateCourses($attempts);
         $slots = $this->slots($planRows);
         [$slots, $assigned, $over] = $this->allocate($slots, $aggregates);
@@ -156,10 +191,10 @@ class StudentGradeJsonGenerator
             $semesterGraph,
         );
 
-        $this->writeJson("data/enrollments/{$studentCode}.json", $enrollments);
-        $this->writeJson("data/enrollments_not_pass/{$studentCode}.json", $notPass);
-        $this->writeJson("data/enrollments_pass/{$studentCode}.json", $passedAfterFailure);
-        $this->writeJson("data/enrollments_over/{$studentCode}.json", $overRecords);
+        $this->jsonFiles->write("data/enrollments/{$studentCode}.json", $enrollments);
+        $this->jsonFiles->write("data/enrollments_not_pass/{$studentCode}.json", $notPass);
+        $this->jsonFiles->write("data/enrollments_pass/{$studentCode}.json", $passedAfterFailure);
+        $this->jsonFiles->write("data/enrollments_over/{$studentCode}.json", $overRecords);
         $this->writeGraphs(
             $studentCode,
             $slots,
@@ -175,18 +210,65 @@ class StudentGradeJsonGenerator
 
     private function storedAttempts(string $studentCode): ?array
     {
-        $path = "data/grade_attempts/{$studentCode}.json";
-        $disk = Storage::disk('local');
+        return $this->storedGradeAttemptsPayload($studentCode)['grade_attempts'] ?? null;
+    }
 
-        if (! $disk->exists($path)) {
+    private function storedSourceImportId(string $studentCode): ?int
+    {
+        return $this->storedGradeAttemptsPayload($studentCode)['source_import_id'] ?? null;
+    }
+
+    private function storedGradeAttemptsPayload(string $studentCode): ?array
+    {
+        $decoded = $this->jsonFiles->read("data/grade_attempts/{$studentCode}.json");
+
+        if ($decoded === null) {
+            return null;
+        }
+        $isLegacyList = is_array($decoded) && array_is_list($decoded);
+        $attempts = $isLegacyList
+            ? $decoded
+            : (is_array($decoded) ? ($decoded['grade_attempts'] ?? []) : []);
+        $attempts = is_array($attempts)
+            ? array_values(array_filter($attempts, 'is_array'))
+            : [];
+        $sourceImportId = $isLegacyList
+            ? null
+            : $this->positiveInteger(is_array($decoded) ? ($decoded['source_import_id'] ?? null) : null);
+        $sourceImportId ??= $this->latestAttemptSourceImportId($attempts);
+
+        return [
+            'source_import_id' => $sourceImportId,
+            'grade_attempts' => $this->withoutAttemptSourceImportIds($attempts),
+        ];
+    }
+
+    private function latestAttemptSourceImportId(array $attempts): ?int
+    {
+        $importIds = array_filter(array_map(
+            fn (array $attempt): ?int => $this->positiveInteger($attempt['source_import_id'] ?? null),
+            $attempts,
+        ));
+
+        return $importIds === [] ? null : max($importIds);
+    }
+
+    private function withoutAttemptSourceImportIds(array $attempts): array
+    {
+        return array_map(function (array $attempt): array {
+            unset($attempt['source_import_id']);
+
+            return $attempt;
+        }, $attempts);
+    }
+
+    private function positiveInteger(mixed $value): ?int
+    {
+        if (filter_var($value, FILTER_VALIDATE_INT) === false || (int) $value < 1) {
             return null;
         }
 
-        $decoded = json_decode($disk->get($path), true, 512, JSON_THROW_ON_ERROR);
-
-        return is_array($decoded)
-            ? array_values(array_filter($decoded, 'is_array'))
-            : [];
+        return (int) $value;
     }
 
     private function deleteGeneratedData(string $studentCode): void
@@ -209,52 +291,23 @@ class StudentGradeJsonGenerator
         }
     }
 
-    private function writeStudyPlanSyncLog(
-        string $studentCode,
-        ?int $importId,
-        array $planResponse,
-    ): void {
-        if ($importId === null) {
-            return;
-        }
-
-        $this->writeJson(
-            "data/study_plan_sync_logs/{$studentCode}_{$importId}.json",
-            $planResponse,
-        );
-    }
-
-    private function plan(array $response, int $studyPlanId): array
-    {
-        $plans = array_is_list($response) ? $response : [$response];
-        $selected = null;
-
-        foreach ($plans as $plan) {
-            if ((int) ($plan['curriculum_plan_id'] ?? 0) === $studyPlanId) {
-                $selected = $plan;
-                break;
-            }
-        }
-
-        $selected ??= $plans[0] ?? null;
-
-        if (! is_array($selected) || ! isset($selected['data']) || ! is_array($selected['data'])) {
-            throw new RuntimeException('ไม่พบข้อมูลรายวิชาในแผนการเรียนที่เลือก');
-        }
-
-        return [
-            array_values(array_filter($selected['data'], 'is_array')),
-            (float) ($selected['total_credits_min'] ?? 0),
-        ];
-    }
-
-    private function withPlanCredits(array $attempts, array $planRows): array
-    {
-        return array_map(function (array $attempt) use ($planRows): array {
+    private function withPlanCredits(
+        array $attempts,
+        array $planRows,
+        bool $allowOutsidePlan = false,
+    ): array {
+        return array_map(function (array $attempt) use ($planRows, $allowOutsidePlan): array {
             $courseCode = $this->normalizeCode($attempt['course_code'] ?? '');
             $planCourse = $this->planCourse($planRows, $courseCode);
 
             if ($planCourse === null) {
+                if ($allowOutsidePlan) {
+                    $attempt['_is_in_plan'] = false;
+                    unset($attempt['_source_row'], $attempt['_source_values']);
+
+                    return $attempt;
+                }
+
                 $message = "ไม่พบรายวิชา {$courseCode} ในระบบ กรุณาเพิ่มรายวิชานี้ก่อน";
 
                 throw isset($attempt['_source_row'])
@@ -292,13 +345,7 @@ class StudentGradeJsonGenerator
 
     private function mergeAttempts(string $studentCode, array $newAttempts): array
     {
-        $path = "data/grade_attempts/{$studentCode}.json";
-        $existing = [];
-
-        if (Storage::disk('local')->exists($path)) {
-            $decoded = json_decode(Storage::disk('local')->get($path), true);
-            $existing = is_array($decoded) ? array_values(array_filter($decoded, 'is_array')) : [];
-        }
+        $existing = $this->storedAttempts($studentCode) ?? [];
 
         $merged = [];
 
@@ -850,7 +897,7 @@ class StudentGradeJsonGenerator
     ): void {
         $assignedAggregates = array_column($assigned, 'aggregate');
 
-        $this->writeJson("data/graph/by_credit/{$studentCode}.json", [
+        $this->jsonFiles->write("data/graph/by_credit/{$studentCode}.json", [
             [
                 'type' => 'credit_study',
                 'credits_study' => $this->number($creditsStudy),
@@ -865,7 +912,7 @@ class StudentGradeJsonGenerator
             ],
         ]);
 
-        $this->writeJson(
+        $this->jsonFiles->write(
             "data/graph/by_semester/{$studentCode}.json",
             $semesterGraph,
         );
@@ -875,7 +922,7 @@ class StudentGradeJsonGenerator
         foreach ($this->mainCategories($slots, $assigned, $over) as $index => $category) {
             $path = 'data/graph/by_group/'.$studentCode.'_'.($index + 1).'.json';
             $groupFiles[] = $path;
-            $this->writeJson(
+            $this->jsonFiles->write(
                 $path,
                 $this->groupGraph($category, $slots, $assigned, $over),
             );
@@ -1142,20 +1189,6 @@ class StudentGradeJsonGenerator
         }
 
         return $credits > 0 ? round($points / $credits, 2) : 0;
-    }
-
-    private function writeJson(string $path, array $data): void
-    {
-        $json = json_encode(
-            $data,
-            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
-        );
-        $disk = Storage::disk('local');
-        $disk->makeDirectory(dirname($path));
-
-        if (! $disk->put($path, $json."\n")) {
-            throw new RuntimeException("ไม่สามารถเขียนไฟล์ {$path} ได้");
-        }
     }
 
     private function attemptOrder(array $attempt): int

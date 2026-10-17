@@ -15,6 +15,7 @@ REST API backend (Laravel 12) สำหรับ **ระบบฐานข้�
 
 ### จัดการข้อมูลนิสิต (Students)
 - ค้นหา/กรองรายชื่อนิสิตตามอาจารย์ที่ปรึกษา, ภาควิชา, คณะ, สถานะการศึกษา, ชื่อ, หรือข้อความในบันทึก (`GET /api/students`)
+- ดึงรายชื่อนิสิตที่กำลังศึกษาในรูปแบบตัวเลือก (`GET /api/list-of-values/students`)
 - ดูรายชื่อ "นิสิตที่กำลังศึกษาอยู่" ของอาจารย์คนหนึ่ง (`GET /api/students/studying`)
 - ดูรายชื่อ "นิสิตที่ยังไม่มีอาจารย์ที่ปรึกษา" แยกตามภาควิชา (`GET /api/students/studying/without-advisor`)
 - มอบหมาย/ถอดอาจารย์ที่ปรึกษาให้นิสิตหลายคนพร้อมกันแบบ transaction ป้องกันการชนกันของอาจารย์ (`PATCH /api/students/advisor`)
@@ -25,6 +26,8 @@ REST API backend (Laravel 12) สำหรับ **ระบบฐานข้�
 - ดึงข้อมูลการลงทะเบียนเรียนของนิสิตรายคน (`/api/students/{studentCode}/enrollments`)
 - ดึงสถานะรายวิชา: ผ่าน/ไม่ผ่าน/เกินแผน (`/api/students/{studentCode}/enrollment-statuses`)
 - ดึงข้อมูลสรุปผลการเรียนสำหรับทำกราฟ/แดชบอร์ด แยกตามหน่วยกิต, กลุ่มวิชา, ภาคการศึกษา (`/api/students/{studentCode}/performance-summary`)
+- ไฟล์ `data/grade_attempts/{studentCode}.json` เก็บ `source_import_id` ระดับไฟล์ เพื่ออ้างถึงงานนำเข้าล่าสุดในตาราง `imports`
+- แผนการเรียนล่าสุดจาก CMIS เก็บแบบหนึ่งไฟล์ต่อนิสิตที่ `data/study_plan/{studentCode}.json` และเขียนทับเมื่อ import หรือเปลี่ยนแผนการเรียน
 
 ### อาจารย์ / โครงสร้างองค์กร
 - รายชื่ออาจารย์ที่ปรึกษาอ่านจาก CMIS API ผ่าน `GET /api/list-of-values/curriculum-personnel`

@@ -119,6 +119,10 @@ Route::prefix('students')->group(function (): void {
     Route::get('/import/template', [StudentImportController::class, 'downloadTemplate']);
     Route::post('/import', StudentImportController::class);
 
+    Route::get('/{id}/academic-overview', [StudentJsonDataController::class, 'academicOverview'])
+        ->whereNumber('id');
+    Route::get('/{id}/unattempted-courses', [StudentJsonDataController::class, 'unattemptedCourses'])
+        ->whereNumber('id');
     Route::get('/{studentCode}/enrollments', [StudentJsonDataController::class, 'enrollments'])
         ->whereNumber('studentCode');
     Route::get('/{studentCode}/enrollment-statuses', [StudentJsonDataController::class, 'enrollmentStatuses'])

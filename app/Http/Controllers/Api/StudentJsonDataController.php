@@ -5,12 +5,66 @@ namespace App\Http\Controllers\Api;
 use App\Constants\HttpStatus;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Student;
+use App\Services\Students\StudentAcademicOverviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
 use JsonException;
 
 class StudentJsonDataController extends Controller
 {
+    public function __construct(
+        private readonly StudentAcademicOverviewService $academicOverview,
+    ) {}
+
+    /**
+     * API: GET /api/students/{id}/academic-overview
+     */
+    public function academicOverview(int $id): JsonResponse
+    {
+        $student = Student::query()->find($id);
+
+        if ($student === null) {
+            return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
+        }
+
+        try {
+            $data = $this->academicOverview->get($student);
+        } catch (JsonException $exception) {
+            return ApiResponse::error(
+                'Academic overview JSON data is invalid',
+                HttpStatus::INTERNAL_SERVER_ERROR['code'],
+                ['section' => $exception->getMessage()],
+            );
+        }
+
+        return ApiResponse::success($data, 'Load student academic overview successfully');
+    }
+
+    /**
+     * API: GET /api/students/{id}/unattempted-courses
+     */
+    public function unattemptedCourses(int $id): JsonResponse
+    {
+        $student = Student::query()->find($id);
+
+        if ($student === null) {
+            return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
+        }
+
+        try {
+            $data = $this->academicOverview->unattemptedCourses($student);
+        } catch (JsonException $exception) {
+            return ApiResponse::error(
+                'Unattempted course JSON data is invalid',
+                HttpStatus::INTERNAL_SERVER_ERROR['code'],
+                ['section' => $exception->getMessage()],
+            );
+        }
+
+        return ApiResponse::success($data, 'Load unattempted courses successfully');
+    }
+
     /**
      * API: GET /api/students/{studentCode}/enrollments
      */

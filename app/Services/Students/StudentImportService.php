@@ -10,8 +10,8 @@ use App\Models\DataImport;
 use App\Models\ImportType;
 use App\Models\Student;
 use App\Services\ListOfValueService;
+use App\Services\StudyPlans\StudentStudyPlanService;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -95,6 +95,7 @@ class StudentImportService
     public function __construct(
         private readonly SaveStudent $saveStudent,
         private readonly ListOfValueService $listOfValueService,
+        private readonly StudentStudyPlanService $studyPlans,
     ) {}
 
     public function import(
@@ -149,6 +150,7 @@ class StudentImportService
             }
 
             $masterData = $this->masterData($curriculumId);
+            $studyPlan = $this->studyPlans->fetch($studyPlanId);
             $successRows = [];
             $failedRows = [];
 
@@ -182,19 +184,19 @@ class StudentImportService
                 }
 
                 try {
-                    DB::transaction(function () use ($student, $validator, $importedBy): void {
-                        if ($student === null) {
-                            $this->saveStudent->create($validator->validated());
-
-                            return;
-                        }
-
-                        $this->saveStudent->update(
+                    if ($student === null) {
+                        $this->saveStudent->createFromImport(
+                            $validator->validated(),
+                            $studyPlan,
+                        );
+                    } else {
+                        $this->saveStudent->updateFromImport(
                             $student,
                             $validator->validated(),
                             $importedBy,
+                            $studyPlan,
                         );
-                    });
+                    }
                     $successRows[] = $sourceRow;
                 } catch (ValidationException $exception) {
                     $failedRows[] = [
