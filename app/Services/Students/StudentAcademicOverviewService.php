@@ -3,11 +3,13 @@
 namespace App\Services\Students;
 
 use App\Constants\StudySemester;
+use App\Contracts\CmisApi;
 use App\Models\Student;
 use App\Services\Storage\LocalJsonFileStore;
 use App\Services\StudyPlans\StudentStudyPlanStore;
 use App\Services\StudyPlans\StudyPlanPayload;
 use JsonException;
+use RuntimeException;
 
 class StudentAcademicOverviewService
 {
@@ -15,6 +17,7 @@ class StudentAcademicOverviewService
         private readonly StudentStudyPlanStore $studyPlanStore,
         private readonly StudyPlanPayload $studyPlanPayload,
         private readonly LocalJsonFileStore $jsonFiles,
+        private readonly CmisApi $cmisApi,
     ) {}
 
     public function get(Student $student): array
@@ -32,9 +35,10 @@ class StudentAcademicOverviewService
             'pending_courses',
             $missingSections,
         );
-        $nextTerm = $this->nextTerm(
+        $nextTerm = $this->predictionTerm(
             (int) $student->study_year,
             (int) $student->study_semester,
+            $history,
         );
         [$sourceImportId, $nextCourses] = $this->nextTermCourses(
             $student,
@@ -55,11 +59,7 @@ class StudentAcademicOverviewService
                 ? null
                 : (int) $student->passed_credits,
             'latest_gpa' => $student->gpa === null ? null : (float) $student->gpa,
-            'latest_completed_term' => $this->previousTerm(
-                (int) $student->study_year,
-                (int) $student->study_semester,
-                $history,
-            ),
+            'latest_completed_term' => $this->latestCompletedTerm($history),
             'academic_history' => $history,
             'pending_courses' => $this->pendingCourses($pendingRows),
             'next_term' => [
@@ -89,6 +89,7 @@ class StudentAcademicOverviewService
 
         $planPayload = $this->readOptionalStudyPlan(
             $studentCode,
+            (int) $student->study_plan_id,
             'study_plan',
             $missingSections,
         );
@@ -97,14 +98,21 @@ class StudentAcademicOverviewService
             'pending_courses',
             $missingSections,
         );
+        $historyRows = $this->readOptionalJson(
+            "data/graph/by_semester/{$studentCode}.json",
+            'academic_history',
+            $missingSections,
+        );
+        $history = $this->academicHistory($historyRows);
         $plan = $this->studyPlanPayload->selected(
             $planPayload,
             (int) $student->study_plan_id,
         );
         $planRows = is_array($plan['data'] ?? null) ? $plan['data'] : [];
-        $nextTerm = $this->nextTerm(
+        $nextTerm = $this->predictionTerm(
             (int) $student->study_year,
             (int) $student->study_semester,
+            $history,
         );
         $excludedCodes = [];
 
@@ -203,58 +211,59 @@ class StudentAcademicOverviewService
         ], array_values(array_filter($rows, 'is_array')));
     }
 
-    private function nextTerm(int $currentYear, int $currentSemester): array
-    {
+    private function predictionTerm(
+        int $currentYear,
+        int $currentSemester,
+        array $history,
+    ): array {
+        $currentYear = max(1, $currentYear);
+        $hasCurrentTermGrades = false;
+
+        foreach ($history as $term) {
+            if ($term['year'] === $currentYear
+                && $term['semester_order'] === $currentSemester) {
+                $hasCurrentTermGrades = true;
+                break;
+            }
+        }
+
+        if (! $hasCurrentTermGrades) {
+            return [
+                'year' => $currentYear,
+                'semester' => $this->semesterName($currentSemester),
+                'semester_order' => $currentSemester,
+            ];
+        }
+
         if ($currentSemester === StudySemester::FIRST) {
             return [
-                'year' => max(1, $currentYear),
+                'year' => $currentYear,
                 'semester' => StudySemester::nameTh(StudySemester::SECOND),
                 'semester_order' => StudySemester::SECOND,
             ];
         }
 
         return [
-            'year' => max(1, $currentYear + 1),
+            'year' => $currentYear + 1,
             'semester' => StudySemester::nameTh(StudySemester::FIRST),
             'semester_order' => StudySemester::FIRST,
         ];
     }
 
-    private function previousTerm(
-        int $currentYear,
-        int $currentSemester,
-        array $history,
-    ): ?array {
-        if ($currentSemester === StudySemester::FIRST) {
-            if ($currentYear <= 1) {
-                return null;
-            }
+    private function latestCompletedTerm(array $history): ?array
+    {
+        $latestTerm = $history[array_key_last($history)] ?? null;
 
-            $year = $currentYear - 1;
-            $semesterOrder = StudySemester::SECOND;
-        } elseif ($currentSemester === StudySemester::SUMMER) {
-            $year = max(1, $currentYear);
-            $semesterOrder = StudySemester::SECOND;
-        } else {
-            $year = max(1, $currentYear);
-            $semesterOrder = StudySemester::FIRST;
-        }
-
-        $matchingHistory = null;
-
-        foreach (array_reverse($history) as $row) {
-            if ($row['year'] === $year && $row['semester_order'] === $semesterOrder) {
-                $matchingHistory = $row;
-                break;
-            }
+        if ($latestTerm === null) {
+            return null;
         }
 
         return [
-            'year' => $year,
-            'semester' => StudySemester::nameTh($semesterOrder),
-            'semester_order' => $semesterOrder,
-            'academic_year' => $matchingHistory['academic_year'] ?? null,
-            'academic_year_be' => $matchingHistory['academic_year_be'] ?? null,
+            'year' => $latestTerm['year'],
+            'semester' => $latestTerm['semester'],
+            'semester_order' => $latestTerm['semester_order'],
+            'academic_year' => $latestTerm['academic_year'],
+            'academic_year_be' => $latestTerm['academic_year_be'],
         ];
     }
 
@@ -278,6 +287,7 @@ class StudentAcademicOverviewService
 
         $planPayload = $this->readOptionalStudyPlan(
             $studentCode,
+            (int) $student->study_plan_id,
             'next_term.courses',
             $missingSections,
         );
@@ -465,6 +475,7 @@ class StudentAcademicOverviewService
      */
     private function readOptionalStudyPlan(
         string $studentCode,
+        int $studyPlanId,
         string $section,
         array &$missingSections,
     ): array {
@@ -472,6 +483,22 @@ class StudentAcademicOverviewService
             $payload = $this->studyPlanStore->get($studentCode);
         } catch (JsonException) {
             throw new JsonException($section);
+        }
+
+        if ($payload === null && $studyPlanId > 0) {
+            try {
+                $payload = $this->cmisApi->getCurriculumPlanCourses($studyPlanId);
+            } catch (RuntimeException) {
+                $payload = null;
+            }
+
+            if ($payload !== null) {
+                try {
+                    $this->studyPlanStore->put($studentCode, $payload);
+                } catch (JsonException|RuntimeException) {
+                    // The fetched plan remains usable even if the local cache cannot be written.
+                }
+            }
         }
 
         if ($payload === null) {
