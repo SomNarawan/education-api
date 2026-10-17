@@ -72,6 +72,26 @@ class StudentGradeJsonGenerator
         return true;
     }
 
+    public function initializeEnrollments(
+        string $studentCode,
+        array $planResponse,
+        int $studyPlanId,
+    ): void {
+        [$planRows] = $this->studyPlanPayload
+            ->coursesAndTotalCredits($planResponse, $studyPlanId);
+        $enrollments = $this->enrollments(
+            $this->slots($planRows),
+            [],
+            [],
+        );
+
+        usort($enrollments, $this->recordSorter(...));
+        $this->jsonFiles->write(
+            "data/enrollments/{$studentCode}.json",
+            $enrollments,
+        );
+    }
+
     public function resetAll(string $studentCode): ?int
     {
         $attempts = $this->storedAttempts($studentCode);

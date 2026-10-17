@@ -26,9 +26,13 @@ class StudentStudyPlanService
 
     public function save(Student $student, array $studyPlan): void
     {
-        $this->store->put(
-            trim((string) $student->student_code),
+        $studentCode = trim((string) $student->student_code);
+
+        $this->store->put($studentCode, $studyPlan);
+        $this->gradeGenerator->initializeEnrollments(
+            $studentCode,
             $studyPlan,
+            (int) $student->study_plan_id,
         );
     }
 
@@ -36,11 +40,19 @@ class StudentStudyPlanService
     {
         $studentCode = trim((string) $student->student_code);
 
-        $this->save($student, $studyPlan);
-        $this->gradeGenerator->recalculate(
+        $this->store->put($studentCode, $studyPlan);
+        $recalculated = $this->gradeGenerator->recalculate(
             $studentCode,
             $studyPlan,
             (int) $student->study_plan_id,
         );
+
+        if (! $recalculated) {
+            $this->gradeGenerator->initializeEnrollments(
+                $studentCode,
+                $studyPlan,
+                (int) $student->study_plan_id,
+            );
+        }
     }
 }

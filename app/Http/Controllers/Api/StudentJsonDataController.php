@@ -6,6 +6,7 @@ use App\Constants\HttpStatus;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Student;
+use App\Services\Storage\LocalJsonFileStore;
 use App\Services\Students\StudentAcademicOverviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -15,6 +16,7 @@ class StudentJsonDataController extends Controller
 {
     public function __construct(
         private readonly StudentAcademicOverviewService $academicOverview,
+        private readonly LocalJsonFileStore $jsonFiles,
     ) {}
 
     /**
@@ -72,17 +74,17 @@ class StudentJsonDataController extends Controller
     {
         $path = "data/enrollments/{$studentCode}.json";
 
-        if (! Storage::disk('local')->exists($path)) {
-            return ApiResponse::error('Enrollment data not found', HttpStatus::NOT_FOUND['code']);
-        }
-
         try {
-            $enrollment = $this->readJson($path);
+            $enrollment = $this->jsonFiles->read($path);
         } catch (JsonException) {
             return ApiResponse::error(
                 'Enrollment JSON data is invalid',
                 HttpStatus::INTERNAL_SERVER_ERROR['code']
             );
+        }
+
+        if ($enrollment === null) {
+            return ApiResponse::error('Enrollment data not found', HttpStatus::NOT_FOUND['code']);
         }
 
         return ApiResponse::success([
@@ -205,31 +207,18 @@ class StudentJsonDataController extends Controller
         string $section,
         array &$missingSections,
     ): array {
-        if (! Storage::disk('local')->exists($path)) {
+        try {
+            $payload = $this->jsonFiles->read($path);
+        } catch (JsonException) {
+            throw new JsonException($section);
+        }
+
+        if ($payload === null) {
             $missingSections[] = $section;
 
             return [[], false];
         }
 
-        try {
-            return [$this->readJson($path), true];
-        } catch (JsonException) {
-            throw new JsonException($section);
-        }
-    }
-
-    /**
-     * @return array<mixed>
-     *
-     * @throws JsonException
-     */
-    private function readJson(string $path): array
-    {
-        return json_decode(
-            Storage::disk('local')->get($path),
-            true,
-            512,
-            JSON_THROW_ON_ERROR,
-        );
+        return [$payload, true];
     }
 }
