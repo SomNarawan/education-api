@@ -149,7 +149,7 @@ composer run dev
 
 ## Database setup
 
-โฟลเดอร์ `database/migrations` มีเฉพาะตารางพื้นฐานจาก Laravel เช่น `users`, `cache`, `jobs` และ `personal_access_tokens` แต่ไม่มี migration สำหรับตารางโดเมนหลัก ดังนั้น:
+โฟลเดอร์ `database/migrations` มีตารางพื้นฐานจาก Laravel และตาราง `grade_calculations` แต่ยังไม่มี migration สำหรับตารางโดเมนหลักเดิม ดังนั้น:
 
 1. ขอ SQL dump ของ `education_dss` หรือสิทธิ์เข้าถึงฐานข้อมูลจากทีม
 2. Import schema/data แล้วตั้งค่า `DB_*` ใน `.env`
@@ -158,7 +158,8 @@ composer run dev
 ตารางที่ model ปัจจุบันใช้งาน ได้แก่:
 
 ```text
-students, student_guardian_phone_histories, titles, student_statuses,
+students, student_guardian_phone_histories, grade_calculations,
+titles, student_statuses,
 admission_channels, high_schools, relationships, notes, note_types,
 imports, import_types, system_faculties, system_departments, sync_types,
 syncs, provinces, districts, subdistricts
@@ -257,6 +258,7 @@ php artisan route:list --path=api --except-vendor
 | Academic data | `GET /api/students/{id}/academic-overview`, `GET /api/students/{id}/unattempted-courses` | รวมข้อมูลเกรด แผน และรายวิชาที่ยังไม่เคยลง |
 | JSON data | `GET /api/students/{studentCode}/enrollments`, `/enrollment-statuses`, `/performance-summary` | อ่านผลลัพธ์ JSON รายคน |
 | Grade reset | `DELETE /api/students/{studentCode}/grades` | ล้างเกรดทั้งหมดหรือภาคก่อนหน้า |
+| Grade calculation history | `GET /api/grade-calculations`, `POST /api/grade-calculations` | ดูประวัติทุก role และบันทึกผลจาก role student |
 | Student import | `GET /api/students/import/template`, `POST /api/students/import` | ดาวน์โหลด template และ import นิสิตแบบ synchronous |
 | Grade import | `GET /api/grades/import/template`, `POST /api/grades/import` | ดาวน์โหลด template และส่งงาน import เกรดเข้า queue |
 | Import history | `GET /api/imports`, `GET /api/imports/{id}/result` | ติดตามและดาวน์โหลดผลการนำเข้า |
