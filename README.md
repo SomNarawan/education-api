@@ -159,7 +159,7 @@ composer run dev
 
 ```text
 students, student_guardian_phone_histories, grade_calculations,
-titles, student_statuses,
+academic_term_rollovers, titles, student_statuses,
 admission_channels, high_schools, relationships, notes, note_types,
 imports, import_types, system_faculties, system_departments, sync_types,
 syncs, provinces, districts, subdistricts
@@ -259,6 +259,7 @@ php artisan route:list --path=api --except-vendor
 | JSON data | `GET /api/students/{studentCode}/enrollments`, `/enrollment-statuses`, `/performance-summary` | อ่านผลลัพธ์ JSON รายคน |
 | Grade reset | `DELETE /api/students/{studentCode}/grades` | ล้างเกรดทั้งหมดหรือภาคก่อนหน้า |
 | Grade calculation history | `GET /api/grade-calculations`, `POST /api/grade-calculations` | ดูประวัติทุก role และบันทึกผลจาก role student |
+| Academic term management | `GET /api/academic-term/preview`, `GET /api/academic-term/rollovers`, `POST /api/academic-term/advance` | ตรวจสอบและเลื่อนภาคการศึกษาสำหรับ admin |
 | Student import | `GET /api/students/import/template`, `POST /api/students/import` | ดาวน์โหลด template และ import นิสิตแบบ synchronous |
 | Grade import | `GET /api/grades/import/template`, `POST /api/grades/import` | ดาวน์โหลด template และส่งงาน import เกรดเข้า queue |
 | Import history | `GET /api/imports`, `GET /api/imports/{id}/result` | ติดตามและดาวน์โหลดผลการนำเข้า |

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AcademicTermController;
 use App\Http\Controllers\Api\AdmissionChannelController;
 use App\Http\Controllers\Api\CurriculumCategoryController;
 use App\Http\Controllers\Api\CurriculumPlanCourseController;
@@ -114,6 +115,10 @@ Route::post('/grades/import', GradeImportController::class);
 
 Route::get('/grade-calculations', [GradeCalculationController::class, 'index']);
 Route::post('/grade-calculations', [GradeCalculationController::class, 'store']);
+
+Route::get('/academic-term/preview', [AcademicTermController::class, 'preview']);
+Route::get('/academic-term/rollovers', [AcademicTermController::class, 'history']);
+Route::post('/academic-term/advance', [AcademicTermController::class, 'advance']);
 
 Route::prefix('students')->group(function (): void {
     Route::get('/', [StudentController::class, 'index']);
