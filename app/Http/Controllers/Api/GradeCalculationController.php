@@ -7,8 +7,6 @@ use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\GradeCalculation\ListGradeCalculationsRequest;
 use App\Http\Requests\GradeCalculation\StoreGradeCalculationRequest;
-use App\Http\Responses\GradeCalculationResponse;
-use App\Models\GradeCalculation;
 use App\Models\Student;
 use App\Services\GradeCalculationService;
 use Illuminate\Http\JsonResponse;
@@ -16,8 +14,10 @@ use Illuminate\Http\Request;
 
 class GradeCalculationController extends Controller
 {
-    public function index(ListGradeCalculationsRequest $request): JsonResponse
-    {
+    public function index(
+        ListGradeCalculationsRequest $request,
+        GradeCalculationService $service
+    ): JsonResponse {
         if ($this->currentRole($request) === null) {
             return ApiResponse::error(
                 'Role is not allowed to view grade calculations',
@@ -26,29 +26,38 @@ class GradeCalculationController extends Controller
         }
 
         $studentCode = $this->studentCode($request);
-        $query = GradeCalculation::query()
-            ->with('student:id,student_code,first_name_th,last_name_th')
-            ->latest('created_at')
-            ->latest('id');
 
-        if ($studentCode !== null) {
-            $query->whereHas(
-                'student',
-                fn ($studentQuery) => $studentQuery->where('student_code', $studentCode)
-            );
-        } elseif ($request->filled('student_id')) {
-            $query->where('student_id', $request->integer('student_id'));
+        if ($studentCode === null && $request->filled('student_id')) {
+            $studentCode = Student::query()
+                ->whereKey($request->integer('student_id'))
+                ->value('student_code');
+
+            if ($studentCode === null) {
+                return $this->historyResponse([], $request);
+            }
         }
 
-        $calculations = $query->paginate($request->integer('per_page', 20));
+        return $this->historyResponse(
+            $service->history($studentCode),
+            $request
+        );
+    }
+
+    private function historyResponse(
+        array $calculations,
+        ListGradeCalculationsRequest $request
+    ): JsonResponse {
+        $page = $request->integer('page', 1);
+        $perPage = $request->integer('per_page', 20);
+        $total = count($calculations);
 
         return ApiResponse::success([
-            'items' => GradeCalculationResponse::collection($calculations->items()),
+            'items' => array_slice($calculations, ($page - 1) * $perPage, $perPage),
             'pagination' => [
-                'current_page' => $calculations->currentPage(),
-                'last_page' => $calculations->lastPage(),
-                'per_page' => $calculations->perPage(),
-                'total' => $calculations->total(),
+                'current_page' => $page,
+                'last_page' => max((int) ceil($total / $perPage), 1),
+                'per_page' => $perPage,
+                'total' => $total,
             ],
         ], 'Load grade calculation history successfully');
     }
@@ -74,14 +83,10 @@ class GradeCalculationController extends Controller
             return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
         }
 
-        $calculation = $service->store(
-            $student,
-            $request->validated()
-        );
-        $calculation->setRelation('student', $student);
+        $calculation = $service->store($student, $request->validated());
 
         return ApiResponse::success(
-            new GradeCalculationResponse($calculation),
+            $calculation,
             'Save grade calculation successfully',
             HttpStatus::CREATED['code']
         );

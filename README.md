@@ -149,7 +149,7 @@ composer run dev
 
 ## Database setup
 
-โฟลเดอร์ `database/migrations` มีตารางพื้นฐานจาก Laravel และตาราง `grade_calculations` แต่ยังไม่มี migration สำหรับตารางโดเมนหลักเดิม ดังนั้น:
+โฟลเดอร์ `database/migrations` มีตารางพื้นฐานจาก Laravel แต่ยังไม่มี migration สำหรับตารางโดเมนหลักเดิม ดังนั้น:
 
 1. ขอ SQL dump ของ `education_dss` หรือสิทธิ์เข้าถึงฐานข้อมูลจากทีม
 2. Import schema/data แล้วตั้งค่า `DB_*` ใน `.env`
@@ -158,14 +158,18 @@ composer run dev
 ตารางที่ model ปัจจุบันใช้งาน ได้แก่:
 
 ```text
-students, student_guardian_phone_histories, grade_calculations,
-academic_term_rollovers, titles, student_statuses,
+students, student_guardian_phone_histories,
+titles, student_statuses,
 admission_channels, high_schools, relationships, notes, note_types,
 imports, import_types, system_faculties, system_departments, sync_types,
 syncs, provinces, districts, subdistricts
 ```
 
 การเพิ่มนิสิตต้องส่ง `system_department_id` ที่เปิดใช้งาน รวมทั้ง `curriculum_id` และ `study_plan_id` จาก CMIS ระบบไม่ได้อนุมานภาควิชาจากแผนการเรียน
+
+ประวัติการคำนวณผลการเรียนไม่ใช้ฐานข้อมูล ระบบบันทึกเป็นไฟล์ JSON แยกรายการตามรหัสนิสิตที่
+`storage/app/private/data/grade_calculations/{student_code}/{calculation_id}.json`
+และอ่านไฟล์เหล่านี้กลับมาแสดงในหน้าประวัติ
 
 ## Docker Compose
 
@@ -259,7 +263,6 @@ php artisan route:list --path=api --except-vendor
 | JSON data | `GET /api/students/{studentCode}/enrollments`, `/enrollment-statuses`, `/performance-summary` | อ่านผลลัพธ์ JSON รายคน |
 | Grade reset | `DELETE /api/students/{studentCode}/grades` | ล้างเกรดทั้งหมดหรือภาคก่อนหน้า |
 | Grade calculation history | `GET /api/grade-calculations`, `POST /api/grade-calculations` | ดูประวัติทุก role และบันทึกผลจาก role student |
-| Academic term management | `GET /api/academic-term/preview`, `GET /api/academic-term/rollovers`, `POST /api/academic-term/advance` | ตรวจสอบและเลื่อนภาคการศึกษาสำหรับ admin |
 | Student import | `GET /api/students/import/template`, `POST /api/students/import` | ดาวน์โหลด template และ import นิสิตแบบ synchronous |
 | Grade import | `GET /api/grades/import/template`, `POST /api/grades/import` | ดาวน์โหลด template และส่งงาน import เกรดเข้า queue |
 | Import history | `GET /api/imports`, `GET /api/imports/{id}/result` | ติดตามและดาวน์โหลดผลการนำเข้า |
