@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\GradeCalculation;
 
+use App\Services\GradeCalculations\GradePredictionCalculator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,6 +11,7 @@ class StoreGradeCalculationRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'student_id' => ['sometimes', 'integer', 'exists:students,id'],
             'study_year' => ['required', 'integer', 'min:1', 'max:20'],
             'semester' => ['required', 'string', 'max:50'],
             'semester_order' => ['nullable', 'integer', 'min:1', 'max:3'],
@@ -27,7 +29,7 @@ class StoreGradeCalculationRequest extends FormRequest
             'courses.*.grade' => [
                 'required',
                 'string',
-                Rule::in(['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F']),
+                Rule::in(array_keys(GradePredictionCalculator::GRADE_POINTS)),
             ],
         ];
     }

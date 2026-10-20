@@ -113,6 +113,7 @@ Route::get('/grades/import/template', [GradeImportController::class, 'downloadTe
 Route::post('/grades/import', GradeImportController::class);
 
 Route::get('/grade-calculations', [GradeCalculationController::class, 'index']);
+Route::get('/grade-calculations/latest', [GradeCalculationController::class, 'latest']);
 Route::post('/grade-calculations', [GradeCalculationController::class, 'store']);
 
 Route::prefix('students')->group(function (): void {
