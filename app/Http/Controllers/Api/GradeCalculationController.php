@@ -52,9 +52,16 @@ class GradeCalculationController extends Controller
         StoreGradeCalculationRequest $request,
         GradeCalculationService $service
     ): JsonResponse {
-        $this->authorizeAction($request, 'save');
-        $this->requireStudentSelection($request);
-        $student = $this->selectedStudent($request);
+        $studentCode = $this->studentCode($request);
+
+        if ($studentCode === null) {
+            return ApiResponse::error(
+                'Only the student role can save grade calculations',
+                HttpStatus::FORBIDDEN['code']
+            );
+        }
+
+        $student = Student::query()->where('student_code', $studentCode)->first();
 
         if ($student === null) {
             return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
@@ -121,17 +128,6 @@ class GradeCalculationController extends Controller
         return Student::query()
             ->whereKey($request->integer('student_id'))
             ->value('student_code');
-    }
-
-    private function selectedStudent(Request $request): ?Student
-    {
-        $studentCode = $this->studentCode($request);
-
-        if ($studentCode !== null) {
-            return Student::query()->where('student_code', $studentCode)->first();
-        }
-
-        return Student::query()->find($request->integer('student_id'));
     }
 
     private function studentCode(Request $request): ?string
