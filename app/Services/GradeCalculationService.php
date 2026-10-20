@@ -36,7 +36,15 @@ class GradeCalculationService
 
         $calculations = collect(Storage::disk('local')->allFiles($directory))
             ->filter(fn (string $path): bool => str_ends_with($path, '.json'))
-            ->map(fn (string $path): ?array => $this->jsonFiles->read($path))
+            ->map(function (string $path): ?array {
+                $calculation = $this->jsonFiles->read($path);
+
+                if ($calculation !== null && ! array_key_exists('current_gpa', $calculation)) {
+                    $calculation['current_gpa'] = null;
+                }
+
+                return $calculation;
+            })
             ->filter(fn (?array $calculation): bool => $calculation !== null)
             ->values()
             ->all();
@@ -67,6 +75,12 @@ class GradeCalculationService
                     'name' => trim($course['name']),
                     'credits' => $credits,
                     'source' => $course['source'],
+                    'course_group' => isset($course['course_group'])
+                        && trim((string) $course['course_group']) !== ''
+                            ? trim((string) $course['course_group'])
+                            : null,
+                    'course_group_gpa' => isset($course['course_group_gpa'])
+                        ? round((float) $course['course_group_gpa'], 4) : null,
                     'grade' => $course['grade'],
                     'grade_points' => round($gradePoints, 2),
                 ];
@@ -96,6 +110,7 @@ class GradeCalculationService
             'semester_order' => isset($attributes['semester_order'])
                 ? (int) $attributes['semester_order']
                 : null,
+            'current_gpa' => $student->gpa === null ? null : round((float) $student->gpa, 4),
             'current_gpax' => round($currentGpax, 4),
             'current_credits' => $currentCredits,
             'term_gpa' => round($termGpa, 4),

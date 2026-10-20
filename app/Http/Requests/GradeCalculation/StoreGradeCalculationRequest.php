@@ -22,6 +22,8 @@ class StoreGradeCalculationRequest extends FormRequest
                 'string',
                 Rule::in(['backlog', 'next-semester', 'other']),
             ],
+            'courses.*.course_group' => ['nullable', 'string', 'max:255'],
+            'courses.*.course_group_gpa' => ['nullable', 'numeric', 'between:0,4'],
             'courses.*.grade' => [
                 'required',
                 'string',

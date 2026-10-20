@@ -208,6 +208,9 @@ class StudentAcademicOverviewService
                 ? $this->number($row['credit'])
                 : null,
             'previous_grade' => $this->nullableString($row['grade_letter'] ?? null),
+            'course_category' => $this->nullableString($row['course_category'] ?? null),
+            'course_sub_category' => $this->nullableString($row['course_sub_category'] ?? null),
+            'course_group' => $this->nullableString($row['course_group'] ?? null),
         ], array_values(array_filter($rows, 'is_array')));
     }
 
