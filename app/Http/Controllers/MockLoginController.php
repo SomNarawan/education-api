@@ -15,10 +15,8 @@ class MockLoginController extends Controller
 {
     public function __construct()
     {
-        abort_unless(
-            config('mock_login.enabled') && ! app()->environment('production'),
-            HttpStatus::NOT_FOUND['code']
-        );
+        // config/mock_login.php already keeps this off under APP_ENV=production.
+        abort_unless(config('mock_login.enabled'), HttpStatus::NOT_FOUND['code']);
     }
 
     public function picker()

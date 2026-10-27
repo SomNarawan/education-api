@@ -50,7 +50,17 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
-      JWT_REQUIRE_EXPIRATION: ${JWT_REQUIRE_EXPIRATION:-false}
+      JWT_REQUIRE_EXPIRATION: ${JWT_REQUIRE_EXPIRATION:-true}
+      # Portal login (KU All Login through ENG Main). Only the variables listed
+      # here reach the container.
+      PORTAL_MAIN_API_URL: ${PORTAL_MAIN_API_URL:-https://office.eng.kps.ku.ac.th/eng-main/api}
+      PORTAL_SYSTEM_ID: ${PORTAL_SYSTEM_ID:-33}
+      PORTAL_ROLE_MAP: ${PORTAL_ROLE_MAP:-admin:admin,staff:teacher}
+      ORG_AUTH_API_URL: ${ORG_AUTH_API_URL:-https://eng.kps.ku.ac.th/std-eng-auth-service}
+      PORTAL_VERIFY_SSL: ${PORTAL_VERIFY_SSL:-true}
+      PORTAL_CA_FILE: ${PORTAL_CA_FILE:-}
+      PORTAL_TIMEOUT: ${PORTAL_TIMEOUT:-10}
+      PORTAL_RECHECK_SECONDS: ${PORTAL_RECHECK_SECONDS:-120}
       CMIS_URL: ${CMIS_URL}
       CMIS_SERVICE_BASE_PATH: ${CMIS_SERVICE_BASE_PATH:-/api}
       CMIS_SERVICE_TIMEOUT: ${CMIS_SERVICE_TIMEOUT:-15}
@@ -79,6 +89,10 @@ services:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3009/api}
         VITE_BASE_PATH: ${VITE_BASE_PATH:-}
         VITE_MOCK_LOGIN_ENABLED: ${MOCK_LOGIN_ENABLED:-false}
+        # VITE_* are baked in at build time: rebuild the frontend after changing them.
+        VITE_AUTH_PROVIDER: ${VITE_AUTH_PROVIDER:-portal}
+        VITE_PORTAL_LOGIN_URL: ${VITE_PORTAL_LOGIN_URL:-https://office.eng.kps.ku.ac.th/eng-main/home}
+        VITE_PORTAL_LOGOUT_URL: ${VITE_PORTAL_LOGOUT_URL:-}
         # Staff bundle only (admin/teacher). The student app is a separate
         # build with VITE_APP_MODE=student and is not deployed yet.
         VITE_APP_MODE: staff

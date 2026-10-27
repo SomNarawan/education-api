@@ -17,7 +17,8 @@ flowchart LR
     Client[education-web / API client] --> Auth{Authentication}
     Auth -->|Bearer JWT| API[Laravel API]
     Auth -->|X-API-KEY| Portal[Portal Main API]
-    Auth -->|Public| Health[Health / Mock Login]
+    Auth -->|Public| Health[Health / Portal Login / Mock Login]
+    Health -.->|get-role, exchange-token, verify.php| ENGMain[ENG Main / KU All Login]
     API --> DB[(MySQL education_dss)]
     API --> Storage[(Local JSON / Excel)]
     API --> CMIS[CMIS API]
@@ -32,7 +33,7 @@ flowchart LR
 ประเด็นสำคัญของสถาปัตยกรรม:
 
 - ตารางข้อมูลหลักไม่ได้ถูกสร้างครบจาก migration ใน repository นี้ แต่คาดว่าจะมาจาก SQL dump หรือฐานข้อมูลที่ทีมจัดเตรียม
-- JWT ถูกออกโดยระบบภายนอก ส่วน API นี้ตรวจสอบลายเซ็นและเวลาใช้งานของ token ด้วย middleware ที่เขียนเอง
+- Staff เข้าสู่ระบบด้วย KU All Login ผ่าน ENG Main แล้ว API นี้ออก JWT ของตัวเอง (HMAC) และตรวจสอบด้วย middleware ที่เขียนเอง token ของ portal เก็บเข้ารหัสไว้ฝั่ง server เท่านั้น
 - ข้อมูลเกรดและแผนการเรียนถูกสร้างเป็น JSON แยกรายรหัสนิสิต ไม่ได้เก็บรายละเอียดรายวิชาทั้งหมดในฐานข้อมูล
 - การสร้างหรือเปลี่ยนแผนการเรียนของนิสิตจะดึงข้อมูลจาก CMIS บันทึก snapshot และคำนวณไฟล์ผลการเรียนใหม่
 
@@ -120,9 +121,12 @@ SESSION_DRIVER=file
 CACHE_STORE=file
 QUEUE_CONNECTION=sync
 
-JWT_SECRET=<shared-secret>
+JWT_SECRET=<openssl rand -hex 32>
 JWT_ALGORITHM=HS256
-JWT_REQUIRE_EXPIRATION=false
+JWT_REQUIRE_EXPIRATION=true
+
+# local: เข้าสู่ระบบด้วย mock แทน portal (ไม่มีผลเมื่อ APP_ENV=production)
+MOCK_LOGIN_ENABLED=true
 
 CMIS_URL=http://localhost:8001
 CMIS_SERVICE_BASE_PATH=/api
@@ -154,6 +158,7 @@ composer run dev
 1. ขอ SQL dump ของ `education_dss` หรือสิทธิ์เข้าถึงฐานข้อมูลจากทีม
 2. Import schema/data แล้วตั้งค่า `DB_*` ใน `.env`
 3. อย่ารัน `php artisan migrate` กับฐานข้อมูลที่ใช้งานร่วมกันโดยไม่ตรวจ migration และยืนยันกับผู้ดูแลฐานข้อมูลก่อน
+4. Portal login ต้องมีตาราง `auth_sessions` จาก migration — `docker compose` บนเครื่อง dev ไม่รัน migrate ให้เอง จึงต้องรัน `docker compose exec backend php artisan migrate` หนึ่งครั้งหลัง pull (ไม่งั้น login จะตอบ 500 `Table 'auth_sessions' doesn't exist`)
 
 ตารางที่ model ปัจจุบันใช้งาน ได้แก่:
 
@@ -215,13 +220,26 @@ docker compose --env-file .env.production up -d --build
 |---|---|
 | `/up` | ไม่ใช้ JWT; Laravel built-in health route |
 | `GET /api/health` | ไม่ใช้ JWT; ส่ง health token เมื่อต้องการรายละเอียด |
-| `/api/mock-login/*` | ไม่ใช้ JWT แต่เปิดได้เฉพาะเมื่อ `MOCK_LOGIN_ENABLED=true` และ `APP_ENV` ไม่ใช่ `production` |
+| `POST /api/auth/portal-login` | ไม่ใช้ JWT; รับ `exchangeToken`, `intranetToken` และ `role` จาก ENG Main (จำกัด 10 ครั้ง/นาที) |
+| `/api/mock-login/*` | ไม่ใช้ JWT แต่เปิดได้เฉพาะเมื่อ `MOCK_LOGIN_ENABLED=true` และ `APP_ENV` ไม่ใช่ `production` (บังคับใน `config/mock_login.php`) |
 | `/api/portal-main-student/*` | Header `X-API-KEY: <PORTAL_MAIN_API_KEY>` |
 | `/api/*` อื่นทั้งหมด | Header `Authorization: Bearer <jwt-token>` |
 
 JWT config อยู่ใน `config/jwt.php` รองรับ `JWT_SECRET`, `JWT_ALGORITHM`, `JWT_REQUIRE_EXPIRATION` และค่าเสริม `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_LEEWAY`
 
-Claims ที่ระบบอ่าน ได้แก่ `nontri_id`, `name`, `role`, `current_role`, `department_id`, `faculty_id`, `study_plan_id`, `iat` และ `exp` ทั้งนี้ middleware ปัจจุบันตรวจสอบความถูกต้องของ token แต่ยังไม่มี middleware แยกสิทธิ์ราย role ที่ระดับ route
+Claims ที่ระบบอ่าน ได้แก่ `sid`, `nontri_id`, `name`, `role`, `current_role`, `department_id`, `faculty_id`, `study_plan_id`, `iat` และ `exp` ทั้งนี้ middleware ปัจจุบันตรวจสอบความถูกต้องของ token แต่ยังไม่มี middleware แยกสิทธิ์ราย role ที่ระดับ route
+
+### Portal login (KU All Login ผ่าน ENG Main)
+
+1. ENG Main redirect มาที่ web `/auth/portal/{admin|teacher}?exchangeToken=…&intranetToken=…` แล้ว web ส่งต่อให้ `POST /api/auth/portal-login`
+2. API อ่าน `sub`/`exp` จาก intranetToken → เรียก `get-role` (map ชื่อ role ด้วย `PORTAL_ROLE_MAP`) → เรียก `exchange-token` เป็นขั้นสุดท้ายเพราะใช้ได้ครั้งเดียว → หา department/faculty จาก CMIS teacher (`department_name` → `system_departments.th_name`)
+3. บันทึกแถวใน `auth_sessions` (token ของ portal เข้ารหัสด้วย `APP_KEY` — เปลี่ยน `APP_KEY` แล้ว session ทั้งหมดจะใช้ไม่ได้) แล้วออก JWT ที่มี claim `sid` อายุไม่เกิน 8 ชั่วโมงหรือ `exp` ของ intranetToken
+4. ทุก `PORTAL_RECHECK_SECONDS` (ค่าเริ่มต้น 120) `AuthenticateJwt` ตรวจ `get-role` และ `verify.php` ซ้ำ: ระบบกลางปฏิเสธ → 401 `{"code": "PORTAL_SESSION_ENDED"}` · ระบบกลางล่ม → ให้ผ่านและลองใหม่รอบถัดไป · role ที่ได้ล่าสุดใช้แทน claim `role` ใน JWT
+5. `POST /api/auth/logout` ปิด session ของระบบนี้เท่านั้น ไม่เรียก `logout.php` ของ std-eng-auth-service เพราะจะเตะผู้ใช้ออกจากทุกระบบใน portal
+
+token ที่ไม่มี `sid` (ออกโดย mock login) ใช้ได้เฉพาะตอน mock login เปิดอยู่ ค่าที่เกี่ยวข้องอยู่ใน `config/portal_auth.php` (`PORTAL_MAIN_API_URL`, `PORTAL_SYSTEM_ID`, `PORTAL_ROLE_MAP`, `ORG_AUTH_API_URL`, `PORTAL_VERIFY_SSL`, `PORTAL_CA_FILE`, `PORTAL_TIMEOUT`, `PORTAL_RECHECK_SECONDS`) และต้องส่งผ่าน `environment` ของ service ใน `docker-compose.yml` ด้วย
+
+ทดสอบ flow ทั้งหมดด้วย `php artisan test --filter=PortalLoginTest` (ใช้ `Http::fake()` ไม่เรียกระบบจริง)
 
 ```bash
 curl http://localhost:8000/api/me \
@@ -256,7 +274,8 @@ php artisan route:list --path=api --except-vendor
 
 | กลุ่ม | Endpoint สำคัญ | หน้าที่ |
 |---|---|---|
-| Current user | `GET /api/me` | อ่านข้อมูลผู้ใช้จาก JWT claims |
+| Auth | `POST /api/auth/portal-login`, `POST /api/auth/logout` | เข้าสู่ระบบผ่าน ENG Main และออกจากระบบ (เฉพาะระบบนี้) |
+| Current user | `GET /api/me` | อ่านข้อมูลผู้ใช้จาก JWT claims (role จาก session ที่ตรวจซ้ำล่าสุด) |
 | Students | `/api/students` | ค้นหา ดู เพิ่ม แก้ไข และ soft delete นิสิต |
 | Student advisor | `GET /api/students/studying`, `GET /api/students/studying/without-advisor`, `PATCH /api/students/advisor` | รายชื่อนิสิตและการมอบหมายอาจารย์ |
 | Academic data | `GET /api/students/{id}/academic-overview`, `GET /api/students/{id}/unattempted-courses` | รวมข้อมูลเกรด แผน และรายวิชาที่ยังไม่เคยลง |

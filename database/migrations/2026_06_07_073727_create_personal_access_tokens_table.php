@@ -8,9 +8,16 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * Skipped when the table already exists: production was built from a SQL
+     * dump before this migration was recorded, so it must not fail on it.
      */
     public function up(): void
     {
+        if (Schema::hasTable('personal_access_tokens')) {
+            return;
+        }
+
         Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id();
             $table->morphs('tokenable');

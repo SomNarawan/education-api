@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\ListOfValueController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\NoteTypeController;
+use App\Http\Controllers\Api\PortalAuthController;
 use App\Http\Controllers\Api\PortalMainStudentController;
 use App\Http\Controllers\Api\RelationshipController;
 use App\Http\Controllers\Api\StudentController;
@@ -30,6 +31,13 @@ use App\Http\Middleware\AuthenticatePortalMainApiKey;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class)->withoutMiddleware(AuthenticateJwt::class);
+
+Route::prefix('auth')->group(function (): void {
+    Route::post('/portal-login', [PortalAuthController::class, 'login'])
+        ->withoutMiddleware(AuthenticateJwt::class)
+        ->middleware('throttle:10,1');
+    Route::post('/logout', [PortalAuthController::class, 'logout']);
+});
 
 Route::prefix('mock-login')->withoutMiddleware(AuthenticateJwt::class)->group(function (): void {
     Route::get('/', [MockLoginController::class, 'picker']);

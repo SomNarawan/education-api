@@ -15,13 +15,18 @@ return [
     | Mock login
     |--------------------------------------------------------------------------
     |
-    | Lets the API mint its own JWT (routes/web.php -> MockLoginController) so
-    | the app can be tested end-to-end without the real SSO. Must stay off in
-    | production and be removed once the real SSO integration is verified.
+    | Lets the API mint its own JWT (/api/mock-login -> MockLoginController)
+    | for local development without the portal. Mock tokens carry no session
+    | id, so AuthenticateJwt accepts them only while this is on.
+    |
+    | Never on under APP_ENV=production, whatever MOCK_LOGIN_ENABLED says:
+    | staff sign in through the portal there (POST /api/auth/portal-login).
+    | A test server that needs mock login runs with APP_ENV=staging.
     |
     */
 
-    'enabled' => filter_var(env('MOCK_LOGIN_ENABLED', false), FILTER_VALIDATE_BOOL),
+    'enabled' => filter_var(env('MOCK_LOGIN_ENABLED', false), FILTER_VALIDATE_BOOL)
+        && env('APP_ENV') !== 'production',
 
     'frontend_url' => trim((string) env(
         'MOCK_LOGIN_FRONTEND_URL',
