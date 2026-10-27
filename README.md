@@ -125,7 +125,7 @@ JWT_SECRET=<openssl rand -hex 32>
 JWT_ALGORITHM=HS256
 JWT_REQUIRE_EXPIRATION=true
 
-# local: เข้าสู่ระบบด้วย mock แทน portal (ไม่มีผลเมื่อ APP_ENV=production)
+# local: เข้าสู่ระบบด้วย mock แทน portal
 MOCK_LOGIN_ENABLED=true
 
 CMIS_URL=http://localhost:8001
@@ -221,7 +221,7 @@ docker compose --env-file .env.production up -d --build
 | `/up` | ไม่ใช้ JWT; Laravel built-in health route |
 | `GET /api/health` | ไม่ใช้ JWT; ส่ง health token เมื่อต้องการรายละเอียด |
 | `POST /api/auth/portal-login` | ไม่ใช้ JWT; รับ `exchangeToken`, `intranetToken` และ `role` จาก ENG Main (จำกัด 10 ครั้ง/นาที) |
-| `/api/mock-login/*` | ไม่ใช้ JWT แต่เปิดได้เฉพาะเมื่อ `MOCK_LOGIN_ENABLED=true` และ `APP_ENV` ไม่ใช่ `production` (บังคับใน `config/mock_login.php`) |
+| `/api/mock-login/*` | ไม่ใช้ JWT แต่เปิดได้เฉพาะเมื่อ `MOCK_LOGIN_ENABLED=true` (ทุก `APP_ENV`) บน production ต้องเป็น `false` ยกเว้นใช้แทน portal ชั่วคราวตอน ENG Main ล่ม |
 | `/api/portal-main-student/*` | Header `X-API-KEY: <PORTAL_MAIN_API_KEY>` |
 | `/api/*` อื่นทั้งหมด | Header `Authorization: Bearer <jwt-token>` |
 

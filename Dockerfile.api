@@ -6,22 +6,31 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 COPY . .
 RUN composer dump-autoload --optimize --no-dev
 
-# ---- runtime stage (nginx + php-fpm bundled) ----
-FROM webdevops/php-nginx:8.2-alpine
+# ---- runtime stage (nginx + php-fpm bundled, port 3009) ----
+# Official php-fpm-alpine + nginx instead of webdevops/php-nginx: that image
+# ships ImageMagick, Ghostscript, supervisor, vim and ~60 PHP extensions this
+# API never uses (~650MB). The base image already has every extension
+# composer.lock requires; only pdo_mysql is added.
+FROM php:8.2-fpm-alpine
 
-ENV WEB_DOCUMENT_ROOT=/app/public \
-    PHP_MEMORY_LIMIT=256M \
-    PHP_DISPLAY_ERRORS=0
+RUN set -eux; \
+    apk add --no-cache nginx; \
+    apk add --no-cache --virtual .build-deps $PHPIZE_DEPS; \
+    docker-php-ext-install -j"$(nproc)" pdo_mysql; \
+    apk del --no-network .build-deps; \
+    rm -rf /tmp/* /etc/nginx/http.d/default.conf; \
+    ln -sf /dev/stdout /var/log/nginx/access.log; \
+    ln -sf /dev/stderr /var/log/nginx/error.log; \
+    mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+
+COPY docker/api/php.ini /usr/local/etc/php/conf.d/zz-app.ini
+COPY docker/api/php-fpm.conf /usr/local/etc/php-fpm.d/zz-app.conf
+COPY vhost.conf /etc/nginx/http.d/app.conf
+COPY --chmod=0755 docker/api/start.sh /usr/local/bin/start
 
 WORKDIR /app
 COPY --from=vendor /app ./
+RUN chown -R www-data:www-data storage bootstrap/cache
 
-# ----------------- ส่วนที่เพิ่มเข้ามา -----------------
-# 1. ลบ config เริ่มต้นที่ทำให้เกิด error port 80 และ 443 ชนกัน
-RUN rm -f /opt/docker/etc/nginx/vhost.conf /opt/docker/etc/nginx/vhost.ssl.conf
-
-# 2. Copy ไฟล์ vhost.conf ของเราเข้าไปแทนที่
-COPY vhost.conf /opt/docker/etc/nginx/vhost.conf
-# --------------------------------------------------
-
-RUN chown -R application:application storage bootstrap/cache
+EXPOSE 3009
+CMD ["start"]

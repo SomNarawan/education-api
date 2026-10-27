@@ -373,15 +373,30 @@ class PortalLoginTest extends TestCase
             ->assertJsonPath('code', 'PORTAL_SESSION_ENDED');
     }
 
-    public function test_mock_login_cannot_be_enabled_under_app_env_production(): void
+    public function test_mock_login_follows_mock_login_enabled_in_every_app_env(): void
     {
-        $this->assertFalse($this->mockLoginEnabledWith('production', 'true'));
+        $this->assertTrue($this->mockLoginEnabledWith('production', 'true'));
+        $this->assertFalse($this->mockLoginEnabledWith('production', 'false'));
         $this->assertFalse($this->mockLoginEnabledWith('local', 'false'));
-        $this->assertTrue($this->mockLoginEnabledWith('staging', 'true'));
 
-        config(['mock_login' => ['enabled' => $this->mockLoginEnabledWith('production', 'true')] + config('mock_login')]);
+        config(['mock_login' => ['enabled' => $this->mockLoginEnabledWith('production', 'false')] + config('mock_login')]);
 
         $this->get('/api/mock-login/admin')->assertNotFound();
+    }
+
+    public function test_login_throttle_counts_each_client_behind_the_proxy(): void
+    {
+        $fromClient = fn (string $ip) => $this->withServerVariables(['REMOTE_ADDR' => '172.18.0.1'])
+            ->withHeader('X-Forwarded-For', $ip)
+            ->postJson('/api/auth/portal-login', []);
+
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $fromClient('158.108.1.1')->assertUnprocessable();
+        }
+
+        $fromClient('158.108.1.1')->assertTooManyRequests();
+        $fromClient('158.108.1.2')->assertUnprocessable();
+        Http::assertNothingSent();
     }
 
     private function login(string $role, ?string $intranetToken = null)

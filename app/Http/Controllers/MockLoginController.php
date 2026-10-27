@@ -15,7 +15,6 @@ class MockLoginController extends Controller
 {
     public function __construct()
     {
-        // config/mock_login.php already keeps this off under APP_ENV=production.
         abort_unless(config('mock_login.enabled'), HttpStatus::NOT_FOUND['code']);
     }
 

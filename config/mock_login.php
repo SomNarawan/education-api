@@ -19,14 +19,14 @@ return [
     | for local development without the portal. Mock tokens carry no session
     | id, so AuthenticateJwt accepts them only while this is on.
     |
-    | Never on under APP_ENV=production, whatever MOCK_LOGIN_ENABLED says:
-    | staff sign in through the portal there (POST /api/auth/portal-login).
-    | A test server that needs mock login runs with APP_ENV=staging.
+    | Production keeps it off: staff sign in through the portal there
+    | (POST /api/auth/portal-login). Turning it on in production is the
+    | fallback when the portal is down, and lets anyone who can reach the API
+    | sign in as admin, so turn it off again once the portal is back.
     |
     */
 
-    'enabled' => filter_var(env('MOCK_LOGIN_ENABLED', false), FILTER_VALIDATE_BOOL)
-        && env('APP_ENV') !== 'production',
+    'enabled' => filter_var(env('MOCK_LOGIN_ENABLED', false), FILTER_VALIDATE_BOOL),
 
     'frontend_url' => trim((string) env(
         'MOCK_LOGIN_FRONTEND_URL',

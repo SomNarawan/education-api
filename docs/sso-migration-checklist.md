@@ -35,13 +35,8 @@
 
 **ปัญหา:** `.env.production` ตั้ง `MOCK_LOGIN_ENABLED=true` และ mock login ทำงานได้ทุก `APP_ENV` (ตั้งแต่ commit `88036c6`) ใครก็เปิด `/api/mock-login/admin` แล้วได้ JWT สิทธิ์ admin นอกจากนี้ `JWT_SECRET` ของ production สั้นเกินไป (เดา secret ได้ก็ปลอม token ได้) และ `JWT_REQUIRE_EXPIRATION=false` ทำให้ token ที่ไม่มี `exp` ใช้ได้ตลอดไป
 
-- [ ] **0.1** จำกัด `/api/mock-login` ที่ Apache ให้เข้าได้เฉพาะ IP ภายใน (ใช้จนกว่า Phase 7 จะปิด mock ถาวร)
-  ```apache
-  <Location "/kukps-eng-education-ssd-api/api/mock-login">
-      Require ip <ช่วง IP ภายในคณะ>
-  </Location>
-  ```
-  ถ้าไม่ต้องใช้ mock บน production แล้ว ให้ตั้ง `MOCK_LOGIN_ENABLED=false` แทน (แต่ระหว่างนั้นจะไม่มีทาง login เลยจนกว่า Phase 7)
+- [x] **0.1** ~~จำกัด `/api/mock-login` ที่ Apache ให้เข้าได้เฉพาะ IP ภายใน~~ ไม่ใช้กฎ Apache
+  > 2026-10-27: ตัดสินใจใช้ `MOCK_LOGIN_ENABLED` ใน env เป็นตัวเปิด/ปิดอย่างเดียว เพื่อเก็บ mock login ไว้ใช้แทน portal ตอนฉุกเฉิน (ดู **แผนสำรองเมื่อ ENG Main ใช้ไม่ได้** ใน Phase 7) · ⚠️ ระหว่างที่ production ยังเป็น `MOCK_LOGIN_ENABLED=true` (จนถึง Phase 7) ใครก็ขอ JWT สิทธิ์ admin ได้ ไม่มีกฎ IP ช่วยกันไว้
 - [x] **0.2** สร้าง `JWT_SECRET` ใหม่ด้วย `openssl rand -hex 32` แล้วใส่ใน `.env.production` (ทุกคนต้อง login ใหม่หนึ่งครั้ง)
   > 2026-10-27: เปลี่ยนใน `.env.production` บนเครื่อง dev แล้ว (ของเดิมยาว 10 ตัวอักษร) — ยังต้อง copy ขึ้น server ตอน 0.5
 - [x] **0.3** ตั้ง `JWT_REQUIRE_EXPIRATION=true` (mock ออก token ที่มี `exp` 8 ชั่วโมงอยู่แล้ว จึงไม่กระทบ)
@@ -55,7 +50,6 @@
 
 **ตรวจว่าเสร็จ**
 
-- [ ] เปิด `https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api/api/mock-login/admin` จากนอกเครือข่ายคณะ → ได้ 403 (หรือ 404 ถ้าปิด mock)
 - [ ] token เก่าที่เซ็นด้วย secret เดิมเรียก `/api/me` → ได้ 401
 
 ---
@@ -97,16 +91,17 @@
 
 ### 1C. สร้าง migration จาก schema
 
-- [ ] **1.7** ติดตั้งตัวสร้าง migration เป็น dev dependency (ไม่ติดไปกับ Docker image เพราะ build ใช้ `--no-dev`)
+- [x] **1.7** ติดตั้งตัวสร้าง migration เป็น dev dependency (ไม่ติดไปกับ Docker image เพราะ build ใช้ `--no-dev`)
   ```bash
   composer require --dev kitloong/laravel-migrations-generator
   ```
+  > 2026-10-27: ติดตั้ง v7.4.0 แล้ว รันได้บน PHP 8.2 · มี `--with-has-table` (ใช้ในข้อ 1.8)
 - [ ] **1.8** Generate จาก DB ที่แก้ให้ตรงกันแล้ว โดยข้ามตารางที่มี migration อยู่แล้ว และไม่เขียนลงตาราง `migrations`
   ```bash
-  php artisan migrate:generate --skip-log \
+  php artisan migrate:generate --skip-log --with-has-table \
     --ignore="migrations,users,password_reset_tokens,sessions,cache,cache_locks,jobs,job_batches,failed_jobs,personal_access_tokens"
   ```
-  เช็ค option ด้วย `php artisan migrate:generate --help` ก่อน ถ้าเวอร์ชันที่ติดตั้งมี `--with-has-table` ให้ใส่ด้วย จะได้ guard ตามข้อ 1.9 ให้อัตโนมัติ
+  `--with-has-table` ใส่ guard ตามข้อ 1.9 ให้อัตโนมัติ (มีใน v7.4.0 ที่ติดตั้งไว้) แต่ยังต้องเปิดดูทุกไฟล์ว่า guard ครบ
 - [ ] **1.9** ใส่ guard ในทุกไฟล์ `create_*_table` ที่ generate ออกมา: DB เดิมจะแค่บันทึกว่ารันแล้ว ส่วน DB ใหม่จะสร้างตารางให้
   ```php
   public function up(): void
@@ -168,7 +163,8 @@
   - ห้ามแก้โครงสร้างผ่าน phpMyAdmin
   - ห้ามรัน `migrate:fresh`, `migrate:refresh` หรือ `migrate:reset` บน server
 - [ ] **1.19** ทำ seeder ข้อมูลอ้างอิง (`titles`, `student_statuses`, `note_types`, `import_types`, `sync_types`, `provinces`, `districts`, `subdistricts`) เพื่อให้ DB ใหม่ใช้งานได้ และแทน `DatabaseSeeder` เดิมที่สร้าง user ทดสอบ
-- [ ] **1.20** ตั้ง `.env` ของ local เป็น `QUEUE_CONNECTION=database` ให้เหมือน production (ตอนนี้เป็น `sync` จึงไม่เคยทดสอบผ่านตาราง `jobs` เลย)
+- [x] **1.20** ตั้ง `.env` ของ local เป็น `QUEUE_CONNECTION=database` ให้เหมือน production (ตอนนี้เป็น `sync` จึงไม่เคยทดสอบผ่านตาราง `jobs` เลย)
+  > 2026-10-27: `.env` และ `.env.example` เป็น `database` อยู่แล้ว
 - [ ] **1.21** Backup production อีกครั้ง แล้ว merge และ deploy ด้วย `docker/deploy.sh .env.production`
 
 **ตรวจว่าเสร็จ**
@@ -297,7 +293,7 @@ JWT ของเรามี claims ชุดเดียวกับ mock เ�
   6. สร้าง `AuthSession` โดย `expires_at` = ค่าที่น้อยกว่าระหว่าง `exp` ของ intranetToken กับ now + 8 ชั่วโมง
   7. ออก JWT ด้วย `JwtIssuer` claims: `sid`, `nontri_id`, `name`, `role` (ทุก role ที่มี), `current_role` (= `role` ที่ส่งมา), `department_id`, `faculty_id`, `iat`, `exp`
   8. ตอบผ่าน `ApiResponse::success` → `{ token, user }`
-  > error มี `code`: `PORTAL_LOGIN_REJECTED` (401/403) หรือ `PORTAL_UNAVAILABLE` (503) · ⚠️ `throttle:10,1` นับตาม IP แต่ยังไม่ได้ตั้ง trusted proxy — หลัง Apache ทุกคนจะเป็น IP เดียวกัน (10 login/นาที ทั้งคณะ) ต้องตั้ง `trustProxies` หรือปรับ limit ก่อน Phase 7
+  > error มี `code`: `PORTAL_LOGIN_REJECTED` (401/403) หรือ `PORTAL_UNAVAILABLE` (503) · `throttle:10,1` นับตาม IP ของผู้ใช้: ตั้ง `trustProxies` ใน `bootstrap/app.php` ให้เชื่อ `X-Forwarded-For` จาก IP ภายใน (127.0.0.1, 10/8, 172.16/12, 192.168/16) แล้ว ไม่งั้นหลัง Apache ทุกคนจะเป็น IP เดียวกัน (2026-10-27 · test `login throttle counts each client behind the proxy`) · เชื่อแค่ header IP ส่วน Host/Proto ยังไม่เชื่อ URL ที่ระบบสร้างจึงเหมือนเดิม
 - [x] **3.8** `POST /api/auth/logout` (ต้องมี JWT) → ตั้ง `revoked_at` และ `revoke_reason = logout`
   **ห้ามเรียก `/api/logout.php` ของ std-eng-auth-service** เพราะ token ใช้ร่วมกับระบบแม่และระบบลูกอื่น ผู้ใช้จะถูกเตะออกจากทุกระบบ
 
@@ -356,11 +352,11 @@ JWT ของเรามี claims ชุดเดียวกับ mock เ�
 
 ## Phase 5 — Mock login สำหรับ local
 
-- [x] **5.1** `config/mock_login.php` — ห้ามเปิด mock บน production (ย้อนพฤติกรรมของ commit `88036c6`) ถ้าต้องการ server ไว้ทดสอบ ให้ตั้ง `APP_ENV=staging` บน server นั้น
+- [x] **5.1** `config/mock_login.php` — เปิด/ปิดด้วย `MOCK_LOGIN_ENABLED` อย่างเดียวทุก `APP_ENV` (production ตั้ง `false` ยกเว้นตอนใช้แผนสำรองใน Phase 7)
   ```php
-  'enabled' => filter_var(env('MOCK_LOGIN_ENABLED', false), FILTER_VALIDATE_BOOL)
-      && env('APP_ENV') !== 'production',
+  'enabled' => filter_var(env('MOCK_LOGIN_ENABLED', false), FILTER_VALIDATE_BOOL),
   ```
+  > 2026-10-27: เดิมบังคับปิดเมื่อ `APP_ENV=production` เอาออกแล้ว เพื่อให้เปิด mock แทน portal ได้ตอนฉุกเฉินโดยแก้แค่ env
 - [x] **5.2** `MockLoginController` ออก claims ครบทุก key เหมือน portal login ยกเว้น `sid`
   > มีครบอยู่แล้ว ไม่ต้องแก้ · ตัด `app()->environment('production')` ใน constructor ออก เพราะ config ตามข้อ 5.1 เช็คให้แล้ว · ผลข้างเคียงของ 4.4: mock user ที่มี admin จะเข้าเป็น teacher ก่อน (ตาม `current_role`) แล้วสลับเป็น admin จากเมนูได้
 - [x] **5.3** อัปเดตคอมเมนต์ใน `config/mock_login.php`, ตั้ง `.env.production.example` เป็น `MOCK_LOGIN_ENABLED=false` และอัปเดต README
@@ -393,7 +389,7 @@ JWT ของเรามี claims ชุดเดียวกับ mock เ�
 - [x] re-check: verify.php ตอบ 401 → 401 `PORTAL_SESSION_ENDED`
 - [x] re-check: ENG Main ล่ม → request ยังผ่าน
 - [x] logout → `revoked_at` ถูกตั้ง, token เดิมใช้ไม่ได้ และไม่มี request ไป `logout.php` (`Http::assertNotSent()`)
-- [x] `APP_ENV=production` + `MOCK_LOGIN_ENABLED=true` → `/api/mock-login/*` ตอบ 404
+- [x] `MOCK_LOGIN_ENABLED=false` → `/api/mock-login/*` ตอบ 404 (ทุก `APP_ENV` รวม production) และ `true` → เปิดได้แม้เป็น production
 - [x] token ที่ไม่มี `sid` ขณะ mock ปิด → 401
 
 ### ทดสอบด้วยมือบน server (ใช้บัญชีทดสอบจากข้อ 2.7)
@@ -417,6 +413,7 @@ JWT ของเรามี claims ชุดเดียวกับ mock เ�
 - [x] **7.2** ยืนยันว่า ENG Main ตั้ง redirect URL ชี้ production แล้ว (ข้อ 2.2)
   > `system.link` ของระบบ 33 ชี้ production อยู่แล้ว (ตรวจจาก DB ของ ENG Main 2026-10-27)
 - [ ] **7.3** `.env.production` ฝั่ง API: `MOCK_LOGIN_ENABLED=false`, ค่า `PORTAL_*` ครบ และ `JWT_REQUIRE_EXPIRATION=true`
+  > 2026-10-27: `APP_ENV` เปลี่ยนจาก `staging` กลับเป็น `production` แล้ว (ไม่ต้องหลบเงื่อนไขเดิมของ mock แล้ว) · `JWT_REQUIRE_EXPIRATION=true` แล้ว · ยังเหลือ `MOCK_LOGIN_ENABLED=false`
 - [ ] **7.4** ค่า build ของ web: `VITE_AUTH_PROVIDER=portal`, `VITE_PORTAL_LOGIN_URL`, `VITE_PORTAL_LOGOUT_URL` (ใน compose ของ API `VITE_MOCK_LOGIN_ENABLED` อ่านจาก `MOCK_LOGIN_ENABLED` จึงเป็น false ตามข้อ 7.3)
 
 ### Deploy
@@ -427,19 +424,29 @@ JWT ของเรามี claims ชุดเดียวกับ mock เ�
   docker compose --env-file .env.production build frontend
   docker compose --env-file .env.production up -d frontend
   ```
-- [ ] **7.7** กฎ Apache จากข้อ 0.1 เก็บไว้ได้ (กันซ้ำอีกชั้น)
 
 ### หลัง deploy
 
-- [ ] **7.8** ทดสอบด้วยมือตามรายการใน Phase 6
-- [ ] **7.9** `/api/mock-login/admin` → 404
-- [ ] **7.10** ดู log ช่วงแรก: `docker compose --env-file .env.production logs -f laravel-app`
+- [ ] **7.7** ทดสอบด้วยมือตามรายการใน Phase 6
+- [ ] **7.8** `/api/mock-login/admin` → 404
+- [ ] **7.9** ดู log ช่วงแรก: `docker compose --env-file .env.production logs -f laravel-app`
 
 ### Rollback
 
 - ใช้ image ก่อนหน้า: `APP_TAG=previous docker compose --env-file .env.production up -d --wait`
-- image เก่ายังไม่มี portal login จึงต้องคืนค่า `MOCK_LOGIN_ENABLED=true` (พร้อมกฎ Apache ข้อ 0.1) ด้วย ไม่งั้นจะไม่มีทาง login
+- image เก่ายังไม่มี portal login จึงต้องคืนค่า `MOCK_LOGIN_ENABLED=true` ด้วย ไม่งั้นจะไม่มีทาง login
 - ตาราง `auth_sessions` เหลือไว้ได้ ไม่กระทบ image เก่า
+
+### แผนสำรองเมื่อ ENG Main ใช้ไม่ได้
+
+ใช้ mock login แทน portal ชั่วคราวโดยไม่ต้อง rollback image — ระหว่างนี้ใครที่เข้าถึง API ได้ก็ขอ JWT สิทธิ์ admin ได้ ให้เปิดสั้นที่สุด
+
+1. `.env.production`: `MOCK_LOGIN_ENABLED=true` และ `VITE_AUTH_PROVIDER=mock` (frontend ต้องเป็น mock ด้วย ไม่งั้น `RoleRedirect` จะพาไป portal และหน้า `/auth/callback` ปิดอยู่)
+2. `docker/deploy.sh .env.production` แล้ว build frontend ใหม่ตามข้อ 7.6 (ค่า `VITE_*` ฝังตอน build)
+3. ENG Main กลับมาแล้ว → คืนค่า `MOCK_LOGIN_ENABLED=false`, `VITE_AUTH_PROVIDER=portal` แล้วทำข้อ 2 ซ้ำ
+4. ตรวจว่า `/api/mock-login/admin` ตอบ 404 อีกครั้ง
+
+token ของ mock ไม่มี `sid` จึงใช้ไม่ได้ทันทีที่ปิด mock (ข้อ 3.9) ไม่ต้องเปลี่ยน `JWT_SECRET`
 
 ---
 

@@ -17,3 +17,12 @@ storage/logs/*
 .phpunit.cache
 tests
 README.md
+.DS_Store
+.editorconfig
+.phpactor.json
+bootstrap/cache/*.php
+docs
+docker/db
+docker-compose.yml
+Dockerfile*
+phpunit.xml
