@@ -18,8 +18,11 @@ return new class extends Migration
             // Encrypted with APP_KEY (AuthSession casts).
             $table->text('intranet_token');
             $table->text('sso_token')->nullable();
-            $table->timestamp('expires_at')->index();
-            $table->timestamp('checked_at');
+            // dateTime, not timestamp: with explicit_defaults_for_timestamp=OFF MySQL
+            // gives NOT NULL timestamps implicit defaults (ON UPDATE CURRENT_TIMESTAMP
+            // on the first, '0000-00-00' on the rest), which breaks strict mode.
+            $table->dateTime('expires_at')->index();
+            $table->dateTime('checked_at');
             $table->timestamp('revoked_at')->nullable();
             $table->string('revoke_reason', 50)->nullable();
             $table->timestamps();
