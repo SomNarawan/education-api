@@ -126,7 +126,9 @@ JWT_REQUIRE_EXPIRATION=false
 
 CMIS_URL=http://localhost:8001
 CMIS_SERVICE_BASE_PATH=/api
-PERSONNEL_API_URL=https://office.eng.kps.ku.ac.th
+OFFICE_KU_API_URL=https://office.eng.kps.ku.ac.th
+OFFICE_KU_API_TIMEOUT=30
+OFFICE_KU_API_VERIFY_SSL=true
 
 FRONTEND_URL=http://localhost:3001,http://localhost:3002
 ```
@@ -184,7 +186,7 @@ parent-directory/
 ก่อนรันครั้งแรก:
 
 1. วาง SQL dump ไว้ที่ `docker/db/*.sql` ไฟล์นี้ถูก `.gitignore` เพราะอาจมีข้อมูลนิสิตจริง
-2. เตรียม `.env` หรือ `.env.production` โดยอย่างน้อยต้องมี `APP_KEY`, `DB_PASSWORD`, `JWT_SECRET`, `CMIS_URL`, `PERSONNEL_API_URL` และ `PORTAL_MAIN_API_KEY`
+2. เตรียม `.env` หรือ `.env.production` โดยอย่างน้อยต้องมี `APP_KEY`, `DB_PASSWORD`, `JWT_SECRET`, `CMIS_URL`, `OFFICE_KU_API_URL` และ `PORTAL_MAIN_API_KEY`
 3. ถ้า volume `dbdata` ถูกสร้างไปแล้ว การเพิ่ม dump ภายหลังจะไม่ทำให้ MySQL import ซ้ำโดยอัตโนมัติ
 
 ```bash

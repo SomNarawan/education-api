@@ -247,7 +247,7 @@ class HealthCheckService
 
     private function personnelApi(): array
     {
-        $baseUrl = config('services.personnel_api.url');
+        $baseUrl = config('services.office_ku.url');
 
         if (! $baseUrl) {
             return ['ok' => true, 'skipped' => true];

@@ -11,6 +11,8 @@ class Sync extends Model
 
     public const TYPE_SYSTEM_DEPARTMENT = 2;
 
+    public const TYPE_ACADEMIC_CALENDAR = 3;
+
     protected $table = 'syncs';
 
     protected $fillable = [

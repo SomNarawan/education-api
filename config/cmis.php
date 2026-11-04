@@ -7,7 +7,7 @@ return [
     'verify_ssl' => env('CMIS_SERVICE_VERIFY_SSL', true),
 
     'endpoints' => [
-        'curriculums' => '/curriculums',
+        'curriculums' => '/curriculums/all',
         'curriculum_plans' => '/curriculums-plans',
         'curriculum_categories' => '/curriculum-categories',
         'curriculum_plan_courses' => '/curriculum-plan-courses',

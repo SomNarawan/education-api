@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AcademicCalendarController;
 use App\Http\Controllers\Api\AdmissionChannelController;
 use App\Http\Controllers\Api\CurriculumCategoryController;
 use App\Http\Controllers\Api\CurriculumPlanCourseController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\NoteTypeController;
 use App\Http\Controllers\Api\PortalMainStudentController;
 use App\Http\Controllers\Api\RelationshipController;
+use App\Http\Controllers\Api\StudentAcademicPeriodSyncController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\StudentGradeController;
 use App\Http\Controllers\Api\StudentImportController;
@@ -148,6 +150,17 @@ Route::post('/notes', [NoteController::class, 'store']);
 Route::delete('/notes/{id}', [NoteController::class, 'destroy'])->whereNumber('id');
 
 Route::get('/syncs', [SyncController::class, 'index']);
+
+Route::prefix('student-academic-period-sync')->group(function (): void {
+    Route::get('/preview', [StudentAcademicPeriodSyncController::class, 'preview']);
+    Route::get('/history', [StudentAcademicPeriodSyncController::class, 'history']);
+    Route::post('/', [StudentAcademicPeriodSyncController::class, 'store']);
+});
+
+Route::prefix('academic-calendars')->group(function (): void {
+    Route::get('/', [AcademicCalendarController::class, 'index']);
+    Route::post('/sync', [AcademicCalendarController::class, 'sync']);
+});
 
 Route::prefix('system-departments')->group(function (): void {
     Route::get('/', [SystemDepartmentController::class, 'index']);

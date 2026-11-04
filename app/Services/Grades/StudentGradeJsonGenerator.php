@@ -1032,6 +1032,13 @@ class StudentGradeJsonGenerator
                         : 0,
                 $termAttempts,
             ));
+            $gpaCredits = array_sum(array_map(
+                fn (array $attempt) => ($attempt['enrollment_type'] ?? 'credit') === 'credit'
+                    && $attempt['grade_point'] !== null
+                        ? (float) $attempt['credit']
+                        : 0,
+                $termAttempts,
+            ));
             $enrollments = array_map(function (array $attempt) use ($slotByCourse): array {
                 $slot = $slotByCourse[$attempt['course_code']] ?? null;
                 $isUnplanned = ! ($attempt['_is_in_plan'] ?? true);
@@ -1051,6 +1058,7 @@ class StudentGradeJsonGenerator
                 'semester_year' => (int) $first['academic_year'],
                 'semester_year_be' => (int) $first['academic_year'] + 543,
                 'credits' => $this->number($credits),
+                'gpa_credits' => $this->number($gpaCredits),
                 'gpa' => $this->gpaFromAttempts($termAttempts),
                 'gpax' => $gpax,
                 'diff_gpax' => $diff > 0 ? '+'.number_format($diff, 2, '.', '') : $this->number($diff),

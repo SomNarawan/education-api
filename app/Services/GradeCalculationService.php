@@ -5,12 +5,14 @@ namespace App\Services;
 use App\Models\Student;
 use App\Services\GradeCalculations\GradeCalculationJsonStore;
 use App\Services\GradeCalculations\GradePredictionCalculator;
+use App\Services\Students\StudentAcademicBaselineService;
 
 class GradeCalculationService
 {
     public function __construct(
         private readonly GradeCalculationJsonStore $jsonStore,
         private readonly GradePredictionCalculator $calculator,
+        private readonly StudentAcademicBaselineService $academicBaseline,
     ) {}
 
     public function history(?string $studentCode = null): array
@@ -25,10 +27,11 @@ class GradeCalculationService
 
     public function store(Student $student, array $attributes): array
     {
+        $baseline = $this->academicBaseline->resolve($student);
         $prediction = $this->calculator->calculate(
             $attributes['courses'],
-            (float) ($student->gpax ?? 0),
-            (int) ($student->passed_credits ?? 0),
+            $baseline['gpax'],
+            $baseline['credits'],
         );
         $calculation = [
             'student' => [
@@ -43,7 +46,9 @@ class GradeCalculationService
             'semester_order' => isset($attributes['semester_order'])
                 ? (int) $attributes['semester_order']
                 : null,
-            'current_gpa' => $student->gpa === null ? null : round((float) $student->gpa, 4),
+            'current_gpa' => $baseline['gpa'] === null
+                ? null
+                : round($baseline['gpa'], 4),
             ...$prediction,
         ];
 

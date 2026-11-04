@@ -5,6 +5,7 @@ namespace App\Actions\Students;
 use App\Constants\StudySemester;
 use App\Models\Student;
 use App\Models\StudentGuardianPhoneHistory;
+use App\Services\StudentAcademicPeriodSyncService;
 use App\Services\StudyPlans\StudentStudyPlanService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,13 @@ class SaveStudent
 
     public function __construct(
         private readonly StudentStudyPlanService $studyPlans,
+        private readonly StudentAcademicPeriodSyncService $academicPeriods,
     ) {}
+
+    public function ensureAcademicCalendarAvailable(): void
+    {
+        $this->academicPeriods->requireCurrentPeriod();
+    }
 
     public function create(array $attributes): Student
     {
@@ -60,7 +67,7 @@ class SaveStudent
 
     private function createWithStudyPlan(array $attributes, array $studyPlan): Student
     {
-        $attributes = $this->addAcademicStanding($attributes);
+        $attributes = $this->addCurrentAcademicStanding($attributes);
 
         return DB::transaction(function () use ($attributes, $studyPlan): Student {
             $student = new Student;
@@ -142,5 +149,17 @@ class SaveStudent
                 StudySemester::nameTh($studySemester),
             ),
         ];
+    }
+
+    private function addCurrentAcademicStanding(array $attributes): array
+    {
+        $standing = $this->academicPeriods->currentStandingForEntryYear(
+            (int) ($attributes['entry_year'] ?? 0),
+        );
+
+        return $this->addAcademicStanding([
+            ...Arr::except($attributes, ['study_year', 'study_semester', 'study_period']),
+            ...$standing,
+        ]);
     }
 }

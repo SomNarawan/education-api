@@ -22,9 +22,12 @@ class PersonnelApiService
         $url = $this->getApiUrl(config("services.personnel_api.endpoints.{$endpointKey}"));
 
         $response = Http::withOptions([
-            'verify' => false,
+            'verify' => (bool) config('services.office_ku.verify_ssl', true),
         ])
-            ->timeout(15)
+            ->timeout(max(
+                1,
+                (int) config('services.office_ku.timeout', 30)
+            ))
             ->get($url);
 
         if (! $response->successful()) {
@@ -40,7 +43,7 @@ class PersonnelApiService
 
     private function getApiUrl(mixed $endpoint): string
     {
-        $baseUrl = config('services.personnel_api.url');
+        $baseUrl = config('services.office_ku.url');
         $basePath = config('services.personnel_api.base_path');
 
         if (! is_string($baseUrl) || ! is_string($basePath) || ! is_string($endpoint)

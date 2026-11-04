@@ -4,7 +4,6 @@ namespace App\Http\Requests\Student;
 
 use App\Constants\HttpStatus;
 use App\Constants\Status;
-use App\Constants\StudySemester;
 use App\Contracts\CmisApi;
 use App\Helpers\ApiResponse;
 use App\Rules\ValidStudyPlan;
@@ -77,11 +76,6 @@ class StudentWriteRequest extends FormRequest
                 Rule::exists('system_departments', 'id')->where('status', Status::ACTIVE),
             ]),
             'entry_year' => $this->requiredRules(['integer', 'between:1901,2155']),
-            'study_year' => $this->requiredRules(['integer', 'min:1']),
-            'study_semester' => $this->requiredRules([
-                'integer',
-                Rule::in(StudySemester::values()),
-            ]),
             'guardian_title_id' => ['sometimes', 'nullable', 'integer', 'exists:titles,id'],
             'guardian_first_name_th' => ['sometimes', 'nullable', 'string', 'max:50'],
             'guardian_last_name_th' => ['sometimes', 'nullable', 'string', 'max:50'],
@@ -132,8 +126,6 @@ class StudentWriteRequest extends FormRequest
             'study_plan_name_th' => 'ชื่อแผนการเรียน',
             'system_department_id' => 'ภาควิชา',
             'entry_year' => 'ปีที่เข้าศึกษา',
-            'study_year' => 'ชั้นปี',
-            'study_semester' => 'ภาคการศึกษา',
             'guardian_title_id' => 'คำนำหน้าผู้ปกครอง',
             'guardian_first_name_th' => 'ชื่อผู้ปกครอง',
             'guardian_last_name_th' => 'นามสกุลผู้ปกครอง',

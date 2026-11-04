@@ -18,6 +18,7 @@ class StudentAcademicOverviewService
         private readonly StudyPlanPayload $studyPlanPayload,
         private readonly LocalJsonFileStore $jsonFiles,
         private readonly CmisApi $cmisApi,
+        private readonly StudentAcademicBaselineService $academicBaseline,
     ) {}
 
     public function get(Student $student): array
@@ -30,6 +31,7 @@ class StudentAcademicOverviewService
             $missingSections,
         );
         $history = $this->academicHistory($historyRows);
+        $baseline = $this->academicBaseline->resolve($student, $historyRows);
         $pendingRows = $this->readOptionalJson(
             "data/enrollments_not_pass/{$studentCode}.json",
             'pending_courses',
@@ -54,11 +56,9 @@ class StudentAcademicOverviewService
                 'semester' => $this->semesterName((int) $student->study_semester),
                 'semester_order' => (int) $student->study_semester,
             ],
-            'gpax' => $student->gpax === null ? null : (float) $student->gpax,
-            'cumulative_credits' => $student->passed_credits === null
-                ? null
-                : (int) $student->passed_credits,
-            'latest_gpa' => $student->gpa === null ? null : (float) $student->gpa,
+            'gpax' => $baseline['gpax'],
+            'cumulative_credits' => $baseline['credits'],
+            'latest_gpa' => $baseline['gpa'],
             'latest_completed_term' => $this->latestCompletedTerm($history),
             'academic_history' => $history,
             'pending_courses' => $this->pendingCourses($pendingRows),

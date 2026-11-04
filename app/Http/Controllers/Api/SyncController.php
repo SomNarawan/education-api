@@ -44,6 +44,7 @@ class SyncController extends Controller
             ->whereIn('sync_types.id', [
                 Sync::TYPE_SYSTEM_FACULTY,
                 Sync::TYPE_SYSTEM_DEPARTMENT,
+                Sync::TYPE_ACADEMIC_CALENDAR,
             ])
             ->leftJoinSub(
                 $latestSyncIds,

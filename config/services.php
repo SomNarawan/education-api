@@ -35,14 +35,26 @@ return [
         ],
     ],
 
+    'office_ku' => [
+        'url' => env('OFFICE_KU_API_URL'),
+        'timeout' => (int) env('OFFICE_KU_API_TIMEOUT', 30),
+        'verify_ssl' => filter_var(
+            env('OFFICE_KU_API_VERIFY_SSL', true),
+            FILTER_VALIDATE_BOOL
+        ),
+    ],
+
     'personnel_api' => [
-        'url' => env('PERSONNEL_API_URL'),
         'base_path' => '/kukps-eng-personnel-api/api/portal-student-map',
 
         'endpoints' => [
             'all_department' => '/all-department',
             'all_faculty' => '/all-faculty',
         ],
+    ],
+
+    'academic_calendar_api' => [
+        'endpoint' => '/kukps-eng-leavesystem-api/academic-calendars',
     ],
 
 ];

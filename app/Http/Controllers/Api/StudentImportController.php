@@ -41,16 +41,15 @@ class StudentImportController extends Controller
         );
     }
 
-    public function downloadTemplate(): BinaryFileResponse
-    {
-        $templatePath = resource_path('templates/'.self::TEMPLATE_FILE_NAME);
-
-        abort_unless(is_file($templatePath), 404, 'Student import template not found');
+    public function downloadTemplate(
+        StudentImportService $studentImport,
+    ): BinaryFileResponse {
+        $templatePath = $studentImport->createTemplate();
 
         return response()->download(
             $templatePath,
             self::TEMPLATE_FILE_NAME,
             ['Content-Type' => self::XLSX_CONTENT_TYPE],
-        );
+        )->deleteFileAfterSend();
     }
 }
