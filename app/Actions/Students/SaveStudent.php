@@ -2,9 +2,9 @@
 
 namespace App\Actions\Students;
 
-use App\Constants\StudySemester;
 use App\Models\Student;
 use App\Models\StudentGuardianPhoneHistory;
+use App\Services\StudentAcademicPeriods\AcademicStandingCalculator;
 use App\Services\StudentAcademicPeriodSyncService;
 use App\Services\StudyPlans\StudentStudyPlanService;
 use Illuminate\Support\Arr;
@@ -23,6 +23,7 @@ class SaveStudent
     public function __construct(
         private readonly StudentStudyPlanService $studyPlans,
         private readonly StudentAcademicPeriodSyncService $academicPeriods,
+        private readonly AcademicStandingCalculator $standingCalculator,
     ) {}
 
     public function ensureAcademicCalendarAvailable(): void
@@ -143,10 +144,9 @@ class SaveStudent
 
         return [
             ...Arr::except($attributes, self::MANAGED_ACADEMIC_FIELDS),
-            'study_period' => sprintf(
-                'ปีที่ %d %s',
+            'study_period' => $this->standingCalculator->studyPeriod(
                 $studyYear,
-                StudySemester::nameTh($studySemester),
+                $studySemester,
             ),
         ];
     }

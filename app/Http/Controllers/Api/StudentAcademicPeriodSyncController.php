@@ -5,12 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Constants\HttpStatus;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StudentAcademicPeriod\StudentAcademicPeriodSyncRequest;
 use App\Http\Responses\StudentAcademicPeriodSyncResponse;
 use App\Models\StudentAcademicPeriodSync;
 use App\Services\StudentAcademicPeriodSyncService;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Throwable;
 
 class StudentAcademicPeriodSyncController extends Controller
@@ -22,18 +21,10 @@ class StudentAcademicPeriodSyncController extends Controller
     /**
      * API: GET /api/student-academic-period-sync/preview
      */
-    public function preview(Request $request): JsonResponse
+    public function preview(StudentAcademicPeriodSyncRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'reference_date' => ['nullable', 'date_format:Y-m-d'],
-        ]);
-
-        $referenceDate = isset($validated['reference_date'])
-            ? CarbonImmutable::createFromFormat('Y-m-d', $validated['reference_date'])
-            : CarbonImmutable::now('Asia/Bangkok')->startOfDay();
-
         return ApiResponse::success(
-            $this->syncService->preview($referenceDate),
+            $this->syncService->preview($request->referenceDate()),
             'Load student academic period sync preview successfully'
         );
     }
@@ -57,18 +48,11 @@ class StudentAcademicPeriodSyncController extends Controller
     /**
      * API: POST /api/student-academic-period-sync
      */
-    public function store(Request $request): JsonResponse
+    public function store(StudentAcademicPeriodSyncRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'reference_date' => ['nullable', 'date_format:Y-m-d'],
-        ]);
-        $referenceDate = isset($validated['reference_date'])
-            ? CarbonImmutable::createFromFormat('Y-m-d', $validated['reference_date'])
-            : CarbonImmutable::now('Asia/Bangkok')->startOfDay();
-
         try {
             $actor = $this->actorFromJwt($request) ?? 'system';
-            $history = $this->syncService->sync($referenceDate, $actor);
+            $history = $this->syncService->sync($request->referenceDate(), $actor);
 
             return ApiResponse::success(
                 new StudentAcademicPeriodSyncResponse($history),
