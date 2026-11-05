@@ -9,7 +9,9 @@ services:
       - dbdata:/var/lib/mysql
       - ./docker/db:/docker-entrypoint-initdb.d:ro   # วางไฟล์ dump (.sql) ไว้ในโฟลเดอร์นี้ก่อน docker compose up ครั้งแรก
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      # TCP, not the socket: the temporary server that imports the dump only
+      # opens the socket, so a socket ping reports healthy before import ends.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -22,7 +24,7 @@ services:
       PMA_USER: root
       PMA_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "8080:80"
+      - "${PHPMYADMIN_PORT:-8080}:80"
     depends_on:
       - mysql
 
@@ -70,7 +72,9 @@ services:
       OFFICE_KU_API_VERIFY_SSL: ${OFFICE_KU_API_VERIFY_SSL:-false}
       PORTAL_MAIN_API_KEY: ${PORTAL_MAIN_API_KEY}
       MOCK_LOGIN_ENABLED: ${MOCK_LOGIN_ENABLED:-false}
+      MOCK_LOGIN_STUDENT_ENABLED: ${MOCK_LOGIN_STUDENT_ENABLED:-false}
       MOCK_LOGIN_FRONTEND_URL: ${MOCK_LOGIN_FRONTEND_URL:-http://localhost:3008}
+      MOCK_LOGIN_STUDENT_FRONTEND_URL: ${MOCK_LOGIN_STUDENT_FRONTEND_URL:-http://localhost:3002}
       MOCK_LOGIN_ADMIN_NONTRI_IDS: ${MOCK_LOGIN_ADMIN_NONTRI_IDS:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3008}
       # GET /api/health. Without HEALTH_TOKEN it still answers ok/failed per
@@ -96,9 +100,6 @@ services:
         VITE_AUTH_PROVIDER: ${VITE_AUTH_PROVIDER:-portal}
         VITE_PORTAL_LOGIN_URL: ${VITE_PORTAL_LOGIN_URL:-https://office.eng.kps.ku.ac.th/eng-main/home}
         VITE_PORTAL_LOGOUT_URL: ${VITE_PORTAL_LOGOUT_URL:-}
-        # Staff bundle only (admin/teacher). The student app is a separate
-        # build with VITE_APP_MODE=student and is not deployed yet.
-        VITE_APP_MODE: staff
     container_name: web
     ports:
       - "3008:80"

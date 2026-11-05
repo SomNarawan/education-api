@@ -61,11 +61,24 @@ class AuthenticateJwt
             $request->attributes->set('auth_session', $session);
         } elseif (! config('mock_login.enabled')) {
             // Only mock-login issues tokens without a portal session.
-            return ApiResponse::error('Token is not tied to a portal session', HttpStatus::UNAUTHORIZED['code']);
+            if (! config('mock_login.student_enabled') || ($claims['role'] ?? null) !== ['student']) {
+                return ApiResponse::error('Token is not tied to a portal session', HttpStatus::UNAUTHORIZED['code']);
+            }
+
+            if (! $this->isStudentRoute($request)) {
+                return ApiResponse::error('This endpoint is not available to students', HttpStatus::FORBIDDEN['code']);
+            }
         }
 
         $request->attributes->set('jwt_claims', $claims);
 
         return $next($request);
+    }
+
+    private function isStudentRoute(Request $request): bool
+    {
+        $endpoint = $request->method().' '.$request->route()?->uri();
+
+        return in_array($endpoint, config('mock_login.student_routes'), true);
     }
 }

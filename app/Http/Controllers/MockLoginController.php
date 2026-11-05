@@ -15,16 +15,23 @@ class MockLoginController extends Controller
 {
     public function __construct()
     {
-        abort_unless(config('mock_login.enabled'), HttpStatus::NOT_FOUND['code']);
+        abort_unless(
+            config('mock_login.enabled') || config('mock_login.student_enabled'),
+            HttpStatus::NOT_FOUND['code']
+        );
     }
 
     public function picker()
     {
+        $this->requireStaffMockLogin();
+
         return view('mock-login');
     }
 
     public function search(Request $request): JsonResponse
     {
+        $this->requireStaffMockLogin();
+
         $q = trim((string) $request->query('q', ''));
 
         $systemTeachers = collect($this->mockUsers())
@@ -69,6 +76,8 @@ class MockLoginController extends Controller
 
     public function issueAdmin(JwtIssuer $issuer): RedirectResponse
     {
+        $this->requireStaffMockLogin();
+
         return $this->redirectWithToken($issuer, [
             'nontri_id' => 'mock-admin',
             'name' => 'Mock Admin',
@@ -81,6 +90,8 @@ class MockLoginController extends Controller
 
     public function issueSystemTeacher(Request $request, string $nontriId, JwtIssuer $issuer): RedirectResponse
     {
+        $this->requireStaffMockLogin();
+
         $systemTeacher = collect($this->mockUsers())->firstWhere('nontri_id', $nontriId);
 
         abort_unless(
@@ -174,6 +185,11 @@ class MockLoginController extends Controller
             'faculty_id' => $student->systemDepartment?->system_faculty_id,
             'study_plan_id' => (int) $student->study_plan_id,
         ];
+    }
+
+    private function requireStaffMockLogin(): void
+    {
+        abort_unless(config('mock_login.enabled'), HttpStatus::NOT_FOUND['code']);
     }
 
     private function redirectWithToken(

@@ -191,18 +191,29 @@ parent-directory/
 ก่อนรันครั้งแรก:
 
 1. วาง SQL dump ไว้ที่ `docker/db/*.sql` ไฟล์นี้ถูก `.gitignore` เพราะอาจมีข้อมูลนิสิตจริง
-2. เตรียม `.env` หรือ `.env.production` โดยอย่างน้อยต้องมี `APP_KEY`, `DB_PASSWORD`, `JWT_SECRET`, `CMIS_URL`, `OFFICE_KU_API_URL` และ `PORTAL_MAIN_API_KEY`
+2. คัดลอก `.env.localdeploy.example` เป็น `.env.localdeploy` แล้วเติม `APP_KEY`, `DB_PASSWORD`, `JWT_SECRET`, `CMIS_URL` และ `PORTAL_MAIN_API_KEY`
 3. ถ้า volume `dbdata` ถูกสร้างไปแล้ว การเพิ่ม dump ภายหลังจะไม่ทำให้ MySQL import ซ้ำโดยอัตโนมัติ
 
 ```bash
-docker compose up -d --build
+docker compose --env-file .env.localdeploy up -d --build
+docker compose exec -u www-data backend php artisan migrate --force
 ```
+
+รัน `artisan` ด้วย `-u www-data` เสมอ ถ้ารันเป็น root ไฟล์ log จะเป็นของ root แล้ว API จะตอบ 500 เพราะเขียน log ไม่ได้
+
+ไฟล์ env ของ API:
+
+| ไฟล์ | ใช้กับ | Commit |
+|---|---|---|
+| `.env` | `php artisan serve` | ไม่ (ตัวอย่าง `.env.example`) |
+| `.env.localdeploy` | ทดสอบ deploy ในเครื่อง | ไม่ (ตัวอย่าง `.env.localdeploy.example`) |
+| `.env.production` | production | ไม่ (ตัวอย่าง `.env.production.example`) |
 
 | Service | URL / port |
 |---|---|
 | Backend | `http://localhost:3009` |
 | Frontend | `http://localhost:3008` |
-| phpMyAdmin | `http://localhost:8080` |
+| phpMyAdmin | `http://localhost:8080` (เปลี่ยนได้ด้วย `PHPMYADMIN_PORT`, `.env.localdeploy.example` ตั้งไว้ที่ `8081`) |
 | MySQL | ใช้งานภายใน Compose network ที่ `mysql:3306` |
 
 backend container กำหนด `SESSION_DRIVER=file`, `CACHE_STORE=file` และ `QUEUE_CONNECTION=sync` ไว้โดยตั้งใจ จึงไม่ต้องมี queue worker แยกใน Compose
@@ -223,7 +234,7 @@ docker compose --env-file .env.production up -d --build
 | `/up` | ไม่ใช้ JWT; Laravel built-in health route |
 | `GET /api/health` | ไม่ใช้ JWT; ส่ง health token เมื่อต้องการรายละเอียด |
 | `POST /api/auth/portal-login` | ไม่ใช้ JWT; รับ `exchangeToken`, `intranetToken` และ `role` จาก ENG Main (จำกัด 10 ครั้ง/นาที) |
-| `/api/mock-login/*` | ไม่ใช้ JWT แต่เปิดได้เฉพาะเมื่อ `MOCK_LOGIN_ENABLED=true` (ทุก `APP_ENV`) บน production ต้องเป็น `false` ยกเว้นใช้แทน portal ชั่วคราวตอน ENG Main ล่ม |
+| `/api/mock-login/*` | ไม่ใช้ JWT แต่เปิดได้เฉพาะเมื่อ `MOCK_LOGIN_ENABLED=true` (ทุก `APP_ENV`) บน production ต้องเป็น `false` ยกเว้นใช้แทน portal ชั่วคราวตอน ENG Main ล่ม ส่วน `MOCK_LOGIN_STUDENT_ENABLED=true` เปิดเฉพาะฝั่งนิสิต โดย staff ยังต้องเข้าผ่าน portal และ token นิสิตเรียกได้เฉพาะ endpoint ใน `mock_login.student_routes` |
 | `/api/portal-main-student/*` | Header `X-API-KEY: <PORTAL_MAIN_API_KEY>` |
 | `/api/*` อื่นทั้งหมด | Header `Authorization: Bearer <jwt-token>` |
 
