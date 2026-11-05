@@ -15,9 +15,14 @@ return [
     | Mock login
     |--------------------------------------------------------------------------
     |
-    | Lets the API mint its own JWT (routes/web.php -> MockLoginController) so
-    | the app can be tested end-to-end without the real SSO. Must stay off in
-    | production and be removed once the real SSO integration is verified.
+    | Lets the API mint its own JWT (/api/mock-login -> MockLoginController)
+    | for local development without the portal. Mock tokens carry no session
+    | id, so AuthenticateJwt accepts them only while this is on.
+    |
+    | Production keeps it off: staff sign in through the portal there
+    | (POST /api/auth/portal-login). Turning it on in production is the
+    | fallback when the portal is down, and lets anyone who can reach the API
+    | sign in as admin, so turn it off again once the portal is back.
     |
     */
 
