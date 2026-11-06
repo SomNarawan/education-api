@@ -160,7 +160,7 @@ composer run dev
 1. ขอ SQL dump ของ `education_dss` หรือสิทธิ์เข้าถึงฐานข้อมูลจากทีม
 2. Import schema/data แล้วตั้งค่า `DB_*` ใน `.env`
 3. อย่ารัน `php artisan migrate` กับฐานข้อมูลที่ใช้งานร่วมกันโดยไม่ตรวจ migration และยืนยันกับผู้ดูแลฐานข้อมูลก่อน
-4. Portal login ต้องมีตาราง `auth_sessions` จาก migration — `docker compose` บนเครื่อง dev ไม่รัน migrate ให้เอง จึงต้องรัน `docker compose exec backend php artisan migrate` หนึ่งครั้งหลัง pull (ไม่งั้น login จะตอบ 500 `Table 'auth_sessions' doesn't exist`)
+4. Portal login ต้องมีตาราง `auth_sessions` จาก migration — `docker compose` บนเครื่อง dev ไม่รัน migrate ให้เอง จึงต้องรัน `docker compose exec -u www-data backend php artisan migrate --force` หนึ่งครั้งหลัง pull (ไม่งั้น login จะตอบ 500 `Table 'auth_sessions' doesn't exist`)
 
 ตารางที่ model ปัจจุบันใช้งาน ได้แก่:
 
@@ -188,19 +188,6 @@ parent-directory/
 └── education-web/
 ```
 
-ก่อนรันครั้งแรก:
-
-1. วาง SQL dump ไว้ที่ `docker/db/*.sql` ไฟล์นี้ถูก `.gitignore` เพราะอาจมีข้อมูลนิสิตจริง
-2. คัดลอก `.env.localdeploy.example` เป็น `.env.localdeploy` แล้วเติม `APP_KEY`, `DB_PASSWORD`, `JWT_SECRET`, `CMIS_URL` และ `PORTAL_MAIN_API_KEY`
-3. ถ้า volume `dbdata` ถูกสร้างไปแล้ว การเพิ่ม dump ภายหลังจะไม่ทำให้ MySQL import ซ้ำโดยอัตโนมัติ
-
-```bash
-docker compose --env-file .env.localdeploy up -d --build
-docker compose exec -u www-data backend php artisan migrate --force
-```
-
-รัน `artisan` ด้วย `-u www-data` เสมอ ถ้ารันเป็น root ไฟล์ log จะเป็นของ root แล้ว API จะตอบ 500 เพราะเขียน log ไม่ได้
-
 ไฟล์ env ของ API:
 
 | ไฟล์ | ใช้กับ | Commit |
@@ -218,14 +205,31 @@ docker compose exec -u www-data backend php artisan migrate --force
 
 backend container กำหนด `SESSION_DRIVER=file`, `CACHE_STORE=file` และ `QUEUE_CONNECTION=sync` ไว้โดยตั้งใจ จึงไม่ต้องมี queue worker แยกใน Compose
 
-ตัวอย่าง production/staging:
+`FRONTEND_URL` รองรับหลาย origin คั่นด้วย comma และใช้กำหนด CORS ส่วน `MOCK_LOGIN_FRONTEND_URL`/`MOCK_LOGIN_STUDENT_FRONTEND_URL` เป็นปลายทาง redirect หลัง mock login ค่า `VITE_API_URL` จะถูกฝังตอน build frontend จึงต้อง rebuild เมื่อ URL เปลี่ยน
+
+รัน `artisan` ด้วย `-u www-data` เสมอ ถ้ารันเป็น root ไฟล์ log จะเป็นของ root แล้ว API จะตอบ 500 เพราะเขียน log ไม่ได้
+
+### Local deploy
+
+ใช้ทดสอบ deploy ทั้ง stack ในเครื่อง
+
+ก่อนรันครั้งแรก:
+
+1. วาง SQL dump ไว้ที่ `docker/db/*.sql` ไฟล์นี้ถูก `.gitignore` เพราะอาจมีข้อมูลนิสิตจริง
+2. คัดลอก `.env.localdeploy.example` เป็น `.env.localdeploy` แล้วเติม `APP_KEY`, `DB_PASSWORD`, `JWT_SECRET`, `CMIS_URL` และ `PORTAL_MAIN_API_KEY`
+3. ถ้า volume `dbdata` ถูกสร้างไปแล้ว การเพิ่ม dump ภายหลังจะไม่ทำให้ MySQL import ซ้ำโดยอัตโนมัติ
+
+```bash
+docker compose --env-file .env.localdeploy up -d --build
+docker compose exec -u www-data backend php artisan migrate --force
+```
+
+### Production/staging
 
 ```bash
 cp .env.production.example .env.production
 docker compose --env-file .env.production up -d --build
 ```
-
-`FRONTEND_URL` รองรับหลาย origin คั่นด้วย comma และใช้กำหนด CORS ส่วน `MOCK_LOGIN_FRONTEND_URL`/`MOCK_LOGIN_STUDENT_FRONTEND_URL` เป็นปลายทาง redirect หลัง mock login ค่า `VITE_API_URL` จะถูกฝังตอน build frontend จึงต้อง rebuild เมื่อ URL เปลี่ยน
 
 ## Authentication
 
