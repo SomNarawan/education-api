@@ -8,6 +8,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PortalMainStudentService
 {
+    public const MAX_SEARCH_RESULTS = 100;
+
+    private const NAME_COLUMNS = ['first_name_th', 'last_name_th', 'first_name_en', 'last_name_en'];
+
     public function nontriIdExists(string $nontriId): bool
     {
         return Student::query()->where('student_code', $this->normalizeNontriId($nontriId))->exists();
@@ -39,23 +43,19 @@ class PortalMainStudentService
         return $result;
     }
 
+    /**
+     * Every word of the keyword must match the student code, a Thai or English
+     * name, or the email, so "สมชาย ใจดี" finds the student named สมชาย ใจดี.
+     */
     public function searchNontriIdsByAnyKeyword(string $keyword): array
     {
-        $pattern = "%{$keyword}%";
+        $query = Student::query();
 
-        return Student::query()
-            ->where(function (Builder $query) use ($pattern): void {
-                $query
-                    ->where('student_code', 'like', $pattern)
-                    ->orWhere('first_name_th', 'like', $pattern)
-                    ->orWhere('last_name_th', 'like', $pattern)
-                    ->orWhere('first_name_en', 'like', $pattern)
-                    ->orWhere('last_name_en', 'like', $pattern)
-                    ->orWhere('email', 'like', $pattern);
-            })
-            ->orderBy('student_code')
-            ->pluck('student_code')
-            ->all();
+        foreach ($this->words($keyword) as $word) {
+            $this->whereAnyLike($query, ['student_code', ...self::NAME_COLUMNS, 'email'], $word);
+        }
+
+        return $this->pluckNontriIds($query);
     }
 
     public function searchNontriIdsByFields(?string $nontriId, ?string $fullName, ?string $agency): array
@@ -63,34 +63,63 @@ class PortalMainStudentService
         $query = Student::query();
 
         if ($nontriId !== null && $nontriId !== '') {
-            $query->where('student_code', 'like', "%{$nontriId}%");
+            $this->whereAnyLike($query, ['student_code'], $nontriId);
         }
 
-        if ($fullName !== null && trim($fullName) !== '') {
-            foreach (preg_split('/\s+/', trim($fullName), -1, PREG_SPLIT_NO_EMPTY) as $token) {
-                $pattern = "%{$token}%";
-                $query->where(function (Builder $subQuery) use ($pattern): void {
-                    $subQuery
-                        ->where('first_name_th', 'like', $pattern)
-                        ->orWhere('last_name_th', 'like', $pattern)
-                        ->orWhere('first_name_en', 'like', $pattern)
-                        ->orWhere('last_name_en', 'like', $pattern);
-                });
-            }
+        foreach ($this->words($fullName ?? '') as $word) {
+            $this->whereAnyLike($query, self::NAME_COLUMNS, $word);
         }
 
         if ($agency !== null && $agency !== '') {
-            $pattern = "%{$agency}%";
             $query->whereHas(
                 'systemDepartment',
-                fn (Builder $departmentQuery) => $departmentQuery
-                    ->withInactive()
-                    ->where('th_name', 'like', $pattern)
-                    ->orWhere('en_name', 'like', $pattern)
+                fn (Builder $departmentQuery) => $this->whereAnyLike(
+                    $departmentQuery->withInactive(),
+                    ['th_name', 'en_name'],
+                    $agency,
+                )
             );
         }
 
-        return $query->orderBy('student_code')->pluck('student_code')->all();
+        return $this->pluckNontriIds($query);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function words(string $text): array
+    {
+        return preg_split('/\s+/', trim($text), -1, PREG_SPLIT_NO_EMPTY);
+    }
+
+    /**
+     * Adds "any of the columns contains the value". `%` and `_` in the value
+     * match literally; `!` is the escape character because both MySQL and
+     * SQLite accept it in an ESCAPE clause.
+     *
+     * @param  array<int, string>  $columns
+     */
+    private function whereAnyLike(Builder $query, array $columns, string $value): Builder
+    {
+        $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value).'%';
+
+        return $query->where(function (Builder $subQuery) use ($columns, $pattern): void {
+            foreach ($columns as $column) {
+                $subQuery->orWhereRaw("{$column} like ? escape '!'", [$pattern]);
+            }
+        });
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function pluckNontriIds(Builder $query): array
+    {
+        return $query
+            ->orderBy('student_code')
+            ->limit(self::MAX_SEARCH_RESULTS)
+            ->pluck('student_code')
+            ->all();
     }
 
     /**

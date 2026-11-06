@@ -63,4 +63,9 @@ final class HttpStatus
         'code' => 500,
         'message' => 'Internal Server Error',
     ];
+
+    public const SERVICE_UNAVAILABLE = [
+        'code' => 503,
+        'message' => 'Service Unavailable',
+    ];
 }
