@@ -15,6 +15,7 @@ class StudentListResponse extends JsonResource
             'teacher_id' => $this->teacher_id,
             'teacher_full_name' => $this->teacher_full_name,
             'curriculum_code' => $this->curriculum_code,
+            'is_international' => (bool) $this->is_international,
             'study_plan_name_th' => $this->study_plan_name_th,
             'study_plan_name' => $this->study_plan_name_th,
             'curriculum_plan_name' => $this->study_plan_name_th,

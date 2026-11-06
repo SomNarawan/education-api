@@ -11,6 +11,7 @@ class StudentAcademicPeriodSyncResponse extends JsonResource
         return [
             'id' => $this->id,
             'reference_date' => $this->reference_date?->toDateString(),
+            'is_international' => (bool) $this->is_international,
             'academic_year' => $this->academic_year,
             'term_code' => $this->term_code,
             'term_name_th' => $this->term_name_th,

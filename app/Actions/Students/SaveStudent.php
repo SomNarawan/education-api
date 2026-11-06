@@ -26,9 +26,9 @@ class SaveStudent
         private readonly AcademicStandingCalculator $standingCalculator,
     ) {}
 
-    public function ensureAcademicCalendarAvailable(): void
+    public function ensureAcademicCalendarAvailable(bool $isInternational): void
     {
-        $this->academicPeriods->requireCurrentPeriod();
+        $this->academicPeriods->requireCurrentPeriod($isInternational);
     }
 
     public function create(array $attributes): Student
@@ -97,7 +97,12 @@ class SaveStudent
                 ->lockForUpdate()
                 ->findOrFail($student->getKey());
 
-            if (
+            if ($this->requiresCurrentStandingRefresh($student, $attributes)) {
+                $attributes = $this->addCurrentAcademicStanding([
+                    ...$student->only(['entry_year', 'is_international']),
+                    ...$attributes,
+                ]);
+            } elseif (
                 array_key_exists('study_year', $attributes) ||
                 array_key_exists('study_semester', $attributes)
             ) {
@@ -137,6 +142,16 @@ class SaveStudent
         return $studyPlanChanged || $studentCodeChanged;
     }
 
+    private function requiresCurrentStandingRefresh(Student $student, array $attributes): bool
+    {
+        $entryYearChanged = array_key_exists('entry_year', $attributes)
+            && (int) $attributes['entry_year'] !== (int) $student->entry_year;
+        $calendarTypeChanged = array_key_exists('is_international', $attributes)
+            && (bool) $attributes['is_international'] !== (bool) $student->is_international;
+
+        return $entryYearChanged || $calendarTypeChanged;
+    }
+
     private function addAcademicStanding(array $attributes, ?Student $student = null): array
     {
         $studyYear = (int) ($attributes['study_year'] ?? $student?->study_year);
@@ -155,6 +170,7 @@ class SaveStudent
     {
         $standing = $this->academicPeriods->currentStandingForEntryYear(
             (int) ($attributes['entry_year'] ?? 0),
+            (bool) ($attributes['is_international'] ?? false),
         );
 
         return $this->addAcademicStanding([

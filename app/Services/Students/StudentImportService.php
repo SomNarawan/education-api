@@ -112,10 +112,9 @@ class StudentImportService
         string $curriculumCode,
         int $studyPlanId,
         string $studyPlanNameTh,
+        bool $isInternational,
         array $claims,
     ): array {
-        $this->saveStudent->ensureAcademicCalendarAvailable();
-
         $importType = ImportType::query()
             ->where('type', 'student')
             ->where('status', Status::ACTIVE)
@@ -158,6 +157,8 @@ class StudentImportService
                 ]);
             }
 
+            $this->saveStudent->ensureAcademicCalendarAvailable($isInternational);
+
             $masterData = $this->masterData($curriculumId);
             $studyPlan = $this->studyPlans->fetch($studyPlanId);
             $successRows = [];
@@ -174,6 +175,7 @@ class StudentImportService
                     $curriculumCode,
                     $studyPlanId,
                     $studyPlanNameTh,
+                    $isInternational,
                 );
                 $student = Student::query()
                     ->where('student_code', $attributes['student_code'])
@@ -281,9 +283,15 @@ class StudentImportService
             ]);
         }
 
+        if (count($rows[1]) !== count(self::HEADERS)) {
+            throw ValidationException::withMessages([
+                'file' => 'รูปแบบ header ไม่ตรงกับ Import Student Template',
+            ]);
+        }
+
         $actualHeaders = array_map(
             fn (mixed $header) => rtrim(trim((string) $header), '*'),
-            array_slice($rows[1], 0, count(self::HEADERS)),
+            $rows[1],
         );
 
         if ($actualHeaders !== self::HEADERS) {
@@ -308,6 +316,7 @@ class StudentImportService
         string $curriculumCode,
         int $studyPlanId,
         string $studyPlanNameTh,
+        bool $isInternational,
     ): array {
         $masterErrors = [];
         $titleId = $this->resolveMasterDataId($row[2], $masterData['titles'], 'คำนำหน้า', true, $masterErrors);
@@ -348,6 +357,7 @@ class StudentImportService
             'guardian_relationship_id' => $relationshipId,
             'guardian_phone' => $this->optionalCell($this->phone($row[17])),
             'student_status_id' => $studentStatusId,
+            'is_international' => $isInternational,
         ], $masterErrors];
     }
 
@@ -559,6 +569,7 @@ class StudentImportService
             'guardian_relationship_id' => ['nullable', 'integer', Rule::exists('relationships', 'id')],
             'guardian_phone' => ['nullable', 'string', 'max:10'],
             'student_status_id' => ['required', 'integer', Rule::exists('student_statuses', 'id')],
+            'is_international' => ['required', 'boolean'],
         ];
     }
 

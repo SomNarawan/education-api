@@ -55,7 +55,7 @@ class StudentAcademicPeriodSyncController extends Controller
             $history = $this->syncService->sync($request->referenceDate(), $actor);
 
             return ApiResponse::success(
-                new StudentAcademicPeriodSyncResponse($history),
+                StudentAcademicPeriodSyncResponse::collection($history),
                 'Sync student academic periods successfully'
             );
         } catch (Throwable $exception) {

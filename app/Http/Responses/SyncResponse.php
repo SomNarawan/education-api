@@ -22,6 +22,10 @@ class SyncResponse extends JsonResource
             'created_by' => $this->created_by,
             'updated_at' => $this->updated_at,
             'updated_by' => $this->updated_by,
+            'academic_year_results' => $this->when(
+                isset($this->academic_year_results),
+                $this->academic_year_results,
+            ),
         ];
     }
 }

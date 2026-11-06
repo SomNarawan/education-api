@@ -8,6 +8,7 @@ class StudentAcademicPeriodSync extends Model
 {
     protected $fillable = [
         'reference_date',
+        'is_international',
         'academic_year',
         'term_code',
         'term_name_th',
@@ -22,6 +23,7 @@ class StudentAcademicPeriodSync extends Model
 
     protected $casts = [
         'reference_date' => 'date',
+        'is_international' => 'boolean',
         'academic_year' => 'integer',
         'total_students' => 'integer',
         'updated_count' => 'integer',

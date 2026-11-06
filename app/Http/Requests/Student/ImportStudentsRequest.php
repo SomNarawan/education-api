@@ -19,6 +19,7 @@ class ImportStudentsRequest extends FormRequest
             ],
             'curriculum_id' => ['required', 'integer', 'min:1'],
             'curriculum_code' => ['required', 'string', 'max:255'],
+            'is_international' => ['required', 'boolean'],
             'study_plan_id' => ['required', 'integer', 'min:1'],
             'study_plan_name_th' => ['required', 'string', 'max:255'],
         ];

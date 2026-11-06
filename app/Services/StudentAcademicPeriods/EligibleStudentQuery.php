@@ -8,24 +8,27 @@ use Illuminate\Database\Eloquent\Collection;
 
 class EligibleStudentQuery
 {
-    private const CURRICULUM_CODES = [
-        'CURR-KPS-ENG-COMP-2565',
-    ];
-
-    public function builder(): Builder
+    public function builder(?bool $isInternational = null): Builder
     {
         return Student::query()
             ->studying()
-            ->whereIn('curriculum_code', self::CURRICULUM_CODES);
+            ->when(
+                $isInternational !== null,
+                fn (Builder $query): Builder => $query->where(
+                    'is_international',
+                    $isInternational,
+                ),
+            );
     }
 
-    public function get(): Collection
+    public function get(?bool $isInternational = null): Collection
     {
-        return $this->builder()
+        return $this->builder($isInternational)
             ->orderByDesc('entry_year')
             ->orderBy('id')
             ->get([
                 'id',
+                'is_international',
                 'entry_year',
                 'study_year',
                 'study_semester',

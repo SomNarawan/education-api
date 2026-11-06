@@ -291,7 +291,9 @@ curriculums, study-plans, curriculum-personnel, students
 
 ### นิสิต
 
-`POST /api/students/import` ทำงานใน request เดียวและตอบกลับเป็นไฟล์ Excel สรุปผล พร้อม headers `X-Import-Id`, `X-Import-Total`, `X-Import-Success` และ `X-Import-Failed` ต้องส่ง `file`, `system_department_id`, `curriculum_id`, `curriculum_code`, `study_plan_id` และ `study_plan_name_th`
+`POST /api/students/import` ทำงานใน request เดียวและตอบกลับเป็นไฟล์ Excel สรุปผล พร้อม headers `X-Import-Id`, `X-Import-Total`, `X-Import-Success` และ `X-Import-Failed` ต้องส่ง `file`, `system_department_id`, `curriculum_id`, `curriculum_code`, `study_plan_id`, `study_plan_name_th` และ `is_international`
+
+ประเภทหลักสูตรของนิสิตใน Student Import มาจากหลักสูตรที่เลือกบนหน้าจอ ระบบใช้ `is_international` ของหลักสูตรนั้นกับนิสิตทุกแถวในไฟล์ จึงไม่ต้องระบุประเภทหลักสูตรซ้ำใน Excel
 
 ### เกรด
 

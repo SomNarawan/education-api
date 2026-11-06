@@ -167,6 +167,7 @@ class ListOfValueService
                 'id' => (int) ($curriculum['id'] ?? 0),
                 'name_th' => $curriculum['code'] ?? null,
                 'name_en' => $curriculum['code'] ?? null,
+                'is_international' => (bool) ($curriculum['is_international'] ?? false),
             ])
             ->values();
     }

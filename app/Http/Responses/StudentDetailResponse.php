@@ -67,6 +67,7 @@ class StudentDetailResponse extends JsonResource
             ),
             'curriculum_id' => (int) $this->curriculum_id,
             'curriculum_code' => $this->curriculum_code,
+            'is_international' => (bool) $this->is_international,
             'study_plan_id' => $this->study_plan_id,
             'study_plan_name_th' => $this->study_plan_name_th,
             'study_plan_name' => $this->study_plan_name_th,

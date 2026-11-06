@@ -5,6 +5,7 @@ namespace App\Services\AcademicCalendars;
 use App\Services\AcademicCalendarJsonStore;
 use App\Services\StudentAcademicPeriods\AcademicStandingCalculator;
 use Carbon\CarbonImmutable;
+use InvalidArgumentException;
 use Throwable;
 
 class AcademicCalendarPeriodResolver
@@ -14,8 +15,14 @@ class AcademicCalendarPeriodResolver
         private readonly AcademicStandingCalculator $standingCalculator,
     ) {}
 
-    public function resolve(CarbonImmutable $referenceDate): array
-    {
+    public function resolve(
+        CarbonImmutable $referenceDate,
+        string $calendarKey,
+    ): array {
+        if (! in_array($calendarKey, ['thai', 'international'], true)) {
+            throw new InvalidArgumentException("Unsupported academic calendar key: {$calendarKey}");
+        }
+
         foreach ($this->calendarStore->all() as $calendar) {
             $terms = collect($calendar['payload']['terms'] ?? [])
                 ->filter(fn (mixed $term): bool => is_array($term)
@@ -45,15 +52,15 @@ class AcademicCalendarPeriodResolver
                 })
                 ->values();
 
-            $thaiCurriculum = $curricula->firstWhere('curriculum', 'thai');
+            $selectedCurriculum = $curricula->firstWhere('curriculum', $calendarKey);
 
-            if ($thaiCurriculum === null || $thaiCurriculum['status'] !== 'ready') {
+            if ($selectedCurriculum === null || $selectedCurriculum['status'] !== 'ready') {
                 continue;
             }
 
             $academicYear = $calendar['academic_year'];
             $semester = $this->standingCalculator->semesterFromTermCode(
-                $thaiCurriculum['term_code'],
+                $selectedCurriculum['term_code'],
             );
 
             if ($semester === null) {
@@ -71,8 +78,8 @@ class AcademicCalendarPeriodResolver
                 'พบปฏิทินการศึกษาที่พร้อมใช้สำหรับ Sync',
                 $academicYear,
                 [
-                    'code' => $thaiCurriculum['term_code'],
-                    'name_th' => $thaiCurriculum['term_name_th'],
+                    'code' => $selectedCurriculum['term_code'],
+                    'name_th' => $selectedCurriculum['term_name_th'],
                     'semester' => $semester,
                 ],
                 $curricula->all(),

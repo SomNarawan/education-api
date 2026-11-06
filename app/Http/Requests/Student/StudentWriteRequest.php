@@ -71,6 +71,7 @@ class StudentWriteRequest extends FormRequest
                 ),
             ]),
             'study_plan_name_th' => $this->requiredRules(['string', 'max:255']),
+            'is_international' => $this->requiredRules(['boolean']),
             'system_department_id' => $this->requiredRules([
                 'integer',
                 Rule::exists('system_departments', 'id')->where('status', Status::ACTIVE),
@@ -106,6 +107,7 @@ class StudentWriteRequest extends FormRequest
     public function attributes(): array
     {
         return [
+            'is_international' => 'ประเภทหลักสูตร',
             'student_code' => 'รหัสนิสิต',
             'student_id_card' => 'เลขประจำตัวประชาชน',
             'title_id' => 'คำนำหน้า',

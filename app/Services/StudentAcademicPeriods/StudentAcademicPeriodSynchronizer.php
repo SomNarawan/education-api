@@ -16,17 +16,38 @@ class StudentAcademicPeriodSynchronizer
         private readonly AcademicStandingCalculator $standingCalculator,
     ) {}
 
-    public function sync(
+    public function sync(CarbonImmutable $referenceDate, string $actor): Collection
+    {
+        $preview = $this->previewService->preview($referenceDate);
+        $outcomes = collect($preview['groups'])
+            ->map(fn (array $group): array => $this->syncGroup(
+                $referenceDate,
+                $actor,
+                $group,
+            ));
+        $unexpectedException = $outcomes
+            ->pluck('exception')
+            ->first(fn (?Throwable $exception): bool => $exception !== null);
+
+        if ($unexpectedException !== null) {
+            throw $unexpectedException;
+        }
+
+        return new Collection($outcomes->pluck('history')->all());
+    }
+
+    private function syncGroup(
         CarbonImmutable $referenceDate,
         string $actor,
-    ): StudentAcademicPeriodSync {
-        $preview = $this->previewService->preview($referenceDate);
+        array $group,
+    ): array {
         $history = StudentAcademicPeriodSync::query()->create([
             'reference_date' => $referenceDate->toDateString(),
-            'academic_year' => $preview['academic_year'],
-            'term_code' => $preview['term_code'],
-            'term_name_th' => $preview['term_name_th'],
-            'total_students' => $preview['total_students'],
+            'is_international' => $group['is_international'],
+            'academic_year' => $group['academic_year'],
+            'term_code' => $group['term_code'],
+            'term_name_th' => $group['term_name_th'],
+            'total_students' => $group['total_students'],
             'updated_count' => 0,
             'skipped_count' => 0,
             'failed_count' => 0,
@@ -35,58 +56,24 @@ class StudentAcademicPeriodSynchronizer
             'created_by' => $actor,
         ]);
 
-        if ($preview['calendar_status'] !== 'ready') {
+        if ($group['total_students'] === 0) {
+            $history->update(['status' => 'success']);
+
+            return $this->outcome($history->refresh());
+        }
+
+        if ($group['calendar_status'] !== 'ready') {
             $history->update([
-                'failed_count' => $preview['total_students'],
+                'failed_count' => $group['total_students'],
                 'status' => 'failed',
-                'error_message' => $preview['calendar_message'],
+                'error_message' => $group['calendar_message'],
             ]);
 
-            return $history->refresh();
+            return $this->outcome($history->refresh());
         }
 
         try {
-            $counts = DB::transaction(function () use ($preview): array {
-                $counts = ['updated' => 0, 'skipped' => 0, 'failed' => 0];
-
-                $this->students->builder()
-                    ->orderBy('id')
-                    ->chunkById(500, function (Collection $students) use (&$counts, $preview): void {
-                        foreach ($students as $student) {
-                            $studyYear = $this->standingCalculator->studyYear(
-                                (int) $preview['academic_year'],
-                                (int) $student->entry_year,
-                            );
-
-                            if ($studyYear === null) {
-                                $counts['failed']++;
-
-                                continue;
-                            }
-
-                            $student->fill([
-                                'study_year' => $studyYear,
-                                'study_semester' => $preview['study_semester'],
-                                'study_period' => $this->standingCalculator->studyPeriod(
-                                    $studyYear,
-                                    (int) $preview['study_semester'],
-                                ),
-                            ]);
-
-                            if (! $student->isDirty(['study_year', 'study_semester', 'study_period'])) {
-                                $counts['skipped']++;
-
-                                continue;
-                            }
-
-                            $student->save();
-                            $counts['updated']++;
-                        }
-                    });
-
-                return $counts;
-            });
-
+            $counts = $this->updateStudents($group);
             $status = $counts['failed'] > 0
                 ? ($counts['updated'] > 0 || $counts['skipped'] > 0 ? 'partial' : 'failed')
                 : 'success';
@@ -100,16 +87,65 @@ class StudentAcademicPeriodSynchronizer
                     ? 'นิสิตบางรายการมีปีการศึกษาที่เข้าเรียนไม่ถูกต้อง'
                     : null,
             ]);
-
-            return $history->refresh();
         } catch (Throwable $exception) {
             $history->update([
-                'failed_count' => $preview['total_students'],
+                'failed_count' => $group['total_students'],
                 'status' => 'failed',
                 'error_message' => $exception->getMessage(),
             ]);
 
-            throw $exception;
+            return $this->outcome($history->refresh(), $exception);
         }
+
+        return $this->outcome($history->refresh());
+    }
+
+    private function outcome(
+        StudentAcademicPeriodSync $history,
+        ?Throwable $exception = null,
+    ): array {
+        return compact('history', 'exception');
+    }
+
+    private function updateStudents(array $group): array
+    {
+        return DB::transaction(function () use ($group): array {
+            $counts = ['updated' => 0, 'skipped' => 0, 'failed' => 0];
+
+            $this->students->builder($group['is_international'])
+                ->orderBy('id')
+                ->chunkById(500, function (Collection $students) use (&$counts, $group): void {
+                    foreach ($students as $student) {
+                        $studyYear = $this->standingCalculator->studyYear(
+                            (int) $group['academic_year'],
+                            (int) $student->entry_year,
+                        );
+                        if ($studyYear === null) {
+                            $counts['failed']++;
+
+                            continue;
+                        }
+
+                        $student->fill([
+                            'study_year' => $studyYear,
+                            'study_semester' => $group['study_semester'],
+                            'study_period' => $this->standingCalculator->studyPeriod(
+                                $studyYear,
+                                (int) $group['study_semester'],
+                            ),
+                        ]);
+                        if (! $student->isDirty(['study_year', 'study_semester', 'study_period'])) {
+                            $counts['skipped']++;
+
+                            continue;
+                        }
+
+                        $student->save();
+                        $counts['updated']++;
+                    }
+                });
+
+            return $counts;
+        });
     }
 }

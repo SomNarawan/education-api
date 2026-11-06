@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\StudentAcademicPeriodSync;
 use App\Services\AcademicCalendars\AcademicCalendarPeriodResolver;
 use App\Services\StudentAcademicPeriods\AcademicStandingCalculator;
 use App\Services\StudentAcademicPeriods\StudentAcademicPeriodPreviewService;
 use App\Services\StudentAcademicPeriods\StudentAcademicPeriodSynchronizer;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\ValidationException;
 
 class StudentAcademicPeriodSyncService
@@ -20,10 +20,12 @@ class StudentAcademicPeriodSyncService
     ) {}
 
     public function requireCurrentPeriod(
+        bool $isInternational,
         ?CarbonImmutable $referenceDate = null
     ): array {
         $calendar = $this->calendarResolver->resolve(
             $referenceDate ?? CarbonImmutable::today(config('app.timezone')),
+            $isInternational ? 'international' : 'thai',
         );
 
         if ($calendar['status'] !== 'ready') {
@@ -39,9 +41,10 @@ class StudentAcademicPeriodSyncService
 
     public function currentStandingForEntryYear(
         int $entryYear,
+        bool $isInternational,
         ?CarbonImmutable $referenceDate = null
     ): array {
-        $calendar = $this->requireCurrentPeriod($referenceDate);
+        $calendar = $this->requireCurrentPeriod($isInternational, $referenceDate);
 
         $studyYear = $this->standingCalculator->studyYear(
             (int) $calendar['academic_year'],
@@ -68,7 +71,7 @@ class StudentAcademicPeriodSyncService
     public function sync(
         CarbonImmutable $referenceDate,
         string $actor
-    ): StudentAcademicPeriodSync {
+    ): Collection {
         return $this->synchronizer->sync($referenceDate, $actor);
     }
 }
