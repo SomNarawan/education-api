@@ -9,7 +9,6 @@ use App\Http\Controllers\Api\GradeCalculationController;
 use App\Http\Controllers\Api\GradeImportController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\HighSchoolController;
-use App\Http\Controllers\Api\ImportTypeController;
 use App\Http\Controllers\Api\ListOfValueController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\NoteController;
@@ -107,13 +106,6 @@ Route::prefix('note-types')->group(function (): void {
     Route::get('/{id}', [NoteTypeController::class, 'show'])->whereNumber('id');
     Route::match(['put', 'patch'], '/{id}', [NoteTypeController::class, 'update'])->whereNumber('id');
     Route::patch('/{id}/status', [NoteTypeController::class, 'updateStatus'])->whereNumber('id');
-});
-Route::prefix('import-types')->group(function (): void {
-    Route::get('/', [ImportTypeController::class, 'index']);
-    Route::post('/', [ImportTypeController::class, 'store']);
-    Route::get('/{id}', [ImportTypeController::class, 'show'])->whereNumber('id');
-    Route::match(['put', 'patch'], '/{id}', [ImportTypeController::class, 'update'])->whereNumber('id');
-    Route::patch('/{id}/status', [ImportTypeController::class, 'updateStatus'])->whereNumber('id');
 });
 Route::get('/curriculum-categories', [CurriculumCategoryController::class, 'index']);
 Route::get('/curriculum-plan-courses', [CurriculumPlanCourseController::class, 'index']);

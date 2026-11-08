@@ -173,11 +173,10 @@ class StudentImportService
                 : [];
             $masterData[$name] = $this->listOfValueService
                 ->get($config['type'], $filters)
-                ->map(fn (mixed $option): ?string => is_array($option)
-                    && is_scalar($option['name_th'] ?? null)
-                    && trim((string) $option['name_th']) !== ''
-                        ? trim((string) $option['name_th'])
-                        : null)
+                ->flatMap(fn (mixed $option): array => $this->templateOptionValues(
+                    $config['type'],
+                    $option,
+                ))
                 ->filter()
                 ->unique()
                 ->values()
@@ -185,6 +184,25 @@ class StudentImportService
         }
 
         return $masterData;
+    }
+
+    private function templateOptionValues(ListOfValueType $type, mixed $option): array
+    {
+        if (! is_array($option)) {
+            return [];
+        }
+
+        $values = $this->optionNames($option);
+
+        if ($type === ListOfValueType::CurriculumPersonnel) {
+            $teacherId = $this->stringOptionId($option);
+
+            if ($teacherId !== null) {
+                $values[] = $teacherId;
+            }
+        }
+
+        return $values;
     }
 
     private function masterDataRows(array $masterData): array
