@@ -72,7 +72,7 @@ class XlsxDataValidationWriter
 
         foreach ($validations as $cellRange => $namedRange) {
             $items[] = '<dataValidation type="list" allowBlank="1" showErrorMessage="1"'
-                .' errorStyle="stop" sqref="'.$this->escape((string) $cellRange).'">'
+                .' errorStyle="warning" sqref="'.$this->escape((string) $cellRange).'">'
                 .'<formula1>'.$this->escape((string) $namedRange).'</formula1>'
                 .'</dataValidation>';
         }

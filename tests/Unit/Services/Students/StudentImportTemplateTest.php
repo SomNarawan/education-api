@@ -90,6 +90,25 @@ class StudentImportTemplateTest extends TestCase
         );
     }
 
+    public function test_advisor_dropdown_shows_names_only_when_names_are_duplicated(): void
+    {
+        $path = $this->createTemplate([
+            ListOfValueType::CurriculumPersonnel->value => [
+                ['id' => 'teacher-1', 'name_th' => 'Shared Advisor', 'name_en' => 'First Advisor'],
+                ['id' => 'teacher-2', 'name_th' => 'Shared Advisor', 'name_en' => 'Second Advisor'],
+            ],
+        ]);
+        $xlsx = SimpleXLSX::parse($path);
+
+        $this->assertInstanceOf(SimpleXLSX::class, $xlsx);
+        $this->assertSame('Shared Advisor', $xlsx->rows(1)[1][1]);
+        $this->assertArrayNotHasKey(2, $xlsx->rows(1));
+        $this->assertSame(
+            "'Master Data'!\$B\$2:\$B\$2",
+            $this->definedNames($path)['student_advisors'],
+        );
+    }
+
     public function test_validation_writer_rejects_a_non_xlsx_file(): void
     {
         Storage::fake('local');
@@ -173,6 +192,7 @@ class StudentImportTemplateTest extends TestCase
 
             $this->assertSame('1', $node->attributes->getNamedItem('allowBlank')->nodeValue);
             $this->assertSame('1', $node->attributes->getNamedItem('showErrorMessage')->nodeValue);
+            $this->assertSame('warning', $node->attributes->getNamedItem('errorStyle')->nodeValue);
         }
 
         return $validations;
