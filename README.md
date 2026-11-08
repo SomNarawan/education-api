@@ -305,7 +305,7 @@ php artisan route:list --path=api --except-vendor
 | Notes | `GET/POST /api/notes`, `DELETE /api/notes/{id}` | บันทึกช่วยจำของนิสิต |
 | List of values | `GET /api/list-of-values/{type}` | ตัวเลือกสำหรับฟอร์มจาก DB หรือ CMIS |
 | Curriculum | `GET /api/curriculum-categories`, `GET /api/curriculum-plan-courses` | ส่งต่อข้อมูลแผนการเรียนจาก CMIS |
-| Master data | `/api/titles`, `/api/admission-channels`, `/api/high-schools`, `/api/relationships`, `/api/student-statuses`, `/api/note-types`, `/api/import-types` | CRUD และเปลี่ยนสถานะข้อมูลอ้างอิง |
+| Master data | `/api/titles`, `/api/admission-channels`, `/api/high-schools`, `/api/relationships`, `/api/student-statuses`, `/api/note-types` | CRUD และเปลี่ยนสถานะข้อมูลอ้างอิง |
 | Organization | `/api/system-faculties`, `/api/system-departments`, `POST .../sync`, `GET /api/syncs` | ข้อมูลคณะ/ภาควิชาและประวัติ sync |
 | Portal Main | `/api/portal-main-student/*` | ตรวจสอบ ดึง และค้นหาผู้ใช้สำหรับระบบอื่น |
 | Health | `GET /api/health` | ตรวจ DB, migration, queue, storage, frontend และ external APIs |
