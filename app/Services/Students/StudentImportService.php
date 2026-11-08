@@ -81,7 +81,7 @@ class StudentImportService
         private readonly StudentStudyPlanService $studyPlans,
     ) {}
 
-    public function createTemplate(): string
+    public function createTemplate(int $curriculumId): string
     {
         $workbook = new SimpleXLSXGen;
         $workbook

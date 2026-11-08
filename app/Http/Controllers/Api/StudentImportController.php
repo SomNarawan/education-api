@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Student\DownloadStudentImportTemplateRequest;
 use App\Http\Requests\Student\ImportStudentsRequest;
 use App\Services\Students\StudentImportService;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -43,9 +44,12 @@ class StudentImportController extends Controller
     }
 
     public function downloadTemplate(
+        DownloadStudentImportTemplateRequest $request,
         StudentImportService $studentImport,
     ): BinaryFileResponse {
-        $templatePath = $studentImport->createTemplate();
+        $templatePath = $studentImport->createTemplate(
+            (int) $request->validated('curriculum_id'),
+        );
 
         return response()->download(
             $templatePath,
