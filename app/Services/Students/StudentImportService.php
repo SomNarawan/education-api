@@ -8,6 +8,7 @@ use App\Enums\ListOfValueType;
 use App\Models\DataImport;
 use App\Models\ImportType;
 use App\Models\Student;
+use App\Services\Excel\XlsxDataValidationWriter;
 use App\Services\ListOfValueService;
 use App\Services\StudyPlans\StudentStudyPlanService;
 use Illuminate\Http\UploadedFile;
@@ -22,6 +23,12 @@ use Throwable;
 class StudentImportService
 {
     private const IMPORT_SHEET_NAME = 'Sheet1';
+
+    private const MASTER_DATA_SHEET_NAME = 'Master Data';
+
+    private const TEMPLATE_DATA_FIRST_ROW = 3;
+
+    private const TEMPLATE_DATA_LAST_ROW = 1002;
 
     private const GROUP_HEADERS = [
         'รหัสนิสิต',
@@ -75,14 +82,55 @@ class StudentImportService
 
     private const OPTION_NAME_FIELDS = ['name_th', 'name_en'];
 
+    private const TEMPLATE_MASTER_DATA = [
+        'student_titles' => [
+            'header' => 'คำนำหน้า',
+            'type' => ListOfValueType::Titles,
+            'master_column' => 'A',
+            'input_columns' => ['C', 'N'],
+        ],
+        'student_advisors' => [
+            'header' => 'อาจารย์ที่ปรึกษา',
+            'type' => ListOfValueType::CurriculumPersonnel,
+            'master_column' => 'B',
+            'input_columns' => ['K'],
+        ],
+        'student_admission_channels' => [
+            'header' => 'ช่องทางรับเข้า',
+            'type' => ListOfValueType::AdmissionChannels,
+            'master_column' => 'C',
+            'input_columns' => ['L'],
+        ],
+        'student_high_schools' => [
+            'header' => 'โรงเรียน ม.ปลาย',
+            'type' => ListOfValueType::HighSchools,
+            'master_column' => 'D',
+            'input_columns' => ['M'],
+        ],
+        'student_relationships' => [
+            'header' => 'ความสัมพันธ์',
+            'type' => ListOfValueType::Relationships,
+            'master_column' => 'E',
+            'input_columns' => ['Q'],
+        ],
+        'student_statuses' => [
+            'header' => 'สถานะปัจจุบัน',
+            'type' => ListOfValueType::StudentStatuses,
+            'master_column' => 'F',
+            'input_columns' => ['S'],
+        ],
+    ];
+
     public function __construct(
         private readonly SaveStudent $saveStudent,
         private readonly ListOfValueService $listOfValueService,
         private readonly StudentStudyPlanService $studyPlans,
+        private readonly XlsxDataValidationWriter $dataValidationWriter,
     ) {}
 
     public function createTemplate(int $curriculumId): string
     {
+        $masterData = $this->templateMasterData($curriculumId);
         $workbook = new SimpleXLSXGen;
         $workbook
             ->setDefaultFont('Tahoma')
@@ -92,6 +140,10 @@ class StudentImportService
             ->setColWidth('A:S', 18)
             ->freezePanes('A3');
         $this->mergeGroupHeaders($workbook);
+        $workbook
+            ->addSheet($this->masterDataRows($masterData), self::MASTER_DATA_SHEET_NAME)
+            ->setColWidth('A:F', 30)
+            ->freezePanes('A2');
 
         $path = 'imports/templates/student-import-template-'
             .str_replace('.', '', uniqid('', true)).'.xlsx';
@@ -102,7 +154,81 @@ class StudentImportService
             throw new \RuntimeException('ไม่สามารถสร้างไฟล์ Import Student Template ได้');
         }
 
+        $this->dataValidationWriter->apply(
+            $disk->path($path),
+            $this->templateNamedRanges($masterData),
+            $this->templateValidations(),
+        );
+
         return $disk->path($path);
+    }
+
+    private function templateMasterData(int $curriculumId): array
+    {
+        $masterData = [];
+
+        foreach (self::TEMPLATE_MASTER_DATA as $name => $config) {
+            $filters = $config['type'] === ListOfValueType::CurriculumPersonnel
+                ? ['curriculum_id' => $curriculumId]
+                : [];
+            $masterData[$name] = $this->listOfValueService
+                ->get($config['type'], $filters)
+                ->map(fn (mixed $option): ?string => is_array($option)
+                    && is_scalar($option['name_th'] ?? null)
+                    && trim((string) $option['name_th']) !== ''
+                        ? trim((string) $option['name_th'])
+                        : null)
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        return $masterData;
+    }
+
+    private function masterDataRows(array $masterData): array
+    {
+        $headers = array_column(self::TEMPLATE_MASTER_DATA, 'header');
+        $rowCount = max(1, ...array_values(array_map('count', $masterData)));
+        $rows = [$headers];
+
+        for ($index = 0; $index < $rowCount; $index++) {
+            $rows[] = array_map(
+                fn (string $name): string => SimpleXLSXGen::raw(
+                    $masterData[$name][$index] ?? '',
+                ),
+                array_keys(self::TEMPLATE_MASTER_DATA),
+            );
+        }
+
+        return $rows;
+    }
+
+    private function templateNamedRanges(array $masterData): array
+    {
+        $ranges = [];
+
+        foreach (self::TEMPLATE_MASTER_DATA as $name => $config) {
+            $lastRow = max(2, count($masterData[$name]) + 1);
+            $column = $config['master_column'];
+            $ranges[$name] = "'".self::MASTER_DATA_SHEET_NAME."'!\${$column}\$2:\${$column}\${$lastRow}";
+        }
+
+        return $ranges;
+    }
+
+    private function templateValidations(): array
+    {
+        $validations = [];
+
+        foreach (self::TEMPLATE_MASTER_DATA as $name => $config) {
+            foreach ($config['input_columns'] as $column) {
+                $validations[$column.self::TEMPLATE_DATA_FIRST_ROW.':'.$column.self::TEMPLATE_DATA_LAST_ROW] = $name;
+            }
+        }
+
+        return $validations;
     }
 
     public function import(
