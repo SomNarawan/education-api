@@ -10,6 +10,10 @@ final class Status
 
     public const STUDYING = 'กำลังศึกษา';
 
+    public const GRADUATED = 'จบการศึกษา';
+
+    public const RETIRED = 'พ้นสภาพนิสิต';
+
     public const RUNNING = 'running';
 
     public const SUCCESS = 'success';
