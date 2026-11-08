@@ -299,7 +299,7 @@ php artisan route:list --path=api --except-vendor
 | JSON data | `GET /api/students/{studentCode}/enrollments`, `/enrollment-statuses`, `/performance-summary` | อ่านผลลัพธ์ JSON รายคน |
 | Grade reset | `DELETE /api/students/{studentCode}/grades` | ล้างเกรดทั้งหมดหรือภาคก่อนหน้า |
 | Grade calculation history | `GET /api/grade-calculations`, `POST /api/grade-calculations` | ดูประวัติทุก role และบันทึกผลจาก role student |
-| Student import | `GET /api/students/import/template`, `POST /api/students/import` | ดาวน์โหลด template และ import นิสิตแบบ synchronous |
+| Student import | `GET /api/students/import/template?curriculum_id={id}`, `POST /api/students/import` | ดาวน์โหลด template ตามหลักสูตรและ import นิสิตแบบ synchronous |
 | Grade import | `GET /api/grades/import/template`, `POST /api/grades/import` | ดาวน์โหลด template และส่งงาน import เกรดเข้า queue |
 | Import history | `GET /api/imports`, `GET /api/imports/{id}/result` | ติดตามและดาวน์โหลดผลการนำเข้า |
 | Notes | `GET/POST /api/notes`, `DELETE /api/notes/{id}` | บันทึกช่วยจำของนิสิต |
@@ -325,7 +325,11 @@ curriculums, study-plans, curriculum-personnel, students
 
 ### นิสิต
 
+`GET /api/students/import/template?curriculum_id={id}` ต้องระบุหลักสูตรก่อนดาวน์โหลด เพื่อให้ระบบสร้างชีต `Master Data` จากข้อมูลปัจจุบันและรายชื่ออาจารย์ของหลักสูตรนั้น โดย `Sheet1` มี dropdown สำหรับคำนำหน้า อาจารย์ที่ปรึกษา ช่องทางรับเข้า โรงเรียน ความสัมพันธ์ผู้ปกครอง และสถานภาพนิสิต ตั้งแต่แถว 3 ถึง 1002
+
 `POST /api/students/import` ทำงานใน request เดียวและตอบกลับเป็นไฟล์ Excel สรุปผล พร้อม headers `X-Import-Id`, `X-Import-Total`, `X-Import-Success` และ `X-Import-Failed` ต้องส่ง `file`, `system_department_id`, `curriculum_id`, `curriculum_code`, `study_plan_id`, `study_plan_name_th` และ `is_international`
+
+อาจารย์ที่ปรึกษาเป็นข้อมูลไม่บังคับ หากระบุในไฟล์ต้องเป็นชื่อหรือรหัสของอาจารย์ในหลักสูตรที่เลือก
 
 ประเภทหลักสูตรของนิสิตใน Student Import มาจากหลักสูตรที่เลือกบนหน้าจอ ระบบใช้ `is_international` ของหลักสูตรนั้นกับนิสิตทุกแถวในไฟล์ จึงไม่ต้องระบุประเภทหลักสูตรซ้ำใน Excel
 
