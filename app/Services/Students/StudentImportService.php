@@ -64,7 +64,7 @@ class StudentImportService
     ];
 
     private const REQUIRED_HEADER_INDEXES = [
-        0, 2, 3, 4, 9, 10, 11, 18,
+        0, 2, 3, 4, 9, 11, 18,
     ];
 
     private const HEADER_MERGES = [
@@ -685,8 +685,8 @@ class StudentImportService
             'study_plan_id' => ['required', 'integer', 'min:1'],
             'study_plan_name_th' => ['required', 'string', 'max:255'],
             'entry_year' => ['required', 'integer', 'between:1901,2155'],
-            'teacher_id' => ['required', 'string', 'max:50'],
-            'teacher_full_name' => ['required', 'string', 'max:255'],
+            'teacher_id' => ['nullable', 'string', 'max:50'],
+            'teacher_full_name' => ['nullable', 'string', 'max:255'],
             'admission_channel_id' => ['required', 'integer', Rule::exists('admission_channels', 'id')],
             'high_school_id' => ['nullable', 'integer', Rule::exists('high_schools', 'id')],
             'guardian_title_id' => ['nullable', 'integer', Rule::exists('titles', 'id')],
