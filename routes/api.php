@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AcademicCalendarController;
 use App\Http\Controllers\Api\AdmissionChannelController;
+use App\Http\Controllers\Api\AdvisorSummaryController;
 use App\Http\Controllers\Api\CurriculumCategoryController;
 use App\Http\Controllers\Api\CurriculumPlanCourseController;
 use App\Http\Controllers\Api\DataImportController;
@@ -122,6 +123,7 @@ Route::prefix('students')->group(function (): void {
     Route::get('/', [StudentController::class, 'index']);
     Route::get('/studying', [StudentController::class, 'studying']);
     Route::get('/studying/without-advisor', [StudentController::class, 'studyingWithoutAdvisor']);
+    Route::get('/advisor-summary', AdvisorSummaryController::class);
     Route::patch('/advisor', [StudentController::class, 'updateAdvisor']);
     Route::get('/import/template', [StudentImportController::class, 'downloadTemplate']);
     Route::post('/import', StudentImportController::class);
