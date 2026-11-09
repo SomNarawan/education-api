@@ -141,6 +141,10 @@ class AdvisorSummaryTest extends TestCase
         $this->assertSame(1, $pastStudent['pending_count']);
         $this->assertSame(1, $pastStudent['term_study_year']);
         $this->assertSame(['00000002'], array_column($pastStudent['pending_courses'], 'course_code'));
+        // The course failed in 2565 ภาคปลาย and was passed later, which is shown without changing that term.
+        $this->assertSame('F', $pastStudent['pending_courses'][0]['grade_letter']);
+        $this->assertTrue($pastStudent['pending_courses'][0]['resolved']);
+        $this->assertSame('2566 ภาคต้น', $pastStudent['pending_courses'][0]['resolved_term_label']);
         $this->assertSame([], $data['off_plan_students']);
         $this->assertCount(4, $data['academic_terms']);
     }
@@ -179,6 +183,8 @@ class AdvisorSummaryTest extends TestCase
         $this->assertSame(1, $terms[1]['off_plan']);
         $this->assertSame(1, $terms[1]['students'][0]['pending_count']);
         $this->assertSame(['00000001'], array_column($terms[1]['students'][0]['pending_courses'], 'course_code'));
+        $this->assertSame('F', $terms[1]['students'][0]['pending_courses'][0]['grade_letter']);
+        $this->assertSame('2565 ภาคฤดูร้อน', $terms[1]['students'][0]['pending_courses'][0]['resolved_term_label']);
         $this->assertSame(1, $terms[3]['on_plan']);
         $this->assertEquals(1.5, $terms[3]['students'][0]['gpax']);
         $this->assertSame('ภาคฤดูร้อน', $terms[3]['semester_name']);
@@ -195,6 +201,41 @@ class AdvisorSummaryTest extends TestCase
         $this->assertSame(1, $data['academic_terms'][0]['unknown']);
         $this->assertSame(0, $data['academic_terms'][0]['on_plan'] + $data['academic_terms'][0]['off_plan']);
         $this->assertEquals(4, $data['academic_terms'][0]['students'][0]['gpax']);
+    }
+
+    public function test_a_course_that_is_still_missing_has_no_grade_and_is_not_resolved(): void
+    {
+        $attempt = ['student_code' => '1', 'academic_year' => 2022, 'study_year' => 1, 'semester_order' => 1, 'semester' => 'ภาคต้น', 'course_code' => '00000001', 'enrollment_type' => 'credit', 'credit' => 3, 'grade_letter' => 'A', 'grade_point' => 4];
+        $row = ['course_code' => '00000001', 'course_name' => 'A', 'credit' => 3, 'plan_study_year' => 1, 'plan_semester_order' => 1];
+        Storage::disk('local')->put('data/grade_attempts/1.json', json_encode(['grade_attempts' => [$attempt, [...$attempt, 'semester_order' => 2, 'semester' => 'ภาคปลาย', 'course_code' => '00000005']]]));
+        Storage::disk('local')->put('data/study_plan/1.json', json_encode(['curriculum_plan_id' => 3, 'data' => [$row, [...$row, 'course_code' => '00000002', 'course_name' => 'Never taken', 'plan_semester_order' => 2]]]));
+        $data = $this->getJson(self::URL, $this->headersFor(['teacher'], 'teacher', 'fengone'))->assertOk()->json('data');
+        $course = $data['academic_terms'][1]['students'][0]['pending_courses'][0];
+        $this->assertSame('00000002', $course['course_code']);
+        $this->assertNull($course['grade_letter']);
+        $this->assertFalse($course['resolved']);
+        $this->assertNull($course['resolved_term_label']);
+    }
+
+    public function test_each_missing_course_of_a_past_term_shows_whether_it_has_been_passed_since(): void
+    {
+        $attempt = ['student_code' => '1', 'academic_year' => 2022, 'study_year' => 1, 'semester_order' => 1, 'semester' => 'ภาคต้น', 'enrollment_type' => 'credit', 'credit' => 3, 'grade_letter' => 'F', 'grade_point' => 0];
+        $row = ['credit' => 3, 'plan_study_year' => 1, 'plan_semester_order' => 1];
+        Storage::disk('local')->put('data/grade_attempts/1.json', json_encode(['grade_attempts' => [
+            [...$attempt, 'course_code' => '00000001'],
+            [...$attempt, 'course_code' => '00000002'],
+            [...$attempt, 'course_code' => '00000001', 'academic_year' => 2023, 'study_year' => 2, 'grade_letter' => 'B', 'grade_point' => 3],
+        ]]));
+        Storage::disk('local')->put('data/study_plan/1.json', json_encode(['curriculum_plan_id' => 3, 'data' => [
+            [...$row, 'course_code' => '00000001', 'course_name' => 'Passed later'],
+            [...$row, 'course_code' => '00000002', 'course_name' => 'Still missing'],
+        ]]));
+        $data = $this->getJson(self::URL, $this->headersFor(['teacher'], 'teacher', 'fengone'))->assertOk()->json('data');
+        $term = $data['academic_terms'][0];
+        $this->assertSame(1, $term['off_plan']);
+        $resolved = array_column($term['students'][0]['pending_courses'], 'resolved', 'course_code');
+        $this->assertTrue($resolved['00000001']);
+        $this->assertFalse($resolved['00000002']);
     }
 
     public function test_a_group_slot_is_filled_by_any_course_with_the_same_code_prefix(): void
