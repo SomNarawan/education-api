@@ -54,10 +54,14 @@ class StudentAcademicPeriodSynchronizer
             'status' => 'running',
             'error_message' => null,
             'created_by' => $actor,
+            'updated_by' => $actor,
         ]);
 
         if ($group['total_students'] === 0) {
-            $history->update(['status' => 'success']);
+            $history->update([
+                'status' => 'success',
+                'updated_by' => $actor,
+            ]);
 
             return $this->outcome($history->refresh());
         }
@@ -67,6 +71,7 @@ class StudentAcademicPeriodSynchronizer
                 'failed_count' => $group['total_students'],
                 'status' => 'failed',
                 'error_message' => $group['calendar_message'],
+                'updated_by' => $actor,
             ]);
 
             return $this->outcome($history->refresh());
@@ -83,6 +88,7 @@ class StudentAcademicPeriodSynchronizer
                 'skipped_count' => $counts['skipped'],
                 'failed_count' => $counts['failed'],
                 'status' => $status,
+                'updated_by' => $actor,
                 'error_message' => $counts['failed'] > 0
                     ? 'นิสิตบางรายการมีปีการศึกษาที่เข้าเรียนไม่ถูกต้อง'
                     : null,
@@ -92,6 +98,7 @@ class StudentAcademicPeriodSynchronizer
                 'failed_count' => $group['total_students'],
                 'status' => 'failed',
                 'error_message' => $exception->getMessage(),
+                'updated_by' => $actor,
             ]);
 
             return $this->outcome($history->refresh(), $exception);

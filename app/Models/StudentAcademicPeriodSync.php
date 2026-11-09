@@ -19,6 +19,7 @@ class StudentAcademicPeriodSync extends Model
         'status',
         'error_message',
         'created_by',
+        'updated_by',
     ];
 
     protected $casts = [
