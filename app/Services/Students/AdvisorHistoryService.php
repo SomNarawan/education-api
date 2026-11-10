@@ -87,9 +87,13 @@ class AdvisorHistoryService
             }
 
             ksort($periods, SORT_NATURAL);
+            $standings = [];
             foreach ($periods as $key => $period) {
-                $studyYear = $period['study_year'] ?? max(1, $period['year'] - $entry + 1);
-                $standing = $this->standing($attempts, $plan, $period['year'], $period['semester'], $studyYear);
+                $standings[$key] = $this->standing($attempts, $plan, $period['year'], $period['semester'], $period['study_year'] ?? max(1, $period['year'] - $entry + 1));
+            }
+            foreach ($periods as $key => $period) {
+                $standing = $standings[$key];
+                $standing['pending_courses'] = $this->withCurrentStatus($standing['pending_courses'], $key, $standings, $periods);
                 $status = $standing['plan_status'];
                 $name = (string) $period['name'];
 
@@ -148,14 +152,14 @@ class AdvisorHistoryService
             $passed[(string) ($attempt['course_code'] ?? '')] = (float) ($attempt['credit'] ?? 0);
         }
 
-        $due = array_values(array_filter($slots, fn ($slot): bool => is_array($slot)
-            && [(int) ($slot['plan_study_year'] ?? PHP_INT_MAX), (int) ($slot['plan_semester_order'] ?? PHP_INT_MAX)] <= [$studyYear, $semester]));
+        $due = array_filter($slots, fn ($slot): bool => is_array($slot)
+            && [(int) ($slot['plan_study_year'] ?? PHP_INT_MAX), (int) ($slot['plan_semester_order'] ?? PHP_INT_MAX)] <= [$studyYear, $semester]);
         // Fixed courses claim their grades before group / elective slots do.
-        usort($due, fn (array $a, array $b): int => $this->isGroupSlot($a) <=> $this->isGroupSlot($b));
+        uasort($due, fn (array $a, array $b): int => $this->isGroupSlot($a) <=> $this->isGroupSlot($b));
 
         $used = [];
         $pending = [];
-        foreach ($due as $slot) {
+        foreach ($due as $slotId => $slot) {
             $need = (float) ($slot['credit'] ?? 0);
             $got = 0.0;
             foreach ($passed as $courseCode => $credit) {
@@ -170,11 +174,12 @@ class AdvisorHistoryService
             }
             if ($got + 0.0001 < $need) {
                 $pending[] = [
+                    '_slot' => $slotId,
                     'course_code' => $slot['course_code'] ?? null,
                     'course_name' => $slot['course_name'] ?? null,
                     'study_period' => $slot['plan_study_period'] ?? null,
                     'semester_year_be' => isset($slot['plan_year_be']) ? (int) $slot['plan_year_be'] : null,
-                    'grade_letter' => null,
+                    'grade_letter' => $this->failedGrades($attempts, $slot, $year, $semester),
                     'enrollment_type' => $slot['enrollment_type'] ?? 'credit',
                     'credit' => round($need - $got, 2),
                 ];
@@ -182,6 +187,61 @@ class AdvisorHistoryService
         }
 
         return ['plan_status' => $pending === [] ? 'on_plan' : 'off_plan', 'pending_courses' => $pending];
+    }
+
+    /**
+     * Whether a course that was missing at a past term has been passed since,
+     * using the latest grades. The history itself is not changed.
+     *
+     * @param  list<array<string, mixed>>|null  $pending
+     * @return list<array<string, mixed>>|null
+     */
+    private function withCurrentStatus(?array $pending, string $key, array $standings, array $periods): ?array
+    {
+        if ($pending === null) {
+            return null;
+        }
+
+        $keys = array_keys($standings);
+        $position = array_search($key, $keys, true);
+        $slotsAt = fn (string $periodKey): array => array_column($standings[$periodKey]['pending_courses'] ?? [], '_slot');
+        $stillPending = $slotsAt($keys[array_key_last($keys)]);
+
+        return array_map(function (array $course) use ($keys, $position, $slotsAt, $stillPending, $periods): array {
+            $slot = $course['_slot'];
+            unset($course['_slot']);
+            $resolved = $position < count($keys) - 1 && ! in_array($slot, $stillPending, true);
+            $label = null;
+            if ($resolved) {
+                foreach (array_slice($keys, $position + 1) as $later) {
+                    if (! in_array($slot, $slotsAt($later), true)) {
+                        $label = ($periods[$later]['year'] + 543).' '.$periods[$later]['name'];
+                        break;
+                    }
+                }
+            }
+
+            return [...$course, 'resolved' => $resolved, 'resolved_term_label' => $label];
+        }, $pending);
+    }
+
+    /** Failing grades of the courses that belong to a slot, up to the term, or null if none was taken. */
+    private function failedGrades(array $attempts, array $slot, int $year, int $semester): ?string
+    {
+        $letters = [];
+        foreach ($attempts as $attempt) {
+            $period = $this->periodOf($attempt);
+            if ($period === null || $period > [$year, $semester] || $this->isPassed($attempt)
+                || ! $this->slotMatches($slot, (string) ($attempt['course_code'] ?? ''))) {
+                continue;
+            }
+            $letter = trim((string) ($attempt['grade_letter'] ?? ''));
+            if ($letter !== '') {
+                $letters[] = $letter;
+            }
+        }
+
+        return $letters === [] ? null : implode(', ', $letters);
     }
 
     private function isGroupSlot(array $slot): int
