@@ -3,10 +3,8 @@
 namespace App\Providers;
 
 use App\Contracts\CmisApi;
-use App\Contracts\TeacherApi;
 use App\Services\CmisService;
 use App\Services\QueueWorkerHeartbeat;
-use App\Services\TeacherApiService;
 use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\DB;
@@ -22,8 +20,6 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(CmisApi::class, CmisService::class);
-
-        $this->app->scoped(TeacherApi::class, TeacherApiService::class);
     }
 
     /**

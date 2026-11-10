@@ -2,13 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Contracts\TeacherApi;
 use App\Models\AuthSession;
 use App\Services\JwtIssuer;
 use App\Services\JwtVerifier;
+use App\Services\PersonnelApiService;
 use Closure;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -26,17 +27,14 @@ class PortalLoginTest extends TestCase
 
     private const NONTRI_ID = 'fengabc';
 
+    private const PERSONNEL_API = 'https://personnel.test';
+
     /**
      * Fake answers of the central systems, replaceable within a test.
      *
-     * @var array{get-role: Closure, exchange-token: Closure, verify: Closure}
+     * @var array{get-role: Closure, exchange-token: Closure, verify: Closure, all-user: Closure}
      */
     private array $portal;
-
-    /**
-     * @var list<array<string, mixed>>
-     */
-    private array $teachers = [];
 
     protected function setUp(): void
     {
@@ -51,32 +49,16 @@ class PortalLoginTest extends TestCase
             'portal_auth.system_id' => '33',
             'portal_auth.role_map' => ['admin' => ['admin'], 'staff' => ['teacher']],
             'portal_auth.recheck_seconds' => 120,
+            'portal_auth.timeout' => 10,
+            'services.office_ku.url' => self::PERSONNEL_API,
+            'services.office_ku.timeout' => 30,
         ]);
-
-        $this->app->instance(TeacherApi::class, new class(fn (): array => $this->teachers) implements TeacherApi
-        {
-            public function __construct(private readonly Closure $teachers) {}
-
-            public function getTeachers(): array
-            {
-                return ($this->teachers)();
-            }
-
-            public function findTeacher(int $teacherId): ?array
-            {
-                return null;
-            }
-
-            public function findTeacherByNontriId(string $nontriId): ?array
-            {
-                return null;
-            }
-        });
 
         $this->portal = [
             'get-role' => fn () => $this->roles(['staff']),
             'exchange-token' => fn () => Http::response(['status' => 'success', 'ssoToken' => 'sso-token']),
             'verify' => fn () => Http::response(['active' => true, 'sid' => 1]),
+            'all-user' => fn () => Http::response([]),
         ];
 
         Http::preventStrayRequests();
@@ -84,6 +66,7 @@ class PortalLoginTest extends TestCase
             self::MAIN_API.'/external/get-role*' => fn (Request $request) => ($this->portal['get-role'])($request),
             self::MAIN_API.'/external/exchange-token' => fn (Request $request) => ($this->portal['exchange-token'])($request),
             self::ORG_AUTH_API.'/api/verify.php' => fn (Request $request) => ($this->portal['verify'])($request),
+            self::PERSONNEL_API.'/kukps-eng-personnel-api/api/portal-student-map/all-user' => fn (Request $request) => ($this->portal['all-user'])($request),
         ]);
     }
 
@@ -132,34 +115,74 @@ class PortalLoginTest extends TestCase
         $this->assertSame($expiresAt, AuthSession::query()->sole()->expires_at->getTimestamp());
     }
 
-    public function test_login_finds_name_department_and_faculty_of_the_teacher(): void
+    public function test_login_finds_name_department_and_faculty_in_the_personnel_api(): void
     {
-        Schema::create('system_departments', function (Blueprint $table) {
-            $table->id();
-            $table->string('th_name');
-            $table->unsignedBigInteger('system_faculty_id')->nullable();
-            $table->string('status');
-            $table->timestamps();
-        });
-        DB::table('system_departments')->insert([
-            'id' => 7,
-            'th_name' => 'ภาควิชาวิศวกรรมคอมพิวเตอร์',
-            'system_faculty_id' => 3,
-            'status' => 'active',
+        $this->systemDepartments();
+        $this->portal['all-user'] = fn () => Http::response([
+            ['nontri_id' => 'fengxyz', 'full_name' => 'อาจารย์อื่น ทดสอบ', 'department_id' => 1],
+            ['nontri_id' => 'FENGABC', 'full_name' => 'นายทดสอบ ระบบ', 'department_id' => 7, 'department_name' => 'ชื่อที่ไม่ได้ใช้'],
         ]);
-        $this->teachers = [[
-            'id' => 1,
-            'nontri_id' => 'FENGABC',
-            'full_name_th' => 'อาจารย์ ทดสอบ',
-            'department_name' => 'ภาควิชาวิศวกรรมคอมพิวเตอร์',
-            'roles' => [],
-        ]];
 
         $this->login('teacher')
             ->assertOk()
-            ->assertJsonPath('data.user.name', 'อาจารย์ ทดสอบ')
+            ->assertJsonPath('data.user.name', 'นายทดสอบ ระบบ')
             ->assertJsonPath('data.user.department_id', 7)
             ->assertJsonPath('data.user.faculty_id', 3);
+    }
+
+    public function test_personnel_lookup_uses_the_login_timeout(): void
+    {
+        config(['portal_auth.timeout' => 7]);
+
+        // The login timeout, not the 30 s of the master data sync.
+        $this->mock(PersonnelApiService::class)
+            ->shouldReceive('getUsers')
+            ->once()
+            ->with(7)
+            ->andReturn([]);
+
+        $this->login('teacher')->assertOk();
+    }
+
+    public function test_login_keeps_the_name_when_the_department_is_not_in_system_departments(): void
+    {
+        $this->systemDepartments();
+        $this->portal['all-user'] = fn () => Http::response([
+            ['nontri_id' => self::NONTRI_ID, 'full_name' => 'นายทดสอบ ระบบ', 'department_id' => 99],
+        ]);
+
+        $this->login('teacher')
+            ->assertOk()
+            ->assertJsonPath('data.user.name', 'นายทดสอบ ระบบ')
+            ->assertJsonPath('data.user.department_id', null)
+            ->assertJsonPath('data.user.faculty_id', null);
+    }
+
+    /**
+     * @return array<string, array{Closure}>
+     */
+    public static function personnelLookupMisses(): array
+    {
+        return [
+            'not in the personnel api' => [fn () => Http::response([['nontri_id' => 'fengxyz', 'full_name' => 'คนอื่น', 'department_id' => 7]])],
+            'personnel api answers 500' => [fn () => Http::response('', 500)],
+            'personnel api answers html' => [fn () => Http::response('<html>proxy error</html>')],
+            'personnel api unreachable' => [fn () => throw new ConnectionException('timed out')],
+        ];
+    }
+
+    #[DataProvider('personnelLookupMisses')]
+    public function test_login_succeeds_without_a_profile_when_the_personnel_lookup_misses(Closure $answer): void
+    {
+        $this->portal['all-user'] = $answer;
+
+        $this->login('teacher')
+            ->assertOk()
+            ->assertJsonPath('data.user.name', self::NONTRI_ID)
+            ->assertJsonPath('data.user.department_id', null)
+            ->assertJsonPath('data.user.faculty_id', null);
+
+        $this->assertDatabaseCount('auth_sessions', 1);
     }
 
     public function test_expired_intranet_token_is_refused_without_calling_out(): void
@@ -397,6 +420,23 @@ class PortalLoginTest extends TestCase
         $fromClient('158.108.1.1')->assertTooManyRequests();
         $fromClient('158.108.1.2')->assertUnprocessable();
         Http::assertNothingSent();
+    }
+
+    private function systemDepartments(): void
+    {
+        Schema::create('system_departments', function (Blueprint $table) {
+            $table->id();
+            $table->string('th_name');
+            $table->unsignedBigInteger('system_faculty_id')->nullable();
+            $table->string('status');
+            $table->timestamps();
+        });
+        DB::table('system_departments')->insert([
+            'id' => 7,
+            'th_name' => 'ภาควิชาวิศวกรรมคอมพิวเตอร์',
+            'system_faculty_id' => 3,
+            'status' => 'active',
+        ]);
     }
 
     private function login(string $role, ?string $intranetToken = null)

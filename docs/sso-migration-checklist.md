@@ -199,10 +199,8 @@
     --execute="dump(Http::timeout(10)->get('https://office.eng.kps.ku.ac.th/eng-main/api/external/get-role')->status());"
   ```
   ได้ status 400/401 = เชื่อมต่อได้ · ได้ `cURL error 6/7/28` = DNS หรือ network · ได้ `cURL error 60` = certificate
-- [ ] **2.9** ตัดสินใจแหล่ง `department_id` / `faculty_id` ของอาจารย์ตอน login จริง (mock ใช้จาก `resources/mocks/mock-login.json` แต่ `TeacherApiService` คืนมาแค่ `department_name`)
-  - ทางเลือก ก: map `department_name` → `system_departments.th_name`
-  - ทางเลือก ข: ขอให้ CMIS / Personnel API ส่ง id มาให้
-  > โค้ดใช้ทางเลือก ก ไปก่อน (`StaffProfileResolver`) — ถ้าเลือก ข แก้ที่ไฟล์นั้นไฟล์เดียว · ยังต้องยืนยันว่า `department_name` จาก CMIS ตรงกับ `th_name` จริง
+- [x] **2.9** แหล่ง ชื่อ / `department_id` / `faculty_id` ของบุคลากรตอน login จริง (mock ใช้จาก `resources/mocks/mock-login.json`)
+  > `StaffProfileResolver` ดึงจาก personnel API `portal-student-map/all-user` (อาจารย์และเจ้าหน้าที่) ซึ่งส่ง `department_id` เป็น id เดียวกับ `system_departments.id` (sync มาจาก personnel API ตัวเดียวกัน) แล้วใช้ `system_faculty_id` ของภาควิชานั้นเป็น `faculty_id` · ไม่เรียก CMIS ตอน login แล้ว (CMIS ไม่มี `/teachers`) · personnel API ล่มหรือหาไม่เจอ → login ผ่าน แต่ชื่อเป็นรหัสนนทรีและไม่มีภาควิชา
 
 **ข้อมูลที่ได้จาก ENG Main** (กรอกเมื่อได้รับ)
 

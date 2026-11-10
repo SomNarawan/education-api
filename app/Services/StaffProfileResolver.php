@@ -2,20 +2,19 @@
 
 namespace App\Services;
 
-use App\Contracts\TeacherApi;
 use App\Models\SystemDepartment;
 use Illuminate\Support\Facades\Log;
-use RuntimeException;
+use Throwable;
 
 /**
- * Name, department and faculty of a staff member at portal login. The CMIS
- * teacher list gives only department_name, which is matched to
- * system_departments.th_name. What cannot be found stays null: a CMIS outage
- * must not block the login.
+ * Name, department and faculty of a staff member at portal login, from the
+ * personnel API (portal-student-map/all-user: lecturers and support staff).
+ * Its department_id is the id system_departments is synced with. What cannot
+ * be found stays null: a personnel API outage must not block the login.
  */
 class StaffProfileResolver
 {
-    public function __construct(private readonly TeacherApi $teachers) {}
+    public function __construct(private readonly PersonnelApiService $personnel) {}
 
     /**
      * @return array{name: string, department_id: int|null, faculty_id: int|null}
@@ -25,29 +24,30 @@ class StaffProfileResolver
         $profile = ['name' => $nontriId, 'department_id' => null, 'faculty_id' => null];
 
         try {
-            $teacher = collect($this->teachers->getTeachers())
-                ->first(fn (array $teacher): bool => strcasecmp($teacher['nontri_id'], $nontriId) === 0);
-        } catch (RuntimeException $exception) {
-            Log::warning("Portal login of {$nontriId}: teacher lookup failed: {$exception->getMessage()}");
+            // Not the 30 s of the master data sync: the user is waiting.
+            $user = collect($this->personnel->getUsers((int) config('portal_auth.timeout', 10)))
+                ->first(fn (array $user): bool => strcasecmp($user['nontri_id'], $nontriId) === 0);
+        } catch (Throwable $exception) {
+            // Throwable: a body that is not a JSON object makes get() fail on its return type.
+            Log::warning("Portal login of {$nontriId}: personnel lookup failed: {$exception->getMessage()}");
 
             return $profile;
         }
 
-        if (! $teacher) {
+        if (! $user) {
             return $profile;
         }
 
-        $profile['name'] = $teacher['full_name_th'];
-        $departmentName = trim((string) $teacher['department_name']);
+        $profile['name'] = $user['full_name'];
 
-        if ($departmentName === '') {
+        if ($user['department_id'] === null) {
             return $profile;
         }
 
-        $department = SystemDepartment::query()->where('th_name', $departmentName)->first();
+        $department = SystemDepartment::query()->find($user['department_id']);
 
         if (! $department) {
-            Log::warning("Portal login of {$nontriId}: no active system department named {$departmentName}");
+            Log::warning("Portal login of {$nontriId}: no active system department with id {$user['department_id']}");
 
             return $profile;
         }
