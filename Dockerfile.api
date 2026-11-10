@@ -9,14 +9,16 @@ RUN composer dump-autoload --optimize --no-dev
 # ---- runtime stage (nginx + php-fpm bundled, port 3009) ----
 # Official php-fpm-alpine + nginx instead of webdevops/php-nginx: that image
 # ships ImageMagick, Ghostscript, supervisor, vim and ~60 PHP extensions this
-# API never uses (~650MB). The base image already has every extension
-# composer.lock requires; only pdo_mysql is added.
+# API never uses (~650MB). Extensions added on top of the base image:
+#   pdo_mysql - the database
+#   zip       - ZipArchive, used by app/Services/Excel/XlsxDataValidationWriter
+#               (student/grade import templates); not declared in composer.lock
 FROM php:8.2-fpm-alpine
 
 RUN set -eux; \
-    apk add --no-cache nginx; \
-    apk add --no-cache --virtual .build-deps $PHPIZE_DEPS; \
-    docker-php-ext-install -j"$(nproc)" pdo_mysql; \
+    apk add --no-cache nginx libzip; \
+    apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libzip-dev; \
+    docker-php-ext-install -j"$(nproc)" pdo_mysql zip; \
     apk del --no-network .build-deps; \
     rm -rf /tmp/* /etc/nginx/http.d/default.conf; \
     ln -sf /dev/stdout /var/log/nginx/access.log; \
