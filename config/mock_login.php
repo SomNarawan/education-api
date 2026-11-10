@@ -15,7 +15,7 @@ return [
     | Mock login
     |--------------------------------------------------------------------------
     |
-    | Lets the API mint its own JWT (/api/mock-login -> MockLoginController)
+    | Lets the API mint its own JWT (/api/mock-login/* -> MockLoginController)
     | for local development without the portal. Mock tokens carry no session
     | id, so AuthenticateJwt accepts them only while this is on.
     |
@@ -63,20 +63,5 @@ return [
         'MOCK_LOGIN_STUDENT_FRONTEND_URL',
         $frontendUrls[1] ?? $frontendUrls[0] ?? 'http://localhost:3002'
     )),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Dual-role system teachers
-    |--------------------------------------------------------------------------
-    |
-    | nontri_id list (comma separated in .env) that should always be issued
-    | both "teacher" and "admin" roles when logging in through mock-login.
-    |
-    */
-
-    'admin_nontri_ids' => array_values(array_filter(array_map(
-        'trim',
-        explode(',', (string) env('MOCK_LOGIN_ADMIN_NONTRI_IDS', ''))
-    ))),
 
 ];

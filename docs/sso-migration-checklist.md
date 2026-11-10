@@ -199,10 +199,8 @@
     --execute="dump(Http::timeout(10)->get('https://office.eng.kps.ku.ac.th/eng-main/api/external/get-role')->status());"
   ```
   ได้ status 400/401 = เชื่อมต่อได้ · ได้ `cURL error 6/7/28` = DNS หรือ network · ได้ `cURL error 60` = certificate
-- [ ] **2.9** ตัดสินใจแหล่ง `department_id` / `faculty_id` ของอาจารย์ตอน login จริง (mock ใช้จาก `resources/mocks/mock-login.json` แต่ `TeacherApiService` คืนมาแค่ `department_name`)
-  - ทางเลือก ก: map `department_name` → `system_departments.th_name`
-  - ทางเลือก ข: ขอให้ CMIS / Personnel API ส่ง id มาให้
-  > โค้ดใช้ทางเลือก ก ไปก่อน (`StaffProfileResolver`) — ถ้าเลือก ข แก้ที่ไฟล์นั้นไฟล์เดียว · ยังต้องยืนยันว่า `department_name` จาก CMIS ตรงกับ `th_name` จริง
+- [x] **2.9** แหล่ง ชื่อ / `department_id` / `faculty_id` ของบุคลากรตอน login จริง (mock ใช้จาก `resources/mocks/mock-login.json`)
+  > `StaffProfileResolver` ดึงจาก personnel API `portal-student-map/all-user` (อาจารย์และเจ้าหน้าที่) ซึ่งส่ง `department_id` เป็น id เดียวกับ `system_departments.id` (sync มาจาก personnel API ตัวเดียวกัน) แล้วใช้ `system_faculty_id` ของภาควิชานั้นเป็น `faculty_id` · ไม่เรียก CMIS ตอน login แล้ว (CMIS ไม่มี `/teachers`) · personnel API ล่มหรือหาไม่เจอ → login ผ่าน แต่ชื่อเป็นรหัสนนทรีและไม่มีภาควิชา
 
 **ข้อมูลที่ได้จาก ENG Main** (กรอกเมื่อได้รับ)
 
@@ -428,7 +426,7 @@ JWT ของเรามี claims ชุดเดียวกับ mock เ�
 ### หลัง deploy
 
 - [ ] **7.7** ทดสอบด้วยมือตามรายการใน Phase 6
-- [ ] **7.8** `/api/mock-login/admin` → 404
+- [ ] **7.8** `/api/mock-login/system-teacher/{nontri_id ใน resources/mocks/mock-login.json}` → 404
 - [ ] **7.9** ดู log ช่วงแรก: `docker compose --env-file .env.production logs -f laravel-app`
 
 ### Rollback
@@ -444,7 +442,7 @@ JWT ของเรามี claims ชุดเดียวกับ mock เ�
 1. `.env.production`: `MOCK_LOGIN_ENABLED=true` และ `VITE_AUTH_PROVIDER=mock` (frontend ต้องเป็น mock ด้วย ไม่งั้น `RoleRedirect` จะพาไป portal และหน้า `/auth/callback` ปิดอยู่)
 2. `docker/deploy.sh .env.production` แล้ว build frontend ใหม่ตามข้อ 7.6 (ค่า `VITE_*` ฝังตอน build)
 3. ENG Main กลับมาแล้ว → คืนค่า `MOCK_LOGIN_ENABLED=false`, `VITE_AUTH_PROVIDER=portal` แล้วทำข้อ 2 ซ้ำ
-4. ตรวจว่า `/api/mock-login/admin` ตอบ 404 อีกครั้ง
+4. ตรวจว่า `/api/mock-login/system-teacher/{nontri_id ใน resources/mocks/mock-login.json}` ตอบ 404 อีกครั้ง
 
 token ของ mock ไม่มี `sid` จึงใช้ไม่ได้ทันทีที่ปิด mock (ข้อ 3.9) ไม่ต้องเปลี่ยน `JWT_SECRET`
 

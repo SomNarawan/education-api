@@ -17,7 +17,36 @@ class PersonnelApiService
         return $this->get('all_faculty', 'faculties');
     }
 
-    private function get(string $endpointKey, string $resource): array
+    /**
+     * Active lecturers and support staff.
+     *
+     * @return list<array{nontri_id: string, full_name: string, department_id: int|null}>
+     */
+    public function getUsers(?int $timeout = null): array
+    {
+        return collect($this->get('all_user', 'users', $timeout))
+            ->map(function (mixed $user): ?array {
+                $nontriId = is_array($user) && is_scalar($user['nontri_id'] ?? null) ? trim((string) $user['nontri_id']) : '';
+                $fullName = is_array($user) && is_scalar($user['full_name'] ?? null) ? trim((string) $user['full_name']) : '';
+
+                if ($nontriId === '' || $fullName === '') {
+                    return null;
+                }
+
+                $departmentId = $user['department_id'] ?? null;
+
+                return [
+                    'nontri_id' => $nontriId,
+                    'full_name' => $fullName,
+                    'department_id' => is_numeric($departmentId) ? (int) $departmentId : null,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function get(string $endpointKey, string $resource, ?int $timeout = null): array
     {
         $url = $this->getApiUrl(config("services.personnel_api.endpoints.{$endpointKey}"));
 
@@ -26,7 +55,7 @@ class PersonnelApiService
         ])
             ->timeout(max(
                 1,
-                (int) config('services.office_ku.timeout', 30)
+                $timeout ?? (int) config('services.office_ku.timeout', 30)
             ))
             ->get($url);
 

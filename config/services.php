@@ -50,6 +50,7 @@ return [
         'endpoints' => [
             'all_department' => '/all-department',
             'all_faculty' => '/all-faculty',
+            'all_user' => '/all-user',
         ],
     ],
 

@@ -22,10 +22,8 @@ class StudentMockLoginTest extends TestCase
 
     public function test_student_switch_keeps_staff_mock_logins_closed(): void
     {
-        $this->get('/api/mock-login')->assertNotFound();
         $this->getJson('/api/mock-login/search')->assertNotFound();
-        $this->get('/api/mock-login/admin')->assertNotFound();
-        $this->get('/api/mock-login/system-teacher/fengabc')->assertNotFound();
+        $this->get('/api/mock-login/system-teacher/fengame')->assertNotFound();
     }
 
     public function test_student_token_reaches_student_routes(): void
