@@ -428,7 +428,7 @@ JWT ของเรามี claims ชุดเดียวกับ mock เ�
 ### หลัง deploy
 
 - [ ] **7.7** ทดสอบด้วยมือตามรายการใน Phase 6
-- [ ] **7.8** `/api/mock-login/admin` → 404
+- [ ] **7.8** `/api/mock-login/system-teacher/{nontri_id ใน resources/mocks/mock-login.json}` → 404
 - [ ] **7.9** ดู log ช่วงแรก: `docker compose --env-file .env.production logs -f laravel-app`
 
 ### Rollback
@@ -444,7 +444,7 @@ JWT ของเรามี claims ชุดเดียวกับ mock เ�
 1. `.env.production`: `MOCK_LOGIN_ENABLED=true` และ `VITE_AUTH_PROVIDER=mock` (frontend ต้องเป็น mock ด้วย ไม่งั้น `RoleRedirect` จะพาไป portal และหน้า `/auth/callback` ปิดอยู่)
 2. `docker/deploy.sh .env.production` แล้ว build frontend ใหม่ตามข้อ 7.6 (ค่า `VITE_*` ฝังตอน build)
 3. ENG Main กลับมาแล้ว → คืนค่า `MOCK_LOGIN_ENABLED=false`, `VITE_AUTH_PROVIDER=portal` แล้วทำข้อ 2 ซ้ำ
-4. ตรวจว่า `/api/mock-login/admin` ตอบ 404 อีกครั้ง
+4. ตรวจว่า `/api/mock-login/system-teacher/{nontri_id ใน resources/mocks/mock-login.json}` ตอบ 404 อีกครั้ง
 
 token ของ mock ไม่มี `sid` จึงใช้ไม่ได้ทันทีที่ปิด mock (ข้อ 3.9) ไม่ต้องเปลี่ยน `JWT_SECRET`
 

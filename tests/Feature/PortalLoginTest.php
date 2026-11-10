@@ -381,7 +381,7 @@ class PortalLoginTest extends TestCase
 
         config(['mock_login' => ['enabled' => $this->mockLoginEnabledWith('production', 'false')] + config('mock_login')]);
 
-        $this->get('/api/mock-login/admin')->assertNotFound();
+        $this->get('/api/mock-login/system-teacher/fengame')->assertNotFound();
     }
 
     public function test_login_throttle_counts_each_client_behind_the_proxy(): void

@@ -21,13 +21,6 @@ class MockLoginController extends Controller
         );
     }
 
-    public function picker()
-    {
-        $this->requireStaffMockLogin();
-
-        return view('mock-login');
-    }
-
     public function search(Request $request): JsonResponse
     {
         $this->requireStaffMockLogin();
@@ -72,20 +65,6 @@ class MockLoginController extends Controller
             ->values();
 
         return response()->json($students);
-    }
-
-    public function issueAdmin(JwtIssuer $issuer): RedirectResponse
-    {
-        $this->requireStaffMockLogin();
-
-        return $this->redirectWithToken($issuer, [
-            'nontri_id' => 'mock-admin',
-            'name' => 'Mock Admin',
-            'role' => ['admin'],
-            'current_role' => 'admin',
-            'department_id' => null,
-            'faculty_id' => null,
-        ]);
     }
 
     public function issueSystemTeacher(Request $request, string $nontriId, JwtIssuer $issuer): RedirectResponse
