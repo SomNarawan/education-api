@@ -283,8 +283,6 @@ class StudentImportService
                 ]);
             }
 
-            $this->saveStudent->ensureAcademicCalendarAvailable($isInternational);
-
             $masterData = $this->masterData($curriculumId);
             $studyPlan = $this->studyPlans->fetch($studyPlanId);
             $successRows = [];

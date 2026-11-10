@@ -23,6 +23,8 @@ class AcademicCalendarPeriodResolver
             throw new InvalidArgumentException("Unsupported academic calendar key: {$calendarKey}");
         }
 
+        $datedTerms = [];
+
         foreach ($this->calendarStore->all() as $calendar) {
             $terms = collect($calendar['payload']['terms'] ?? [])
                 ->filter(fn (mixed $term): bool => is_array($term)
@@ -52,40 +54,102 @@ class AcademicCalendarPeriodResolver
                 })
                 ->values();
 
-            $selectedCurriculum = $curricula->firstWhere('curriculum', $calendarKey);
+            foreach ($terms->where('curriculum', $calendarKey) as $term) {
+                $dates = $this->termDates($term);
 
-            if ($selectedCurriculum === null || $selectedCurriculum['status'] !== 'ready') {
-                continue;
+                if ($dates === null) {
+                    continue;
+                }
+
+                $datedTerms[] = [
+                    'academic_year' => (int) $calendar['academic_year'],
+                    'term' => $term,
+                    'start_date' => $dates['start'],
+                    'end_date' => $dates['end'],
+                    'curricula' => $curricula->all(),
+                ];
             }
+        }
 
-            $academicYear = $calendar['academic_year'];
-            $semester = $this->standingCalculator->semesterFromTermCode(
-                $selectedCurriculum['term_code'],
+        usort(
+            $datedTerms,
+            fn (array $left, array $right): int => $left['start_date'] <=> $right['start_date'],
+        );
+
+        $selectedTerm = collect($datedTerms)->first(
+            fn (array $term): bool => $referenceDate->betweenIncluded(
+                $term['start_date'],
+                $term['end_date'],
+            ),
+        );
+        $message = 'พบปฏิทินการศึกษาที่พร้อมใช้สำหรับ Sync';
+
+        if ($selectedTerm === null) {
+            $previousTerm = collect($datedTerms)
+                ->filter(fn (array $term): bool => $term['end_date']->isBefore($referenceDate))
+                ->last();
+            $nextTerm = collect($datedTerms)->first(
+                fn (array $term): bool => $term['start_date']->isAfter($referenceDate),
             );
 
-            if ($semester === null) {
-                return $this->result(
-                    'calendar_conflict',
-                    'รหัสภาคการศึกษาในปฏิทินไม่รองรับการ Sync',
-                    $academicYear,
-                    null,
-                    $curricula->all(),
-                );
+            if (
+                $previousTerm === null
+                || $nextTerm === null
+                || ! $this->termsAreConsecutive($previousTerm, $nextTerm)
+            ) {
+                return $this->missingCalendarResult();
             }
 
+            $selectedTerm = $previousTerm;
+            $message = 'พบช่วงปิดภาคการศึกษา ใช้ภาคการศึกษาก่อนหน้าสำหรับ Sync';
+        }
+
+        $term = $selectedTerm['term'];
+        $semester = $this->standingCalculator->semesterFromTermCode($term['code'] ?? null);
+
+        if ($semester === null) {
             return $this->result(
-                'ready',
-                'พบปฏิทินการศึกษาที่พร้อมใช้สำหรับ Sync',
-                $academicYear,
-                [
-                    'code' => $selectedCurriculum['term_code'],
-                    'name_th' => $selectedCurriculum['term_name_th'],
-                    'semester' => $semester,
-                ],
-                $curricula->all(),
+                'calendar_conflict',
+                'รหัสภาคการศึกษาในปฏิทินไม่รองรับการ Sync',
+                $selectedTerm['academic_year'],
+                null,
+                $selectedTerm['curricula'],
             );
         }
 
+        $curricula = collect($selectedTerm['curricula'])
+            ->map(function (array $curriculum) use ($calendarKey, $term): array {
+                if ($curriculum['curriculum'] !== $calendarKey) {
+                    return $curriculum;
+                }
+
+                return [
+                    ...$curriculum,
+                    'term_code' => $term['code'],
+                    'term_name_th' => $term['nameTh'] ?? null,
+                    'start_date' => $term['startDate'],
+                    'end_date' => $term['endDate'],
+                    'status' => 'ready',
+                ];
+            })
+            ->values()
+            ->all();
+
+        return $this->result(
+            'ready',
+            $message,
+            $selectedTerm['academic_year'],
+            [
+                'code' => $term['code'],
+                'name_th' => $term['nameTh'] ?? null,
+                'semester' => $semester,
+            ],
+            $curricula,
+        );
+    }
+
+    private function missingCalendarResult(): array
+    {
         return $this->result(
             'missing_calendar',
             'ไม่พบปฏิทินการศึกษาที่ครอบคลุมวันที่ปัจจุบัน กรุณาไป Sync ปฏิทินการศึกษาก่อน',
@@ -93,6 +157,22 @@ class AcademicCalendarPeriodResolver
             null,
             [],
         );
+    }
+
+    private function termsAreConsecutive(array $previousTerm, array $nextTerm): bool
+    {
+        $previousCode = $previousTerm['term']['code'] ?? null;
+        $nextCode = $nextTerm['term']['code'] ?? null;
+        $previousYear = $previousTerm['academic_year'];
+        $nextYear = $nextTerm['academic_year'];
+
+        return match ($previousCode) {
+            'first' => $nextCode === 'second' && $nextYear === $previousYear,
+            'second' => ($nextCode === 'summer' && $nextYear === $previousYear)
+                || ($nextCode === 'first' && $nextYear === $previousYear + 1),
+            'summer' => $nextCode === 'first' && $nextYear === $previousYear + 1,
+            default => false,
+        };
     }
 
     private function result(
@@ -115,20 +195,28 @@ class AcademicCalendarPeriodResolver
 
     private function dateIsWithinTerm(CarbonImmutable $referenceDate, array $term): bool
     {
+        $dates = $this->termDates($term);
+
+        return $dates !== null
+            && $referenceDate->betweenIncluded($dates['start'], $dates['end']);
+    }
+
+    private function termDates(array $term): ?array
+    {
         $startDate = $term['startDate'] ?? null;
         $endDate = $term['endDate'] ?? null;
 
         if (! is_string($startDate) || ! is_string($endDate)) {
-            return false;
+            return null;
         }
 
         try {
-            return $referenceDate->betweenIncluded(
-                CarbonImmutable::createFromFormat('!Y-m-d', $startDate),
-                CarbonImmutable::createFromFormat('!Y-m-d', $endDate),
-            );
+            $start = CarbonImmutable::createFromFormat('!Y-m-d', $startDate);
+            $end = CarbonImmutable::createFromFormat('!Y-m-d', $endDate);
+
+            return $start->isAfter($end) ? null : compact('start', 'end');
         } catch (Throwable) {
-            return false;
+            return null;
         }
     }
 }

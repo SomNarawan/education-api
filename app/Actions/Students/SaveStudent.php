@@ -2,8 +2,10 @@
 
 namespace App\Actions\Students;
 
+use App\Constants\Status;
 use App\Models\Student;
 use App\Models\StudentGuardianPhoneHistory;
+use App\Models\StudentStatus;
 use App\Services\StudentAcademicPeriods\AcademicStandingCalculator;
 use App\Services\StudentAcademicPeriodSyncService;
 use App\Services\StudyPlans\StudentStudyPlanService;
@@ -25,11 +27,6 @@ class SaveStudent
         private readonly StudentAcademicPeriodSyncService $academicPeriods,
         private readonly AcademicStandingCalculator $standingCalculator,
     ) {}
-
-    public function ensureAcademicCalendarAvailable(bool $isInternational): void
-    {
-        $this->academicPeriods->requireCurrentPeriod($isInternational);
-    }
 
     public function create(array $attributes): Student
     {
@@ -63,12 +60,22 @@ class SaveStudent
         string $updatedBy,
         array $studyPlan,
     ): Student {
-        return $this->updateWithStudyPlan($student, $attributes, $updatedBy, $studyPlan);
+        return $this->updateWithStudyPlan(
+            $student,
+            $attributes,
+            $updatedBy,
+            $studyPlan,
+            true,
+        );
     }
 
     private function createWithStudyPlan(array $attributes, array $studyPlan): Student
     {
-        $attributes = $this->addCurrentAcademicStanding($attributes);
+        $attributes = $this->isStudyingStatus(
+            (int) ($attributes['student_status_id'] ?? 0),
+        )
+            ? $this->addCurrentAcademicStanding($attributes)
+            : $this->clearAcademicStanding($attributes);
 
         return DB::transaction(function () use ($attributes, $studyPlan): Student {
             $student = new Student;
@@ -86,18 +93,30 @@ class SaveStudent
         array $attributes,
         ?string $updatedBy,
         ?array $studyPlan,
+        bool $refreshCurrentStanding = false,
     ): Student {
         return DB::transaction(function () use (
             $student,
             $attributes,
             $updatedBy,
             $studyPlan,
+            $refreshCurrentStanding,
         ): Student {
             $student = Student::query()
                 ->lockForUpdate()
                 ->findOrFail($student->getKey());
 
-            if ($this->requiresCurrentStandingRefresh($student, $attributes)) {
+            $statusId = (int) ($attributes['student_status_id'] ?? $student->student_status_id);
+            $statusChanged = array_key_exists('student_status_id', $attributes)
+                && $statusId !== (int) $student->student_status_id;
+
+            if (! $this->isStudyingStatus($statusId)) {
+                $attributes = $this->clearAcademicStanding($attributes);
+            } elseif (
+                $refreshCurrentStanding
+                || $statusChanged
+                || $this->requiresCurrentStandingRefresh($student, $attributes)
+            ) {
                 $attributes = $this->addCurrentAcademicStanding([
                     ...$student->only(['entry_year', 'is_international']),
                     ...$attributes,
@@ -150,6 +169,23 @@ class SaveStudent
             && (bool) $attributes['is_international'] !== (bool) $student->is_international;
 
         return $entryYearChanged || $calendarTypeChanged;
+    }
+
+    private function isStudyingStatus(int $statusId): bool
+    {
+        return StudentStatus::query()
+            ->whereKey($statusId)
+            ->value('status_name') === Status::STUDYING;
+    }
+
+    private function clearAcademicStanding(array $attributes): array
+    {
+        return [
+            ...Arr::except($attributes, ['study_year', 'study_semester', 'study_period']),
+            'study_year' => null,
+            'study_semester' => null,
+            'study_period' => null,
+        ];
     }
 
     private function addAcademicStanding(array $attributes, ?Student $student = null): array
