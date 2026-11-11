@@ -4,6 +4,17 @@ WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 COPY . .
+# Drop what the running API never reads, before the classmap is built:
+#   - frontend tooling (this image serves no built assets) and files that are
+#     copied into the runtime stage separately (docker/, vhost.conf)
+#   - package docs/CI files in vendor
+#   - Carbon translations other than th/en (APP_LOCALE=th, fallback en)
+RUN set -eux; \
+    rm -rf package.json package-lock.json vite.config.js resources/js resources/css \
+           docker vhost.conf; \
+    find vendor -type d -name .github -prune -exec rm -rf {} +; \
+    find vendor -type f \( -iname '*.md' -o -name '.gitattributes' -o -name '.editorconfig' \) -delete; \
+    find vendor/nesbot/carbon/src/Carbon/Lang -type f ! -name 'th*.php' ! -name 'en.php' ! -name 'en_*.php' -delete
 RUN composer dump-autoload --optimize --no-dev
 
 # ---- runtime stage (nginx + php-fpm bundled, port 3009) ----
@@ -12,7 +23,7 @@ RUN composer dump-autoload --optimize --no-dev
 # API never uses (~650MB). Extensions added on top of the base image:
 #   pdo_mysql - the database
 #   zip       - ZipArchive, used by app/Services/Excel/XlsxDataValidationWriter
-#               (student/grade import templates); not declared in composer.lock
+#               (student/grade import templates); declared as ext-zip in composer.json
 FROM php:8.2-fpm-alpine
 
 RUN set -eux; \
@@ -35,4 +46,11 @@ COPY --from=vendor /app ./
 RUN chown -R www-data:www-data storage bootstrap/cache
 
 EXPOSE 3009
+
+# /api/health answers 503 only when a critical check fails (database,
+# migrations, queue, storage); external services are cached and only make it
+# "degraded" (still 200), so a CMIS outage never marks this container unhealthy.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD wget -qO /dev/null http://127.0.0.1:3009/api/health || exit 1
+
 CMD ["start"]
