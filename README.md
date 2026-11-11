@@ -224,6 +224,22 @@ docker compose --env-file .env.localdeploy up -d --build
 docker compose exec -u www-data backend php artisan migrate --force
 ```
 
+#### เว็บนิสิต (public)
+
+frontend ของ stack นี้มีเฉพาะเว็บ staff (`Dockerfile.private`, port 3008) ส่วนเว็บนิสิตใช้ `Dockerfile.public` และอยู่ใน compose ของ `education-web` ต้องรันแยก โดยให้ stack ของ API (3009) ทำงานอยู่ก่อน:
+
+```bash
+cd ../education-web
+docker compose --env-file .env.localdeploy.public up -d --build education-web-student
+```
+
+- `--env-file .env.localdeploy.public` ตั้ง `VITE_API_URL=http://localhost:3009/api` ถ้าไม่ใส่จะใช้ค่า default `http://localhost:8000/api` และเรียก API ไม่ได้ ไฟล์นี้ commit อยู่แล้วและไม่มีค่าลับ
+- ระบุ `education-web-student` เพื่อรันเฉพาะเว็บนิสิต ไม่รันเว็บ staff ซ้ำที่ 3001
+- เปิดที่ `http://localhost:3002` ซึ่ง `.env.localdeploy.example` ใส่ไว้ใน `FRONTEND_URL` (CORS) และ `MOCK_LOGIN_STUDENT_FRONTEND_URL` แล้ว
+- Docker Desktop จะแสดงเป็น group `education-web` แยกจาก `education-api`
+- หยุดด้วย `docker compose stop education-web-student` (รันใน `education-web`)
+- ค่า `VITE_*` ถูกฝังตอน build ถ้าแก้ค่าเหล่านี้ต้องสั่ง `--build` ใหม่
+
 ### Production/staging
 
 ```bash
