@@ -231,6 +231,35 @@ cp .env.production.example .env.production
 docker compose --env-file .env.production up -d --build
 ```
 
+#### เก็บไฟล์ runtime บน server (bind mount)
+
+`storage/app` ของ backend (ไฟล์นำเข้า ไฟล์ผลลัพธ์ และปฏิทินที่ sync ไว้ ดู [Runtime files](#runtime-files)) ต้องอยู่นอก container ไม่งั้นจะหายทุกครั้งที่ rebuild หรือ deploy ใหม่ `docker-compose.yml` เลือกที่เก็บจาก `API_STORAGE_PATH`:
+
+| `API_STORAGE_PATH` | ที่เก็บ | ใช้กับ |
+|---|---|---|
+| ไม่ตั้ง | named volume `api-storage` | local deploy |
+| path บน host เช่น `/srv/education/storage` | bind mount ไปที่โฟลเดอร์นั้น | server: เห็นไฟล์ตรง ๆ และสำรองรวมกับ backup ของ server ได้ |
+
+`docker/api/start.sh` เปลี่ยนเจ้าของโฟลเดอร์เป็น `www-data` (uid 82) ทุกครั้งที่ container เริ่ม จึงไม่ต้อง `chown` เอง
+
+ตั้งค่าใน `.env.production` (ดูตัวอย่างใน `.env.production.example`):
+
+```dotenv
+API_STORAGE_PATH=/srv/education/storage
+# stderr: error ของ Laravel ออกที่ `docker compose logs backend`
+# ("stack" เขียนไฟล์ไว้ใน container และหายทุกครั้งที่ deploy)
+LOG_CHANNEL=stderr
+```
+
+ตอน deploy ครั้งแรก (หรือเมื่อเปลี่ยน `API_STORAGE_PATH`) โฟลเดอร์ใหม่จะว่าง:
+
+- ปฏิทินการศึกษาที่ sync ไว้ยังไม่มี ต้องกด Sync ปฏิทินการศึกษาใหม่หนึ่งครั้งหลัง deploy ไม่งั้นการเพิ่ม/นำเข้านิสิตที่กำลังศึกษาจะ error ว่าไม่พบปฏิทิน
+- ถ้าเคยมีไฟล์อยู่ใน volume เดิม และต้องการเก็บไว้ (เช่น JSON รายนิสิตใน `data/` หรือไฟล์ผลลัพธ์การนำเข้าเก่า) ให้คัดลอกออกมาก่อน:
+
+```bash
+docker run --rm -v education-api_api-storage:/from -v /srv/education/storage:/to alpine cp -a /from/. /to/
+```
+
 ## Authentication
 
 | Route | การยืนยันตัวตน |
@@ -345,6 +374,7 @@ curriculums, study-plans, curriculum-personnel, students
 
 ```text
 data/
+├── academic_calendars/{academicYear}.json
 ├── study_plan/{studentCode}.json
 ├── grade_attempts/{studentCode}.json
 ├── enrollments/{studentCode}.json
