@@ -251,46 +251,31 @@ docker compose --env-file .env.production up -d --build
 
 ใน Docker backend เก็บไฟล์ runtime (ไฟล์นำเข้า ไฟล์ผลลัพธ์ ปฏิทินที่ sync ไว้ และ JSON ใน `data/` ดู [Runtime files](#runtime-files)) ไว้ที่ `/app/backup` ใน container แทน `storage/app` (ตั้งด้วย `FILES_ROOT` ใน `Dockerfile.api` และอ่านใน `config/filesystems.php`) โฟลเดอร์นี้ต้องอยู่นอก container ไม่งั้นจะหายทุกครั้งที่ rebuild หรือ deploy ใหม่
 
-ถ้า server deploy จาก `Dockerfile.api` โดยตรง (ไม่ใช้ compose) ให้ mount ตอนรัน container ด้วยค่านี้ ไม่ต้องตั้ง env อื่นเพิ่ม เพราะ `FILES_ROOT=/app/backup` อยู่ใน image แล้ว:
+server deploy จาก `Dockerfile.api` ไม่ต้องตั้งค่าใน `.env` เพราะ `FILES_ROOT=/app/backup` อยู่ใน image แล้ว สิ่งที่ต้องทำมีอย่างเดียวคือ mount โฟลเดอร์บน host ตอนรัน container ตามแบบที่ server ใช้กับโปรเจคอื่น (`/home/secretary/<โปรเจค>/backup:/app/backup`):
 
 ```text
 /home/secretary/kukps-eng-education-ssd-api/backup:/app/backup
 ```
 
-เช่น `docker run -v /home/secretary/kukps-eng-education-ssd-api/backup:/app/backup ...`
+เช่น `docker run -v /home/secretary/kukps-eng-education-ssd-api/backup:/app/backup ...` ค่านี้ใส่ใน `Dockerfile.api` ไม่ได้ เพราะ Dockerfile กำหนด path บน host ไม่ได้ ต้องใส่ตอนรัน container เท่านั้น
 
-ถ้าใช้ compose `docker-compose.yml` จะเลือกที่เก็บจาก `API_STORAGE_PATH`:
+`docker/api/start.sh` สร้าง `private/` และ `public/` ในโฟลเดอร์ และเปลี่ยนเจ้าของเป็น `www-data` (uid 82) ทุกครั้งที่ container เริ่ม จึงไม่ต้องสร้างโฟลเดอร์หรือ `chown` เอง
+
+ข้อควรระวัง:
+
+- ในโฟลเดอร์จะมี `private/` (disk `local`: `data/`, `imports/`) และ `public/` เหมือนโครงสร้างของ `storage/app`
+- แม้โฟลเดอร์ชื่อ `backup` แต่ข้างในคือข้อมูลที่ระบบใช้งานอยู่ ไม่ใช่สำเนาสำรอง ห้ามลบหรือล้างทิ้ง และยังต้องรวมไว้ใน backup ของ server
+- ไฟล์ในโฟลเดอร์จะเป็นของ uid 82 (`www-data` ใน container) ไม่ใช่ของ user `secretary` ถ้าจะแก้หรือลบไฟล์บน host ต้องใช้ `sudo`
+- ถ้าไม่ mount ไฟล์จะอยู่ใน container และหายทุกครั้งที่ deploy ใหม่
+
+ถ้ารันด้วย `docker-compose.yml` แทน compose จะ mount ให้เองจาก `API_STORAGE_PATH` (ใส่เฉพาะ path ฝั่ง host, compose เติม `:/app/backup` ให้):
 
 | `API_STORAGE_PATH` | ที่เก็บ | ใช้กับ |
 |---|---|---|
 | ไม่ตั้ง | named volume `api-storage` | local deploy |
-| path บน host เช่น `/home/secretary/kukps-eng-education-ssd-api/backup` | bind mount โฟลเดอร์นั้นเข้า `/app/backup` | server: เห็นไฟล์ตรง ๆ และสำรองรวมกับ backup ของ server ได้ |
+| path บน host เช่น `/home/secretary/kukps-eng-education-ssd-api/backup` | bind mount โฟลเดอร์นั้นเข้า `/app/backup` | รัน compose บน server |
 
-`docker/api/start.sh` สร้าง `private/` และ `public/` ในโฟลเดอร์ และเปลี่ยนเจ้าของเป็น `www-data` (uid 82) ทุกครั้งที่ container เริ่ม จึงไม่ต้องสร้างโฟลเดอร์หรือ `chown` เอง
-
-ตั้งค่าใน `.env.production` (ดูตัวอย่างใน `.env.production.example`):
-
-```dotenv
-API_STORAGE_PATH=/home/secretary/kukps-eng-education-ssd-api/backup
-# stderr: error ของ Laravel ออกที่ `docker compose logs backend`
-# ("stack" เขียนไฟล์ไว้ใน container และหายทุกครั้งที่ deploy)
-LOG_CHANNEL=stderr
-```
-
-mount ตามแบบที่ server ใช้กับโปรเจคอื่น (`/home/secretary/<โปรเจค>/backup:/app/backup`) ผลที่ได้คือ:
-
-```text
-/home/secretary/kukps-eng-education-ssd-api/backup:/app/backup
-```
-
-ข้อควรระวัง:
-
-- ใส่เฉพาะ path ฝั่ง host ใน `API_STORAGE_PATH` ไม่ต้องต่อท้ายด้วย `:/app/backup` เพราะ `docker-compose.yml` เติมให้เอง ถ้าใส่ซ้ำ compose จะ error เรื่อง volume spec ไม่ถูกต้อง
-- ในโฟลเดอร์จะมี `private/` (disk `local`: `data/`, `imports/`) และ `public/` เหมือนโครงสร้างของ `storage/app`
-- แม้โฟลเดอร์ชื่อ `backup` แต่ข้างในคือข้อมูลที่ระบบใช้งานอยู่ ไม่ใช่สำเนาสำรอง ห้ามลบหรือล้างทิ้ง และยังต้องรวมไว้ใน backup ของ server
-- ไฟล์ในโฟลเดอร์จะเป็นของ uid 82 (`www-data` ใน container) ไม่ใช่ของ user `secretary` ถ้าจะแก้หรือลบไฟล์บน host ต้องใช้ `sudo`
-
-ตอน deploy ครั้งแรก (หรือเมื่อเปลี่ยน `API_STORAGE_PATH`) โฟลเดอร์ใหม่จะว่าง:
+ตอน deploy ครั้งแรก (หรือเมื่อเปลี่ยนโฟลเดอร์ที่ mount) โฟลเดอร์ใหม่จะว่าง:
 
 - ปฏิทินการศึกษาที่ sync ไว้ยังไม่มี ต้องกด Sync ปฏิทินการศึกษาใหม่หนึ่งครั้งหลัง deploy ไม่งั้นการเพิ่ม/นำเข้านิสิตที่กำลังศึกษาจะ error ว่าไม่พบปฏิทิน
 - ถ้าเคยมีไฟล์อยู่ใน volume เดิม และต้องการเก็บไว้ (เช่น JSON รายนิสิตใน `data/` หรือไฟล์ผลลัพธ์การนำเข้าเก่า) ให้คัดลอกออกมาก่อน:
