@@ -5,10 +5,13 @@
 
 cd /app
 
-# storage/app is a volume or a bind-mounted host folder (docker-compose.yml,
-# API_STORAGE_PATH). A fresh host folder is owned by root, so hand it to
-# www-data (uid 82) or imports cannot write their result files.
-chown -R www-data:www-data storage/app
+# FILES_ROOT (/app/backup, Dockerfile.api) is a volume or a bind-mounted host
+# folder (docker-compose.yml, API_STORAGE_PATH). A fresh host folder is empty
+# and owned by root, so create the disks' folders and hand it to www-data
+# (uid 82) or imports cannot write their result files.
+files_root="${FILES_ROOT:-/app/storage/app}"
+mkdir -p "$files_root/private" "$files_root/public"
+chown -R www-data:www-data "$files_root"
 
 # Cache config, routes, events and views. Done here, not at build time,
 # because the config comes from the container's environment. Run as www-data

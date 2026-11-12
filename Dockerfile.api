@@ -45,6 +45,13 @@ WORKDIR /app
 COPY --from=vendor /app ./
 RUN chown -R www-data:www-data storage bootstrap/cache
 
+# Runtime files (imports, result workbooks, synced calendars, JSON data) live
+# in /app/backup instead of storage/app (FILES_ROOT, config/filesystems.php):
+# the server bind-mounts its host folder there. Seeded from storage/app so a
+# fresh named volume starts with the same layout (private/, public/).
+ENV FILES_ROOT=/app/backup
+RUN cp -a storage/app /app/backup && chown -R www-data:www-data /app/backup
+
 EXPOSE 3009
 
 # /api/health answers 503 only when a critical check fails (database,

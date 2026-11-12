@@ -88,14 +88,15 @@ services:
     ports:
       - "3009:3009"
     volumes:
-      # Uploaded import files and import result workbooks (local disk =
-      # storage/app/private). Without a volume they are lost on every
-      # rebuild/redeploy and "download result" stops working.
+      # Runtime files: uploaded imports, import result workbooks, synced
+      # calendars, JSON data. The app keeps them in /app/backup (FILES_ROOT in
+      # Dockerfile.api; local disk = /app/backup/private). Without a volume
+      # they are lost on every rebuild/redeploy.
       # API_STORAGE_PATH unset = the named volume below (local deploy).
-      # On the server set it to a host folder, e.g. /srv/education/storage,
-      # so the files sit in plain sight and go into the server's backups.
-      # start.sh hands the folder to www-data (uid 82) at start.
-      - ${API_STORAGE_PATH:-api-storage}:/app/storage/app
+      # On the server set it to the host folder only, e.g.
+      # /home/secretary/kukps-eng-education-ssd-api/backup - ":/app/backup" is
+      # added here. start.sh hands the folder to www-data (uid 82) at start.
+      - ${API_STORAGE_PATH:-api-storage}:/app/backup
     depends_on:
       mysql:
         condition: service_healthy

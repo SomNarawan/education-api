@@ -1,5 +1,10 @@
 <?php
 
+// Folder that holds the runtime files of the "local" (private/) and "public"
+// (public/) disks. Default storage/app. The Docker image sets /app/backup,
+// where the server bind-mounts its host folder (docker-compose.yml).
+$filesRoot = rtrim(env('FILES_ROOT', storage_path('app')), '/');
+
 return [
 
     /*
@@ -14,6 +19,9 @@ return [
     */
 
     'default' => env('FILESYSTEM_DISK', 'local'),
+
+    // Read by HealthCheckService (storage check).
+    'files_root' => $filesRoot,
 
     /*
     |--------------------------------------------------------------------------
@@ -32,7 +40,7 @@ return [
 
         'local' => [
             'driver' => 'local',
-            'root' => storage_path('app/private'),
+            'root' => $filesRoot.'/private',
             'serve' => true,
             'throw' => false,
             'report' => false,
@@ -40,7 +48,7 @@ return [
 
         'public' => [
             'driver' => 'local',
-            'root' => storage_path('app/public'),
+            'root' => $filesRoot.'/public',
             'url' => rtrim(env('APP_URL', 'https://office.eng.kps.ku.ac.th/kukps-eng-education-ssd-api'), '/').'/storage',
             'visibility' => 'public',
             'throw' => false,
@@ -74,7 +82,7 @@ return [
     */
 
     'links' => [
-        public_path('storage') => storage_path('app/public'),
+        public_path('storage') => $filesRoot.'/public',
     ],
 
 ];

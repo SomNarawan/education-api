@@ -206,7 +206,7 @@ class HealthCheckService
 
     private function storage(): array
     {
-        $paths = [storage_path('app'), storage_path('framework/cache'), storage_path('framework/views')];
+        $paths = [config('filesystems.files_root'), storage_path('framework/cache'), storage_path('framework/views')];
         $notWritable = array_values(array_filter($paths, fn (string $path) => ! is_writable($path)));
 
         return $notWritable === []
