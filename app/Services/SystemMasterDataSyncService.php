@@ -2,20 +2,19 @@
 
 namespace App\Services;
 
-use App\Constants\Status;
 use App\Models\Sync;
 use App\Models\SystemDepartment;
 use App\Models\SystemFaculty;
-use Illuminate\Database\Eloquent\Model;
+use App\Services\SystemMasterData\SystemMasterDataRecordSynchronizer;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Throwable;
-use UnexpectedValueException;
 
 class SystemMasterDataSyncService
 {
     public function __construct(
-        private readonly PersonnelApiService $personnelApiService
+        private readonly PersonnelApiService $personnelApiService,
+        private readonly SystemMasterDataRecordSynchronizer $recordSynchronizer,
     ) {}
 
     /**
@@ -41,13 +40,20 @@ class SystemMasterDataSyncService
                     default => throw new InvalidArgumentException('Unsupported sync type'),
                 };
 
-                return $sync->markAsSuccess(
+                $sync = $sync->markAsSuccess(
                     $counts['inserted'],
                     $counts['updated'],
                     $counts['inactivated'],
                     $counts['skipped'],
                     $actor
                 );
+
+                $sync->setAttribute(
+                    'skip_reasons',
+                    $counts['skip_reasons']
+                );
+
+                return $sync;
             });
         } catch (Throwable $exception) {
             try {
@@ -85,6 +91,8 @@ class SystemMasterDataSyncService
 
         foreach ($items as $item) {
             if (! is_array($item)) {
+                $departments[] = $item;
+
                 continue;
             }
 
@@ -95,6 +103,8 @@ class SystemMasterDataSyncService
             }
 
             if (! is_array($item['departments'])) {
+                $departments[] = $item;
+
                 continue;
             }
 
@@ -102,6 +112,8 @@ class SystemMasterDataSyncService
 
             foreach ($item['departments'] as $department) {
                 if (! is_array($department)) {
+                    $departments[] = $department;
+
                     continue;
                 }
 
@@ -119,21 +131,24 @@ class SystemMasterDataSyncService
 
     private function syncFaculties(array $faculties, Sync $sync, string $actor): array
     {
-        return $this->syncRecords(
+        return $this->recordSynchronizer->sync(
             $faculties,
             SystemFaculty::class,
             'id',
-            static function (mixed $faculty): ?array {
+            static function (mixed $faculty): array {
                 if (! is_array($faculty) || empty($faculty['id']) || empty($faculty['th_name'])) {
-                    return null;
+                    return ['skip_reason' => 'invalid_source_data'];
                 }
 
-                return [(int) $faculty['id'], [
-                    'th_name' => $faculty['th_name'],
-                    'en_name' => $faculty['en_name'] ?? '-',
-                    'th_short_name' => $faculty['th_short_name'] ?? '-',
-                    'en_short_name' => $faculty['en_short_name'] ?? '-',
-                ]];
+                return [
+                    'key' => (int) $faculty['id'],
+                    'attributes' => [
+                        'th_name' => $faculty['th_name'],
+                        'en_name' => $faculty['en_name'] ?? '-',
+                        'th_short_name' => $faculty['th_short_name'] ?? '-',
+                        'en_short_name' => $faculty['en_short_name'] ?? '-',
+                    ],
+                ];
             },
             $sync,
             $actor,
@@ -145,151 +160,42 @@ class SystemMasterDataSyncService
     {
         $existingFacultyIds = $this->existingIds(
             SystemFaculty::class,
-            collect($departments)->pluck('system_faculty_id')->all()
+            collect($departments)
+                ->filter(fn (mixed $department): bool => is_array($department))
+                ->pluck('system_faculty_id')
+                ->all()
         );
 
-        return $this->syncRecords(
+        return $this->recordSynchronizer->sync(
             $departments,
             SystemDepartment::class,
             'id',
-            function (mixed $department) use ($existingFacultyIds): ?array {
+            function (mixed $department) use ($existingFacultyIds): array {
                 if (! is_array($department) || empty($department['id']) || empty($department['th_name'])) {
-                    return null;
+                    return ['skip_reason' => 'invalid_source_data'];
                 }
 
                 $facultyId = $this->positiveInteger($department['system_faculty_id'] ?? null);
 
                 if ($facultyId === null || ! isset($existingFacultyIds[$facultyId])) {
-                    return null;
+                    return ['skip_reason' => 'faculty_not_found'];
                 }
 
-                return [(int) $department['id'], [
-                    'th_name' => $department['th_name'],
-                    'en_name' => $department['en_name'] ?? '-',
-                    'th_short_name' => $department['th_short_name'] ?? '-',
-                    'en_short_name' => $department['en_short_name'] ?? '-',
-                    'system_faculty_id' => $facultyId,
-                ]];
+                return [
+                    'key' => (int) $department['id'],
+                    'attributes' => [
+                        'th_name' => $department['th_name'],
+                        'en_name' => $department['en_name'] ?? '-',
+                        'th_short_name' => $department['th_short_name'] ?? '-',
+                        'en_short_name' => $department['en_short_name'] ?? '-',
+                        'system_faculty_id' => $facultyId,
+                    ],
+                ];
             },
             $sync,
             $actor,
             'Personnel API returned departments, but none could be mapped to an active system faculty.'
         );
-    }
-
-    /**
-     * @param  class-string<Model>  $modelClass
-     * @param  callable(mixed): ?array{0: int|string, 1: array<string, mixed>}  $mapItem
-     */
-    private function syncRecords(
-        array $items,
-        string $modelClass,
-        string $keyColumn,
-        callable $mapItem,
-        Sync $sync,
-        string $actor,
-        string $emptyMessage
-    ): array {
-        $counts = $this->emptyCounts();
-        $records = [];
-
-        foreach ($items as $item) {
-            $mapped = $mapItem($item);
-
-            if ($mapped === null) {
-                $counts['skipped']++;
-
-                continue;
-            }
-
-            [$key, $attributes] = $mapped;
-            $index = (string) $key;
-
-            if (array_key_exists($index, $records)) {
-                $counts['skipped']++;
-            }
-
-            $records[$index] = compact('key', 'attributes');
-        }
-
-        if ($items !== [] && $records === []) {
-            throw new UnexpectedValueException($emptyMessage);
-        }
-
-        foreach ($records as ['key' => $key, 'attributes' => $attributes]) {
-            $model = $modelClass::withInactive()->where($keyColumn, $key)->first()
-                ?? new $modelClass;
-
-            if (! $model->exists) {
-                $model->setAttribute($keyColumn, $key);
-            }
-
-            $counts[$this->saveModel($model, $attributes, $sync, $actor)]++;
-        }
-
-        $counts['inactivated'] = $this->deactivateMissing(
-            $modelClass,
-            $keyColumn,
-            array_column($records, 'key'),
-            $sync,
-            $actor
-        );
-
-        return $counts;
-    }
-
-    private function saveModel(Model $model, array $attributes, Sync $sync, string $actor): string
-    {
-        $isInsert = ! $model->exists;
-
-        $model->fill([
-            ...$attributes,
-            'status' => Status::ACTIVE,
-        ]);
-
-        if (! $isInsert && ! $model->isDirty()) {
-            return 'skipped';
-        }
-
-        if ($isInsert) {
-            $model->setAttribute('created_by', $actor);
-        }
-
-        $model->fill([
-            'updated_by' => $actor,
-            'sync_id' => $sync->getKey(),
-        ])->save();
-
-        return $isInsert ? 'inserted' : 'updated';
-    }
-
-    private function emptyCounts(): array
-    {
-        return [
-            'inserted' => 0,
-            'updated' => 0,
-            'inactivated' => 0,
-            'skipped' => 0,
-        ];
-    }
-
-    /**
-     * @param  class-string<Model>  $modelClass
-     */
-    private function deactivateMissing(
-        string $modelClass,
-        string $key,
-        array $activeValues,
-        Sync $sync,
-        string $actor
-    ): int {
-        return $modelClass::query()
-            ->whereNotIn($key, array_values(array_unique($activeValues)))
-            ->update([
-                'status' => Status::INACTIVE,
-                'updated_by' => $actor,
-                'sync_id' => $sync->getKey(),
-            ]);
     }
 
     /**

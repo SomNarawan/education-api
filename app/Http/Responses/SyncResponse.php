@@ -26,6 +26,10 @@ class SyncResponse extends JsonResource
                 isset($this->academic_year_results),
                 $this->academic_year_results,
             ),
+            'skip_reasons' => $this->when(
+                isset($this->skip_reasons),
+                $this->skip_reasons,
+            ),
         ];
     }
 }
