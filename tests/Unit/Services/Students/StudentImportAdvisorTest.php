@@ -36,9 +36,6 @@ class StudentImportAdvisorTest extends TestCase
     {
         $capturedAttributes = null;
         $saveStudent = $this->mock(SaveStudent::class);
-        $saveStudent->shouldReceive('ensureAcademicCalendarAvailable')
-            ->once()
-            ->with(false);
         $saveStudent->shouldReceive('createFromImport')
             ->once()
             ->andReturnUsing(function (array $attributes, array $studyPlan) use (&$capturedAttributes): Student {

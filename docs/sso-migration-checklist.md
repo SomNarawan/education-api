@@ -272,7 +272,7 @@ JWT ของเรามี claims ชุดเดียวกับ mock เ�
   - `readIntranetToken()` — decode payload แบบ base64url เพื่ออ่าน `sub` และ `exp` โดยไม่ verify ลายเซ็น (portal ไม่แชร์ key ให้ ความน่าเชื่อถือมาจาก get-role) และปฏิเสธทันทีถ้า `exp` ผ่านไปแล้ว
   - `fetchRoles()` — GET get-role ส่ง `nontriId` และ `systemId`; ถ้า response มี `nontriId` ต้องตรงกับที่ขอ; map ด้วย `PORTAL_ROLE_MAP` โดยเทียบแบบไม่สนตัวพิมพ์ใหญ่/เล็ก
   - `exchangeToken()` — POST exchange-token แล้วคืน `ssoToken`
-  - `verifySession()` — GET `verify.php` (ไม่ใช้ `deep=1`)
+  - `recheck()` — เรียก `get-role` และ `verify.php` พร้อมกันเพื่อตรวจ session ซ้ำ (ไม่ใช้ `deep=1`)
   - ทุกเมธอดคืนผล 3 แบบ: `ok` / `rejected` (HTTP 4xx หรือ `status: fail`) / `unavailable` (5xx, timeout, network)
   - ใช้ `Http::timeout()` และ `withOptions(['verify' => PORTAL_CA_FILE หรือ PORTAL_VERIFY_SSL])`
   - ห้าม log ค่า token

@@ -91,14 +91,6 @@ class PortalAuthService
     }
 
     /**
-     * verify.php without deep=1: whether the SSO session is still active.
-     */
-    public function verifySession(string $ssoToken): PortalAuthResult
-    {
-        return $this->verifyResult($this->send(fn () => $this->verifyRequest($this->request(), $ssoToken)));
-    }
-
-    /**
      * get-role and verify.php side by side, for re-checking a session.
      *
      * @return array{roles: PortalAuthResult, session: PortalAuthResult|null}

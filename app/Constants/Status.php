@@ -42,14 +42,4 @@ final class Status
             self::FAILED,
         ];
     }
-
-    public static function importStatuses(): array
-    {
-        return [
-            self::PROCESSING,
-            self::COMPLETED,
-            self::COMPLETED_WITH_ERRORS,
-            self::FAILED,
-        ];
-    }
 }
