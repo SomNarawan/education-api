@@ -6,6 +6,7 @@ use App\Models\Sync;
 use App\Models\SystemDepartment;
 use App\Models\SystemFaculty;
 use App\Services\SystemMasterData\SystemMasterDataRecordSynchronizer;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Throwable;
@@ -37,7 +38,6 @@ class SystemMasterDataSyncService
                 $counts = match ($syncType) {
                     Sync::TYPE_SYSTEM_FACULTY => $this->syncFaculties($items, $sync, $actor),
                     Sync::TYPE_SYSTEM_DEPARTMENT => $this->syncDepartments($items, $sync, $actor),
-                    default => throw new InvalidArgumentException('Unsupported sync type'),
                 };
 
                 $sync = $sync->markAsSuccess(

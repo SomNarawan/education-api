@@ -30,7 +30,6 @@ class AcademicCalendarSyncService
             $counts = [
                 'inserted' => 0,
                 'updated' => 0,
-                'inactivated' => 0,
                 'skipped' => 0,
             ];
             $academicYearResults = [];
@@ -41,7 +40,6 @@ class AcademicCalendarSyncService
                     $academicYearResults[] = $this->yearResult(
                         $academicYear,
                         'no_data',
-                        false,
                     );
 
                     continue;
@@ -54,7 +52,6 @@ class AcademicCalendarSyncService
                     $academicYearResults[] = $this->yearResult(
                         $academicYear,
                         'skipped',
-                        true,
                     );
 
                     continue;
@@ -66,14 +63,13 @@ class AcademicCalendarSyncService
                 $academicYearResults[] = $this->yearResult(
                     $academicYear,
                     $status,
-                    true,
                 );
             }
 
             $sync = $sync->markAsSuccess(
                 $counts['inserted'],
                 $counts['updated'],
-                $counts['inactivated'],
+                0,
                 $counts['skipped'],
                 $actor
             );
@@ -94,13 +90,11 @@ class AcademicCalendarSyncService
     private function yearResult(
         int $academicYear,
         string $status,
-        bool $hasData,
     ): array {
         return [
             'academic_year' => $academicYear,
             'academic_year_be' => $academicYear + 543,
             'status' => $status,
-            'has_data' => $hasData,
         ];
     }
 }
