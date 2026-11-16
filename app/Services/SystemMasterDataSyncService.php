@@ -16,6 +16,7 @@ class SystemMasterDataSyncService
     public function __construct(
         private readonly PersonnelApiService $personnelApiService,
         private readonly SystemMasterDataRecordSynchronizer $recordSynchronizer,
+        private readonly SyncResultSummary $resultSummary,
     ) {}
 
     /**
@@ -40,12 +41,17 @@ class SystemMasterDataSyncService
                     Sync::TYPE_SYSTEM_DEPARTMENT => $this->syncDepartments($items, $sync, $actor),
                 };
 
-                $sync = $sync->markAsSuccess(
+                $result = $this->resultSummary->systemMasterData(
+                    $counts['skip_reasons']
+                );
+                $sync = $sync->markAsCompleted(
                     $counts['inserted'],
                     $counts['updated'],
                     $counts['inactivated'],
                     $counts['skipped'],
-                    $actor
+                    $actor,
+                    $result['status'],
+                    $result['error_message'],
                 );
 
                 $sync->setAttribute(

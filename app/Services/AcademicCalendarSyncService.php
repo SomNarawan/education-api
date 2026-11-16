@@ -10,6 +10,7 @@ class AcademicCalendarSyncService
     public function __construct(
         private readonly AcademicCalendarProviderService $providerService,
         private readonly AcademicCalendarJsonStore $calendarStore,
+        private readonly SyncResultSummary $resultSummary,
     ) {}
 
     /**
@@ -66,12 +67,17 @@ class AcademicCalendarSyncService
                 );
             }
 
-            $sync = $sync->markAsSuccess(
+            $result = $this->resultSummary->academicCalendars(
+                $academicYearResults
+            );
+            $sync = $sync->markAsCompleted(
                 $counts['inserted'],
                 $counts['updated'],
                 0,
                 $counts['skipped'],
-                $actor
+                $actor,
+                $result['status'],
+                $result['error_message'],
             );
             $sync->setAttribute('academic_year_results', $academicYearResults);
 

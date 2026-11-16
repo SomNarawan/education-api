@@ -18,6 +18,8 @@ final class Status
 
     public const SUCCESS = 'success';
 
+    public const PARTIAL_SUCCESS = 'partial_success';
+
     public const PROCESSING = 'processing';
 
     public const COMPLETED = 'completed';
@@ -39,6 +41,7 @@ final class Status
         return [
             self::RUNNING,
             self::SUCCESS,
+            self::PARTIAL_SUCCESS,
             self::FAILED,
         ];
     }

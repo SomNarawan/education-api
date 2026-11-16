@@ -52,20 +52,22 @@ class Sync extends Model
         ]);
     }
 
-    public function markAsSuccess(
+    public function markAsCompleted(
         int $insertedCount,
         int $updatedCount,
         int $inactivatedCount,
         int $skippedCount,
-        string $actor
+        string $actor,
+        string $status = Status::SUCCESS,
+        ?string $errorMessage = null,
     ): self {
         $this->update([
             'inserted_count' => $insertedCount,
             'updated_count' => $updatedCount,
             'inactivated_count' => $inactivatedCount,
             'skipped_count' => $skippedCount,
-            'status' => Status::SUCCESS,
-            'error_message' => null,
+            'status' => $status,
+            'error_message' => $errorMessage,
             'updated_by' => $actor,
         ]);
 
