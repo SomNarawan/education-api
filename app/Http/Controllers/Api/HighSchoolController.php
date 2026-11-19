@@ -50,7 +50,7 @@ class HighSchoolController extends Controller
             ->find($id);
 
         if ($highSchool === null) {
-            return ApiResponse::error('High school not found', HttpStatus::NOT_FOUND['code']);
+            return ApiResponse::error(__('errors.high_school.not_found'), HttpStatus::NOT_FOUND['code']);
         }
 
         return ApiResponse::success(
@@ -68,7 +68,7 @@ class HighSchoolController extends Controller
 
         if ($actor === null) {
             return ApiResponse::error(
-                'JWT does not contain name, nontri_id, or sub',
+                __('errors.common.actor_missing'),
                 HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }
@@ -97,14 +97,14 @@ class HighSchoolController extends Controller
         $highSchool = HighSchool::query()->find($id);
 
         if ($highSchool === null) {
-            return ApiResponse::error('High school not found', HttpStatus::NOT_FOUND['code']);
+            return ApiResponse::error(__('errors.high_school.not_found'), HttpStatus::NOT_FOUND['code']);
         }
 
         $actor = $this->actorFromJwt($request);
 
         if ($actor === null) {
             return ApiResponse::error(
-                'JWT does not contain name, nontri_id, or sub',
+                __('errors.common.actor_missing'),
                 HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }
@@ -130,14 +130,14 @@ class HighSchoolController extends Controller
         $highSchool = HighSchool::query()->find($id);
 
         if ($highSchool === null) {
-            return ApiResponse::error('High school not found', HttpStatus::NOT_FOUND['code']);
+            return ApiResponse::error(__('errors.high_school.not_found'), HttpStatus::NOT_FOUND['code']);
         }
 
         $actor = $this->actorFromJwt($request);
 
         if ($actor === null) {
             return ApiResponse::error(
-                'JWT does not contain name, nontri_id, or sub',
+                __('errors.common.actor_missing'),
                 HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }

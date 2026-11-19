@@ -20,7 +20,7 @@ class SearchNontriRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             if (! $this->filled('nontriId') && ! $this->filled('fullName') && ! $this->filled('agency')) {
-                $validator->errors()->add('search', 'At least one of nontriId, fullName, or agency is required.');
+                $validator->errors()->add('search', __('errors.validation.search_criteria_required'));
             }
         });
     }

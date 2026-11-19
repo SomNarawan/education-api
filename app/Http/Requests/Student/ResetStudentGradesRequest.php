@@ -43,7 +43,7 @@ class ResetStudentGradesRequest extends FormRequest
     {
         throw new HttpResponseException(
             ApiResponse::error(
-                'Only administrators can reset student grades',
+                __('errors.auth.admin_reset_only'),
                 HttpStatus::FORBIDDEN['code'],
             ),
         );

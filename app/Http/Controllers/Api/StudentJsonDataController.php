@@ -27,14 +27,14 @@ class StudentJsonDataController extends Controller
         $student = Student::query()->find($id);
 
         if ($student === null) {
-            return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
+            return ApiResponse::error(__('errors.student.not_found'), HttpStatus::NOT_FOUND['code']);
         }
 
         try {
             $data = $this->academicOverview->get($student);
         } catch (JsonException $exception) {
             return ApiResponse::error(
-                'Academic overview JSON data is invalid',
+                __('errors.student.academic_overview_invalid'),
                 HttpStatus::INTERNAL_SERVER_ERROR['code'],
                 ['section' => $exception->getMessage()],
             );
@@ -51,14 +51,14 @@ class StudentJsonDataController extends Controller
         $student = Student::query()->find($id);
 
         if ($student === null) {
-            return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
+            return ApiResponse::error(__('errors.student.not_found'), HttpStatus::NOT_FOUND['code']);
         }
 
         try {
             $data = $this->academicOverview->unattemptedCourses($student);
         } catch (JsonException $exception) {
             return ApiResponse::error(
-                'Unattempted course JSON data is invalid',
+                __('errors.student.unattempted_courses_invalid'),
                 HttpStatus::INTERNAL_SERVER_ERROR['code'],
                 ['section' => $exception->getMessage()],
             );
@@ -78,13 +78,13 @@ class StudentJsonDataController extends Controller
             $enrollment = $this->jsonFiles->read($path);
         } catch (JsonException) {
             return ApiResponse::error(
-                'Enrollment JSON data is invalid',
+                __('errors.student.enrollment_invalid'),
                 HttpStatus::INTERNAL_SERVER_ERROR['code']
             );
         }
 
         if ($enrollment === null) {
-            return ApiResponse::error('Enrollment data not found', HttpStatus::NOT_FOUND['code']);
+            return ApiResponse::error(__('errors.student.enrollment_not_found'), HttpStatus::NOT_FOUND['code']);
         }
 
         return ApiResponse::success([
@@ -105,7 +105,7 @@ class StudentJsonDataController extends Controller
                 'enrollment_pass' => "data/enrollments_pass/{$studentCode}.json",
                 'enrollment_over' => "data/enrollments_over/{$studentCode}.json",
             ],
-            'Enrollment status data not found',
+            __('errors.student.enrollment_status_not_found'),
             'Load enrollment statuses successfully',
         );
     }
@@ -136,7 +136,7 @@ class StudentJsonDataController extends Controller
                 'by_group' => $groupSections,
                 'by_semester' => "data/graph/by_semester/{$studentCode}.json",
             ],
-            'Graph data not found',
+            __('errors.student.graph_not_found'),
             'Load graph data successfully',
         );
     }
@@ -181,7 +181,7 @@ class StudentJsonDataController extends Controller
             }
         } catch (JsonException $exception) {
             return ApiResponse::error(
-                'JSON data is invalid',
+                __('errors.student.json_invalid'),
                 HttpStatus::INTERNAL_SERVER_ERROR['code'],
                 ['section' => $exception->getMessage()],
             );

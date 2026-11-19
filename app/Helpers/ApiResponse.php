@@ -23,7 +23,7 @@ class ApiResponse
      */
     public static function error(?string $message = null, ?int $status = null, $errors = null, ?string $code = null)
     {
-        $message ??= HttpStatus::INTERNAL_SERVER_ERROR['message'];
+        $message ??= __('errors.internal_server');
         $status ??= HttpStatus::INTERNAL_SERVER_ERROR['code'];
 
         $body = ['success' => false];

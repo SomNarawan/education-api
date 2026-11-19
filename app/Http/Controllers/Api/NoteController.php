@@ -46,7 +46,7 @@ class NoteController extends Controller
 
         if ($createdBy === null) {
             return ApiResponse::error(
-                'JWT does not contain name, nontri_id, or sub',
+                __('errors.common.actor_missing'),
                 HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }
@@ -74,14 +74,14 @@ class NoteController extends Controller
         $note = Note::query()->find($id);
 
         if ($note === null) {
-            return ApiResponse::error('Note not found', HttpStatus::NOT_FOUND['code']);
+            return ApiResponse::error(__('errors.note.not_found'), HttpStatus::NOT_FOUND['code']);
         }
 
         $deletedBy = $this->actorFromJwt($request);
 
         if ($deletedBy === null) {
             return ApiResponse::error(
-                'JWT does not contain name, nontri_id, or sub',
+                __('errors.common.actor_missing'),
                 HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }

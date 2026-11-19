@@ -53,7 +53,7 @@ class StudentAcademicPeriodSyncService
 
         if ($studyYear === null) {
             throw ValidationException::withMessages([
-                'entry_year' => ['ปีการศึกษาที่เข้าศึกษาไม่สอดคล้องกับปฏิทินการศึกษาปัจจุบัน'],
+                'entry_year' => [__('errors.validation.entry_year_calendar_mismatch')],
             ]);
         }
 

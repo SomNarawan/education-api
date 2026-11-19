@@ -29,7 +29,7 @@ class ListStudentsRequest extends FormRequest
                     NoteType::isOther($this->integer('search_note_type_id')) &&
                     blank($this->input('search_note'))
                 ) {
-                    $validator->errors()->add('search_note', 'กรุณากรอกรายละเอียด Note');
+                    $validator->errors()->add('search_note', __('errors.validation.search_note_detail_required'));
                 }
             },
         ];

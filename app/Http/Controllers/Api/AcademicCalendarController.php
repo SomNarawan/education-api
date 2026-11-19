@@ -59,8 +59,10 @@ class AcademicCalendarController extends Controller
                 'Sync academic calendars successfully'
             );
         } catch (Throwable $exception) {
+            report($exception);
+
             return ApiResponse::error(
-                $exception->getMessage(),
+                __('errors.sync.academic_calendar_failed'),
                 HttpStatus::INTERNAL_SERVER_ERROR['code']
             );
         }

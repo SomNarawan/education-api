@@ -27,15 +27,16 @@ class UpdateStudentAdvisor
 
             $invalidStudyPlanIds = collect($requestedIds)
                 ->filter(
-                    fn (int $studentId): bool =>
-                        (int) $students->get($studentId)?->study_plan_id !== $studyPlanId
+                    fn (int $studentId): bool => (int) $students->get($studentId)?->study_plan_id !== $studyPlanId
                 )
                 ->values()
                 ->all();
 
             if ($invalidStudyPlanIds !== []) {
                 throw ValidationException::withMessages([
-                    'student_ids' => 'Students do not belong to the selected study plan: '.implode(', ', $invalidStudyPlanIds),
+                    'student_ids' => __('errors.validation.advisor_wrong_study_plan', [
+                        'ids' => implode(', ', $invalidStudyPlanIds),
+                    ]),
                 ]);
             }
 
@@ -50,7 +51,9 @@ class UpdateStudentAdvisor
 
             if ($conflictingIds !== []) {
                 throw ValidationException::withMessages([
-                    'assign_student_ids' => 'Students already assigned to another advisor: '.implode(', ', $conflictingIds),
+                    'assign_student_ids' => __('errors.validation.advisor_already_assigned', [
+                        'ids' => implode(', ', $conflictingIds),
+                    ]),
                 ]);
             }
 

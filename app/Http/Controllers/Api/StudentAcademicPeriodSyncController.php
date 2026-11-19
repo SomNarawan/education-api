@@ -59,8 +59,10 @@ class StudentAcademicPeriodSyncController extends Controller
                 'Sync student academic periods successfully'
             );
         } catch (Throwable $exception) {
+            report($exception);
+
             return ApiResponse::error(
-                $exception->getMessage(),
+                __('errors.sync.student_academic_period_failed'),
                 HttpStatus::INTERNAL_SERVER_ERROR['code']
             );
         }

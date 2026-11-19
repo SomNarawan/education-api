@@ -26,7 +26,7 @@ class ValidStudyPlan implements ValidationRule
             || ($this->curriculumId !== null
                 && (int) $curriculumId !== $this->curriculumId)
         ) {
-            $fail('The selected :attribute is invalid.');
+            $fail(__('errors.validation.study_plan_invalid'));
         }
     }
 }

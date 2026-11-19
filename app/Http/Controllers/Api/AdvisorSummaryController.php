@@ -38,13 +38,13 @@ class AdvisorSummaryController extends Controller
 
             if (! is_string($teacherId) || $teacherId === '') {
                 return ApiResponse::error(
-                    'JWT does not contain nontri_id',
+                    __('errors.auth.nontri_id_missing'),
                     HttpStatus::FORBIDDEN['code']
                 );
             }
         } else {
             return ApiResponse::error(
-                'This endpoint is available to teachers and admins only',
+                __('errors.auth.teacher_admin_only'),
                 HttpStatus::FORBIDDEN['code']
             );
         }

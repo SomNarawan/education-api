@@ -38,7 +38,7 @@ use OpenApi\Spec as OA;
         new OA\Property(property: 'errors', schema: new OA\Schema(
             type: OA\Type::Object,
             additionalProperties: new OA\Schema(type: OA\Type::Array, items: new OA\Schema(type: OA\Type::String)),
-            example: ['field' => ['The field is required.']],
+            example: ['field' => ['กรุณาระบุข้อมูล ฟิลด์']],
         )),
     ],
 )]

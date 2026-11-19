@@ -35,7 +35,7 @@ class PortalAuthController extends Controller
         $intranet = $portal->readIntranetToken($intranetToken);
 
         if (! $intranet->isOk()) {
-            return $this->refuse($intranet, HttpStatus::UNAUTHORIZED, 'Token จาก Portal ไม่ถูกต้องหรือหมดอายุ กรุณาเข้าสู่ระบบจาก Portal อีกครั้ง');
+            return $this->refuse($intranet, HttpStatus::UNAUTHORIZED, __('errors.auth.portal_token_invalid'));
         }
 
         $nontriId = $intranet->value['nontri_id'];
@@ -46,14 +46,14 @@ class PortalAuthController extends Controller
         }
 
         if (! $roles->isOk()) {
-            return $this->refuse($roles, HttpStatus::FORBIDDEN, 'บัญชีนี้ไม่มีสิทธิ์ใช้งานระบบในบทบาทที่เลือก');
+            return $this->refuse($roles, HttpStatus::FORBIDDEN, __('errors.auth.portal_role_forbidden'));
         }
 
         // Single use, so it is spent only once nothing else can refuse the login.
         $sso = $portal->exchangeToken($request->validated('exchangeToken'));
 
         if (! $sso->isOk()) {
-            return $this->refuse($sso, HttpStatus::UNAUTHORIZED, 'Token จาก Portal หมดอายุหรือถูกใช้ไปแล้ว กรุณาเข้าสู่ระบบจาก Portal อีกครั้ง');
+            return $this->refuse($sso, HttpStatus::UNAUTHORIZED, __('errors.auth.portal_token_used'));
         }
 
         $profile = $profiles->resolve($nontriId);
@@ -116,7 +116,7 @@ class PortalAuthController extends Controller
             Log::warning("Portal login: central system unavailable: {$result->reason}");
 
             return ApiResponse::error(
-                'ระบบกลางไม่ตอบสนอง กรุณาลองใหม่อีกครั้งภายหลัง',
+                __('errors.auth.portal_unavailable'),
                 HttpStatus::SERVICE_UNAVAILABLE['code'],
                 code: 'PORTAL_UNAVAILABLE'
             );

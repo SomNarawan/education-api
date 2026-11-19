@@ -167,7 +167,7 @@ abstract class MasterDataController extends Controller
     private function notFoundResponse(): JsonResponse
     {
         return ApiResponse::error(
-            ucfirst($this->singularLabel).' not found',
+            __('errors.master_data.not_found.'.$this->nameField),
             HttpStatus::NOT_FOUND['code']
         );
     }
@@ -175,7 +175,7 @@ abstract class MasterDataController extends Controller
     private function missingActorResponse(): JsonResponse
     {
         return ApiResponse::error(
-            'JWT does not contain name, nontri_id, or sub',
+            __('errors.common.actor_missing'),
             HttpStatus::UNPROCESSABLE_ENTITY['code']
         );
     }

@@ -130,8 +130,10 @@ class SyncController extends Controller
                 'Sync successfully'
             );
         } catch (Throwable $exception) {
+            report($exception);
+
             return ApiResponse::error(
-                $exception->getMessage(),
+                __('errors.sync.master_data_failed'),
                 HttpStatus::INTERNAL_SERVER_ERROR['code']
             );
         }

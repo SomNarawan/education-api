@@ -52,14 +52,14 @@ class UpdateStudentAdvisorRequest extends FormRequest
                 if ($assignIds === [] && $removeIds === []) {
                     $validator->errors()->add(
                         'student_ids',
-                        'At least one student must be assigned or removed.'
+                        __('errors.validation.advisor_change_required')
                     );
                 }
 
                 if (array_intersect($assignIds, $removeIds) !== []) {
                     $validator->errors()->add(
                         'student_ids',
-                        'A student cannot be both assigned and removed.'
+                        __('errors.validation.advisor_action_conflict')
                     );
                 }
             },

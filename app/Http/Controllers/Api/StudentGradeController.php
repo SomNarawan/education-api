@@ -37,7 +37,7 @@ class StudentGradeController extends Controller
 
         if ($student === null) {
             return ApiResponse::error(
-                'Student not found',
+                __('errors.student.not_found'),
                 HttpStatus::NOT_FOUND['code'],
             );
         }
@@ -60,10 +60,10 @@ class StudentGradeController extends Controller
 
         if (! $this->isPreviousSemester($student, $studyYear, $semester)) {
             return ApiResponse::error(
-                'Only a previous semester can be reset',
+                __('errors.student.previous_semester_only'),
                 HttpStatus::UNPROCESSABLE_ENTITY['code'],
                 [
-                    'study_year' => ['The selected study year and semester must be before the current semester.'],
+                    'study_year' => [__('errors.student.previous_semester_required')],
                 ],
             );
         }
@@ -114,7 +114,7 @@ class StudentGradeController extends Controller
     ): JsonResponse {
         if ($resetCount === null) {
             return ApiResponse::error(
-                'Student grade data not found',
+                __('errors.student.grade_data_not_found'),
                 HttpStatus::NOT_FOUND['code'],
             );
         }

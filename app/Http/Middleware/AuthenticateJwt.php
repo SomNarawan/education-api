@@ -24,16 +24,16 @@ class AuthenticateJwt
         $token = $request->bearerToken();
 
         if (! $token) {
-            return ApiResponse::error('Missing Bearer token', HttpStatus::UNAUTHORIZED['code']);
+            return ApiResponse::error(__('errors.auth.missing_bearer_token'), HttpStatus::UNAUTHORIZED['code']);
         }
 
         try {
             $claims = $this->verifier->verify($token);
-        } catch (InvalidArgumentException $exception) {
-            return ApiResponse::error($exception->getMessage(), HttpStatus::UNAUTHORIZED['code']);
+        } catch (InvalidArgumentException) {
+            return ApiResponse::error(__('errors.auth.invalid_token'), HttpStatus::UNAUTHORIZED['code']);
         } catch (LogicException) {
             return ApiResponse::error(
-                'JWT authentication is not configured',
+                __('errors.auth.not_configured'),
                 HttpStatus::INTERNAL_SERVER_ERROR['code']
             );
         }
@@ -43,7 +43,7 @@ class AuthenticateJwt
 
             if (! $session) {
                 return ApiResponse::error(
-                    'The portal session has ended; sign in again from the portal',
+                    __('errors.auth.portal_session_ended'),
                     HttpStatus::UNAUTHORIZED['code'],
                     code: 'PORTAL_SESSION_ENDED'
                 );
@@ -62,11 +62,11 @@ class AuthenticateJwt
         } elseif (! config('mock_login.enabled')) {
             // Only mock-login issues tokens without a portal session.
             if (! config('mock_login.student_enabled') || ($claims['role'] ?? null) !== ['student']) {
-                return ApiResponse::error('Token is not tied to a portal session', HttpStatus::UNAUTHORIZED['code']);
+                return ApiResponse::error(__('errors.auth.portal_session_required'), HttpStatus::UNAUTHORIZED['code']);
             }
 
             if (! $this->isStudentRoute($request)) {
-                return ApiResponse::error('This endpoint is not available to students', HttpStatus::FORBIDDEN['code']);
+                return ApiResponse::error(__('errors.auth.student_endpoint_forbidden'), HttpStatus::FORBIDDEN['code']);
             }
         }
 

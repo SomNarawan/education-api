@@ -25,7 +25,7 @@ class StoreNoteRequest extends FormRequest
                     NoteType::isOther($this->integer('note_type_id')) &&
                     blank($this->input('remark'))
                 ) {
-                    $validator->errors()->add('remark', 'กรุณากรอกรายละเอียด');
+                    $validator->errors()->add('remark', __('errors.validation.note_detail_required'));
                 }
             },
         ];

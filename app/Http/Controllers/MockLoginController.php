@@ -76,7 +76,7 @@ class MockLoginController extends Controller
         abort_unless(
             $systemTeacher,
             HttpStatus::NOT_FOUND['code'],
-            "ไม่พบ mock user nontri_id={$nontriId} — เช็คไฟล์ resources/mocks/mock-login.json"
+            __('errors.mock_login.user_not_found', ['nontri_id' => $nontriId])
         );
 
         $isAdmin = $request->boolean('admin')
@@ -104,7 +104,7 @@ class MockLoginController extends Controller
         abort_unless(
             $student,
             HttpStatus::NOT_FOUND['code'],
-            "ไม่พบนิสิตรหัส {$studentCode} ในตาราง students"
+            __('errors.mock_login.student_not_found', ['student_code' => $studentCode])
         );
 
         $studentData = $this->studentLoginData($student);
@@ -128,7 +128,7 @@ class MockLoginController extends Controller
         $content = file_get_contents(resource_path('mocks/mock-login.json'));
 
         if ($content === false) {
-            abort(500, 'ไม่สามารถอ่านไฟล์ resources/mocks/mock-login.json ได้');
+            abort(500, __('errors.mock_login.file_unreadable'));
         }
 
         try {
@@ -139,10 +139,10 @@ class MockLoginController extends Controller
                 JSON_THROW_ON_ERROR
             );
         } catch (JsonException|\ValueError $exception) {
-            abort(500, 'ไม่สามารถอ่านไฟล์ resources/mocks/mock-login.json ได้');
+            abort(500, __('errors.mock_login.file_unreadable'));
         }
 
-        abort_unless(is_array($users), 500, 'รูปแบบไฟล์ resources/mocks/mock-login.json ไม่ถูกต้อง');
+        abort_unless(is_array($users), 500, __('errors.mock_login.file_invalid'));
 
         return $users;
     }

@@ -100,7 +100,7 @@ class StudentController extends Controller
         $student = $this->studentQuery->detail($id);
 
         if ($student === null) {
-            return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
+            return ApiResponse::error(__('errors.student.not_found'), HttpStatus::NOT_FOUND['code']);
         }
 
         return ApiResponse::success(
@@ -132,7 +132,7 @@ class StudentController extends Controller
         $student = Student::query()->find($id);
 
         if ($student === null) {
-            return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
+            return ApiResponse::error(__('errors.student.not_found'), HttpStatus::NOT_FOUND['code']);
         }
 
         $attributes = $request->validated();
@@ -143,7 +143,7 @@ class StudentController extends Controller
 
         if ($updatesGuardianPhone && $updatedBy === null) {
             return ApiResponse::error(
-                'JWT does not contain name, nontri_id, or sub',
+                __('errors.common.actor_missing'),
                 HttpStatus::UNPROCESSABLE_ENTITY['code']
             );
         }
@@ -165,7 +165,7 @@ class StudentController extends Controller
         $student = Student::query()->find($id);
 
         if ($student === null) {
-            return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
+            return ApiResponse::error(__('errors.student.not_found'), HttpStatus::NOT_FOUND['code']);
         }
 
         $student->delete();

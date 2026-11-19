@@ -140,7 +140,7 @@ class StudentWriteRequest extends FormRequest
     {
         throw new HttpResponseException(
             ApiResponse::error(
-                'ข้อมูลนิสิตไม่ถูกต้อง',
+                __('errors.student.invalid_data'),
                 HttpStatus::UNPROCESSABLE_ENTITY['code'],
                 $validator->errors()->toArray(),
             ),

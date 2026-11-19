@@ -19,7 +19,7 @@ class GradeCalculationController extends Controller
         ListGradeCalculationsRequest $request,
         GradeCalculationService $service
     ): JsonResponse {
-        $this->authorizeAction($request, 'view');
+        $this->authorizeAction($request);
         $studentCode = $this->selectedStudentCode($request);
 
         // A selected but unknown student must return an empty list, not all history.
@@ -34,7 +34,7 @@ class GradeCalculationController extends Controller
         ListGradeCalculationsRequest $request,
         GradeCalculationService $service
     ): JsonResponse {
-        $this->authorizeAction($request, 'view');
+        $this->authorizeAction($request);
         $this->requireStudentSelection($request);
         $studentCode = $this->selectedStudentCode($request);
 
@@ -56,7 +56,7 @@ class GradeCalculationController extends Controller
 
         if ($studentCode === null) {
             return ApiResponse::error(
-                'Only the student role can save grade calculations',
+                __('errors.grade_calculation.student_only'),
                 HttpStatus::FORBIDDEN['code']
             );
         }
@@ -64,7 +64,7 @@ class GradeCalculationController extends Controller
         $student = Student::query()->where('student_code', $studentCode)->first();
 
         if ($student === null) {
-            return ApiResponse::error('Student not found', HttpStatus::NOT_FOUND['code']);
+            return ApiResponse::error(__('errors.student.not_found'), HttpStatus::NOT_FOUND['code']);
         }
 
         return ApiResponse::success(
@@ -93,11 +93,11 @@ class GradeCalculationController extends Controller
         ], 'Load grade calculation history successfully');
     }
 
-    private function authorizeAction(Request $request, string $action): void
+    private function authorizeAction(Request $request): void
     {
         if ($this->currentRole($request) === null) {
             throw new HttpResponseException(ApiResponse::error(
-                'Role is not allowed to '.$action.' grade calculations',
+                __('errors.grade_calculation.role_forbidden'),
                 HttpStatus::FORBIDDEN['code']
             ));
         }
@@ -107,7 +107,7 @@ class GradeCalculationController extends Controller
     {
         if ($this->studentCode($request) === null && ! $request->filled('student_id')) {
             throw new HttpResponseException(ApiResponse::error(
-                'student_id is required',
+                __('errors.grade_calculation.student_required'),
                 HttpStatus::UNPROCESSABLE_ENTITY['code']
             ));
         }

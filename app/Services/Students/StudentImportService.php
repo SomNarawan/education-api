@@ -151,7 +151,7 @@ class StudentImportService
         $disk->makeDirectory(dirname($path));
 
         if (! $workbook->saveAs($disk->path($path))) {
-            throw new \RuntimeException('ไม่สามารถสร้างไฟล์ Import Student Template ได้');
+            throw new \RuntimeException(__('errors.import.student_template_create_failed'));
         }
 
         $this->dataValidationWriter->apply(
@@ -248,7 +248,7 @@ class StudentImportService
 
         if ($importType === null) {
             throw ValidationException::withMessages([
-                'file' => 'ไม่พบ import type "student" ที่เปิดใช้งาน',
+                'file' => __('errors.import.student_type_missing'),
             ]);
         }
 
@@ -279,7 +279,7 @@ class StudentImportService
 
             if ($dataRows === []) {
                 throw ValidationException::withMessages([
-                    'file' => 'ไม่มีข้อมูลสำหรับนำเข้า',
+                    'file' => __('errors.import.student_data_missing'),
                 ]);
             }
 
@@ -342,7 +342,7 @@ class StudentImportService
                     report($exception);
                     $failedRows[] = [
                         ...$sourceRow,
-                        $this->failureReason($rowNumber, ['ไม่สามารถบันทึกข้อมูลลงฐานข้อมูลได้']),
+                        $this->failureReason($rowNumber, [__('errors.import.student_row_save_failed')]),
                     ];
                 }
             }
@@ -384,7 +384,9 @@ class StudentImportService
 
         if ($xlsx === false) {
             throw ValidationException::withMessages([
-                'file' => 'ไม่สามารถอ่านไฟล์ Excel ได้: '.SimpleXLSX::parseError(),
+                'file' => __('errors.import.student_file_unreadable', [
+                    'error' => SimpleXLSX::parseError(),
+                ]),
             ]);
         }
 
@@ -392,7 +394,9 @@ class StudentImportService
 
         if ($sheetIndex === false) {
             throw ValidationException::withMessages([
-                'file' => 'ไม่พบชีต '.self::IMPORT_SHEET_NAME.' ในไฟล์ Excel',
+                'file' => __('errors.import.student_sheet_missing', [
+                    'sheet' => self::IMPORT_SHEET_NAME,
+                ]),
             ]);
         }
 
@@ -403,13 +407,15 @@ class StudentImportService
     {
         if (! isset($rows[0], $rows[1])) {
             throw ValidationException::withMessages([
-                'file' => 'ไม่พบ header ที่แถว 1-2 ในชีต '.self::IMPORT_SHEET_NAME,
+                'file' => __('errors.import.student_header_missing', [
+                    'sheet' => self::IMPORT_SHEET_NAME,
+                ]),
             ]);
         }
 
         if (count($rows[1]) !== count(self::HEADERS)) {
             throw ValidationException::withMessages([
-                'file' => 'รูปแบบ header ไม่ตรงกับ Import Student Template',
+                'file' => __('errors.import.student_header_invalid'),
             ]);
         }
 
@@ -420,7 +426,7 @@ class StudentImportService
 
         if ($actualHeaders !== self::HEADERS) {
             throw ValidationException::withMessages([
-                'file' => 'รูปแบบ header ไม่ตรงกับ Import Student Template',
+                'file' => __('errors.import.student_header_invalid'),
             ]);
         }
     }
@@ -639,7 +645,10 @@ class StudentImportService
         }
 
         if (! isset($lookup[$key])) {
-            $errors[] = "ไม่พบ {$label} \"{$value}\" ในรายการข้อมูลอ้างอิง";
+            $errors[] = __('errors.import.student_reference_missing', [
+                'label' => $label,
+                'value' => $value,
+            ]);
 
             return null;
         }
@@ -762,7 +771,7 @@ class StudentImportService
         $disk->makeDirectory(dirname($path));
 
         if (! $workbook->saveAs($disk->path($path))) {
-            throw new \RuntimeException('ไม่สามารถสร้างไฟล์ผลลัพธ์ import ได้');
+            throw new \RuntimeException(__('errors.import.student_result_create_failed'));
         }
 
         return $path;
@@ -892,7 +901,10 @@ class StudentImportService
     {
         $errors = array_values(array_unique(array_filter($errors)));
 
-        return "แถว {$rowNumber}: ".implode('; ', $errors);
+        return __('errors.import.student_row_failed', [
+            'row' => $rowNumber,
+            'errors' => implode('; ', $errors),
+        ]);
     }
 
     private function errorMessage(Throwable $exception): string
@@ -902,6 +914,6 @@ class StudentImportService
             : [$exception->getMessage()];
         $message = implode('; ', array_values(array_unique(array_filter($messages))));
 
-        return mb_substr($message !== '' ? $message : 'ไม่สามารถนำเข้าข้อมูลได้', 0, 10000);
+        return mb_substr($message !== '' ? $message : __('errors.import.student_failed'), 0, 10000);
     }
 }

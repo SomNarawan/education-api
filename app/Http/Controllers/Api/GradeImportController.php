@@ -32,7 +32,7 @@ class GradeImportController extends Controller
 
         if ($importType === null) {
             throw ValidationException::withMessages([
-                'file' => 'ไม่พบ import type "grade" ที่เปิดใช้งาน',
+                'file' => __('errors.import.grade_type_missing'),
             ]);
         }
 
@@ -59,7 +59,7 @@ class GradeImportController extends Controller
             );
 
             if (! is_string($path) || $path === '') {
-                throw new \RuntimeException('ไม่สามารถจัดเก็บไฟล์นำเข้าได้');
+                throw new \RuntimeException(__('errors.import.grade_file_store_failed'));
             }
 
             ProcessGradeImport::dispatch($import->id, $path);
@@ -84,7 +84,7 @@ class GradeImportController extends Controller
     {
         $templatePath = resource_path('templates/'.self::TEMPLATE_FILE_NAME);
 
-        abort_unless(is_file($templatePath), 404, 'Grade import template not found');
+        abort_unless(is_file($templatePath), 404, __('errors.import.grade_template_not_found'));
 
         return response()->download(
             $templatePath,
