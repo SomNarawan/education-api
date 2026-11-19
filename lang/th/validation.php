@@ -35,7 +35,7 @@ return [
     'required_if' => 'กรุณาระบุข้อมูล :attribute เมื่อ :other เป็น :value',
     'required_with' => 'กรุณาระบุข้อมูล :attribute เมื่อมี :values',
     'string' => ':attribute ต้องเป็นข้อความ',
-    'unique' => ':attributeนี้มีอยู่ในระบบแล้ว',
+    'unique' => ':attribute นี้มีอยู่ในระบบแล้ว',
     'uploaded' => 'อัปโหลด :attribute ไม่สำเร็จ',
 
     'attributes' => [
