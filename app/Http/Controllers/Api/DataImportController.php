@@ -35,7 +35,7 @@ class DataImportController extends Controller
 
         return ApiResponse::success(
             DataImportResponse::collection($imports)->resolve(),
-            'Load import history successfully'
+            __('success.import.history_loaded')
         );
     }
 

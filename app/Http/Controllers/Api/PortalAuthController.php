@@ -90,7 +90,10 @@ class PortalAuthController extends Controller
             'exp' => $session->expires_at->getTimestamp(),
         ]);
 
-        return ApiResponse::success(['token' => $token, 'user' => $user]);
+        return ApiResponse::success(
+            ['token' => $token, 'user' => $user],
+            __('success.auth.login'),
+        );
     }
 
     /**
@@ -104,7 +107,7 @@ class PortalAuthController extends Controller
     {
         $request->attributes->get('auth_session')?->revoke('logout');
 
-        return ApiResponse::success(null);
+        return ApiResponse::success(null, __('success.auth.logout'));
     }
 
     /**

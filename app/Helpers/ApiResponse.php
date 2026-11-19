@@ -8,7 +8,7 @@ class ApiResponse
 {
     public static function success($data = null, ?string $message = null, ?int $status = null)
     {
-        $message ??= HttpStatus::OK['message'];
+        $message ??= __('success.default');
         $status ??= HttpStatus::OK['code'];
 
         return response()->json([

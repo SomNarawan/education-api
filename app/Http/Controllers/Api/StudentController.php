@@ -37,7 +37,7 @@ class StudentController extends Controller
 
         return ApiResponse::success(
             StudentListResponse::collection($students)->resolve(),
-            'Load students successfully'
+            __('success.student.list_loaded')
         );
     }
 
@@ -50,7 +50,7 @@ class StudentController extends Controller
 
         return ApiResponse::success(
             StudentListResponse::collection($students)->resolve(),
-            'Load studying students successfully'
+            __('success.student.studying_list_loaded')
         );
     }
 
@@ -77,7 +77,7 @@ class StudentController extends Controller
 
         return ApiResponse::success(
             StudentWithoutAdvisorResponse::collection($students)->resolve(),
-            'Load studying students without advisor successfully'
+            __('success.student.without_advisor_loaded')
         );
     }
 
@@ -88,7 +88,7 @@ class StudentController extends Controller
     {
         return ApiResponse::success(
             $this->updateStudentAdvisor->execute($request->validated()),
-            'Update student advisors successfully'
+            __('success.student.advisors_updated')
         );
     }
 
@@ -105,7 +105,7 @@ class StudentController extends Controller
 
         return ApiResponse::success(
             (new StudentDetailResponse($student))->resolve(),
-            'Load student successfully'
+            __('success.student.loaded')
         );
     }
 
@@ -119,7 +119,7 @@ class StudentController extends Controller
 
         return ApiResponse::success(
             (new StudentDetailResponse($student))->resolve(),
-            'Create student successfully',
+            __('success.student.created'),
             HttpStatus::CREATED['code']
         );
     }
@@ -153,7 +153,7 @@ class StudentController extends Controller
 
         return ApiResponse::success(
             (new StudentDetailResponse($student))->resolve(),
-            'Update student successfully'
+            __('success.student.updated')
         );
     }
 
@@ -170,6 +170,6 @@ class StudentController extends Controller
 
         $student->delete();
 
-        return ApiResponse::success(null, 'Delete student successfully');
+        return ApiResponse::success(null, __('success.student.deleted'));
     }
 }

@@ -28,7 +28,7 @@ class NoteController extends Controller
 
         return ApiResponse::success(
             NoteListResponse::collection($notes),
-            'Load notes successfully'
+            __('success.note.list_loaded')
         );
     }
 
@@ -61,7 +61,7 @@ class NoteController extends Controller
 
         return ApiResponse::success(
             new NoteListResponse($note),
-            'Create note successfully',
+            __('success.note.created'),
             HttpStatus::CREATED['code']
         );
     }
@@ -89,6 +89,6 @@ class NoteController extends Controller
         $note->forceFill(['deleted_by' => $deletedBy])->save();
         $note->delete();
 
-        return ApiResponse::success(null, 'Delete note successfully');
+        return ApiResponse::success(null, __('success.note.deleted'));
     }
 }

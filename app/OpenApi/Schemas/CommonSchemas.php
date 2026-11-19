@@ -10,7 +10,7 @@ use OpenApi\Spec as OA;
     required: ['success', 'message', 'data'],
     properties: [
         new OA\Property(property: 'success', schema: new OA\Schema(type: OA\Type::Boolean, const: true)),
-        new OA\Property(property: 'message', schema: new OA\Schema(type: OA\Type::String, example: 'OK')),
+        new OA\Property(property: 'message', schema: new OA\Schema(type: OA\Type::String, example: 'ดำเนินการสำเร็จ')),
         new OA\Property(property: 'data', schema: new OA\Schema(description: 'Endpoint-specific response data')),
     ],
 )]
@@ -21,7 +21,7 @@ use OpenApi\Spec as OA;
     properties: [
         new OA\Property(property: 'success', schema: new OA\Schema(type: OA\Type::Boolean, const: false)),
         new OA\Property(property: 'code', schema: new OA\Schema(type: [OA\Type::String, OA\Type::Null], example: 'PORTAL_SESSION_ENDED')),
-        new OA\Property(property: 'message', schema: new OA\Schema(type: OA\Type::String, example: 'Request could not be completed')),
+        new OA\Property(property: 'message', schema: new OA\Schema(type: OA\Type::String, example: 'ไม่สามารถดำเนินการได้')),
         new OA\Property(property: 'errors', schema: new OA\Schema(
             type: [OA\Type::Object, OA\Type::Array, OA\Type::Null],
             items: new OA\Schema,
@@ -34,7 +34,7 @@ use OpenApi\Spec as OA;
     required: ['message', 'errors'],
     properties: [
         new OA\Property(property: 'success', schema: new OA\Schema(type: OA\Type::Boolean, example: false)),
-        new OA\Property(property: 'message', schema: new OA\Schema(type: OA\Type::String, example: 'The given data was invalid.')),
+        new OA\Property(property: 'message', schema: new OA\Schema(type: OA\Type::String, example: 'กรุณาระบุข้อมูล ฟิลด์')),
         new OA\Property(property: 'errors', schema: new OA\Schema(
             type: OA\Type::Object,
             additionalProperties: new OA\Schema(type: OA\Type::Array, items: new OA\Schema(type: OA\Type::String)),

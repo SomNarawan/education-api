@@ -39,12 +39,12 @@ class GradeCalculationController extends Controller
         $studentCode = $this->selectedStudentCode($request);
 
         if ($studentCode === null) {
-            return ApiResponse::success(null, 'No grade calculation history found');
+            return ApiResponse::success(null, __('success.grade_calculation.history_missing'));
         }
 
         return ApiResponse::success(
             $service->latest($studentCode),
-            'Load latest grade calculation successfully'
+            __('success.grade_calculation.latest_loaded')
         );
     }
 
@@ -69,7 +69,7 @@ class GradeCalculationController extends Controller
 
         return ApiResponse::success(
             $service->store($student, $request->validated()),
-            'Save grade calculation successfully',
+            __('success.grade_calculation.saved'),
             HttpStatus::CREATED['code']
         );
     }
@@ -90,7 +90,7 @@ class GradeCalculationController extends Controller
                 'per_page' => $perPage,
                 'total' => $total,
             ],
-        ], 'Load grade calculation history successfully');
+        ], __('success.grade_calculation.history_loaded'));
     }
 
     private function authorizeAction(Request $request): void

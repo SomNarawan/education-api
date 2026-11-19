@@ -11,8 +11,4 @@ class NoteTypeController extends MasterDataController
     protected string $nameField = 'note';
 
     protected int $nameMaxLength = 255;
-
-    protected string $singularLabel = 'note type';
-
-    protected string $pluralLabel = 'note types';
 }

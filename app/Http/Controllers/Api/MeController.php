@@ -29,6 +29,6 @@ class MeController extends Controller
             'study_plan_id' => $claims['study_plan_id'] ?? null,
             'iat' => isset($claims['iat']) ? (int) $claims['iat'] : null,
             'exp' => isset($claims['exp']) ? (int) $claims['exp'] : null,
-        ], HttpStatus::OK['message'], HttpStatus::OK['code']);
+        ], __('success.user.loaded'), HttpStatus::OK['code']);
     }
 }

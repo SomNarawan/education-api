@@ -40,7 +40,7 @@ class AcademicCalendarController extends Controller
             'terms' => is_array($data['terms'] ?? null)
                 ? array_values($data['terms'])
                 : [],
-        ], 'Load academic calendar successfully');
+        ], __('success.academic_calendar.loaded'));
     }
 
     /**
@@ -56,7 +56,7 @@ class AcademicCalendarController extends Controller
 
             return ApiResponse::success(
                 new SyncResponse($sync),
-                'Sync academic calendars successfully'
+                __('success.academic_calendar.synced')
             );
         } catch (Throwable $exception) {
             report($exception);

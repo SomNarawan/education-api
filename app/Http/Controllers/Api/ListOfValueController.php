@@ -18,7 +18,7 @@ class ListOfValueController extends Controller
     ): JsonResponse {
         return ApiResponse::success(
             $service->get($type, $request->validated()),
-            'Load list of values successfully'
+            __('success.list_of_values.loaded')
         );
     }
 }

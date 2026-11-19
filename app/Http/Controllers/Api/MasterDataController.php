@@ -20,10 +20,6 @@ abstract class MasterDataController extends Controller
 
     protected int $nameMaxLength;
 
-    protected string $singularLabel;
-
-    protected string $pluralLabel;
-
     public function index(): JsonResponse
     {
         $items = $this->newQuery()
@@ -34,7 +30,7 @@ abstract class MasterDataController extends Controller
 
         return ApiResponse::success(
             $items,
-            "Load {$this->pluralLabel} successfully"
+            __('success.master_data.list_loaded', ['resource' => $this->resourceName()])
         );
     }
 
@@ -48,7 +44,7 @@ abstract class MasterDataController extends Controller
 
         return ApiResponse::success(
             $this->responseData($item),
-            "Load {$this->singularLabel} successfully"
+            __('success.master_data.loaded', ['resource' => $this->resourceName()])
         );
     }
 
@@ -69,7 +65,7 @@ abstract class MasterDataController extends Controller
 
         return ApiResponse::success(
             $this->responseData($item),
-            "Create {$this->singularLabel} successfully",
+            __('success.master_data.created', ['resource' => $this->resourceName()]),
             HttpStatus::CREATED['code']
         );
     }
@@ -95,7 +91,7 @@ abstract class MasterDataController extends Controller
 
         return ApiResponse::success(
             $this->responseData($item->refresh()),
-            "Update {$this->singularLabel} successfully"
+            __('success.master_data.updated', ['resource' => $this->resourceName()])
         );
     }
 
@@ -128,13 +124,18 @@ abstract class MasterDataController extends Controller
 
         return ApiResponse::success(
             $this->responseData($item->refresh()),
-            "Update {$this->singularLabel} status successfully"
+            __('success.master_data.status_updated', ['resource' => $this->resourceName()])
         );
     }
 
     private function newQuery()
     {
         return $this->modelClass::query();
+    }
+
+    private function resourceName(): string
+    {
+        return __('success.master_data.resources.'.$this->nameField);
     }
 
     protected function writeRules(?int $ignoreId = null): array

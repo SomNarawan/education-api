@@ -55,6 +55,6 @@ class AdvisorSummaryController extends Controller
             $data['advisors'] = $advisors;
         }
 
-        return ApiResponse::success($data, 'Load advisor summary successfully');
+        return ApiResponse::success($data, __('success.advisor_summary.loaded'));
     }
 }

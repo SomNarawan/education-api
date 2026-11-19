@@ -40,7 +40,7 @@ class StudentJsonDataController extends Controller
             );
         }
 
-        return ApiResponse::success($data, 'Load student academic overview successfully');
+        return ApiResponse::success($data, __('success.student.academic_overview_loaded'));
     }
 
     /**
@@ -64,7 +64,7 @@ class StudentJsonDataController extends Controller
             );
         }
 
-        return ApiResponse::success($data, 'Load unattempted courses successfully');
+        return ApiResponse::success($data, __('success.student.unattempted_courses_loaded'));
     }
 
     /**
@@ -90,7 +90,7 @@ class StudentJsonDataController extends Controller
         return ApiResponse::success([
             'student_code' => $studentCode,
             'enrollment' => $enrollment,
-        ], 'Load enrollment successfully');
+        ], __('success.student.enrollment_loaded'));
     }
 
     /**
@@ -106,7 +106,7 @@ class StudentJsonDataController extends Controller
                 'enrollment_over' => "data/enrollments_over/{$studentCode}.json",
             ],
             __('errors.student.enrollment_status_not_found'),
-            'Load enrollment statuses successfully',
+            __('success.student.enrollment_statuses_loaded'),
         );
     }
 
@@ -137,7 +137,7 @@ class StudentJsonDataController extends Controller
                 'by_semester' => "data/graph/by_semester/{$studentCode}.json",
             ],
             __('errors.student.graph_not_found'),
-            'Load graph data successfully',
+            __('success.student.graph_loaded'),
         );
     }
 

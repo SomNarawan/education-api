@@ -23,7 +23,7 @@ class SystemDepartmentController extends Controller
 
         return ApiResponse::success(
             SystemDepartmentResponse::collection($items)->resolve(),
-            'Load system departments successfully'
+            __('success.organization.departments_loaded')
         );
     }
 
@@ -42,7 +42,7 @@ class SystemDepartmentController extends Controller
 
         return ApiResponse::success(
             SystemDepartmentResponse::collection($items)->resolve(),
-            'Load all system departments successfully'
+            __('success.organization.all_departments_loaded')
         );
     }
 }

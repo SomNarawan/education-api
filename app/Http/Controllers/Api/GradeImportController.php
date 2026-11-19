@@ -75,7 +75,7 @@ class GradeImportController extends Controller
 
         return ApiResponse::success(
             (new DataImportResponse($import->refresh()))->resolve(),
-            'เพิ่มงานนำเข้าเกรดลงในคิวแล้ว',
+            __('success.import.grade_queued'),
             202,
         );
     }

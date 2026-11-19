@@ -22,7 +22,7 @@ class SystemFacultyController extends Controller
 
         return ApiResponse::success(
             SystemFacultyResponse::collection($items)->resolve(),
-            'Load system faculties successfully'
+            __('success.organization.faculties_loaded')
         );
     }
 
@@ -38,7 +38,7 @@ class SystemFacultyController extends Controller
 
         return ApiResponse::success(
             SystemFacultyResponse::collection($items)->resolve(),
-            'Load all system faculties successfully'
+            __('success.organization.all_faculties_loaded')
         );
     }
 }

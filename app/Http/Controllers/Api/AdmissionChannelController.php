@@ -11,8 +11,4 @@ class AdmissionChannelController extends MasterDataController
     protected string $nameField = 'channel_name';
 
     protected int $nameMaxLength = 100;
-
-    protected string $singularLabel = 'admission channel';
-
-    protected string $pluralLabel = 'admission channels';
 }

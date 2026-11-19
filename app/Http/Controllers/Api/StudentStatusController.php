@@ -11,8 +11,4 @@ class StudentStatusController extends MasterDataController
     protected string $nameField = 'status_name';
 
     protected int $nameMaxLength = 50;
-
-    protected string $singularLabel = 'student status';
-
-    protected string $pluralLabel = 'student statuses';
 }

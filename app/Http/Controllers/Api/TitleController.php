@@ -15,10 +15,6 @@ class TitleController extends MasterDataController
 
     protected int $nameMaxLength = 50;
 
-    protected string $singularLabel = 'title';
-
-    protected string $pluralLabel = 'titles';
-
     protected function writeRules(?int $ignoreId = null): array
     {
         return [

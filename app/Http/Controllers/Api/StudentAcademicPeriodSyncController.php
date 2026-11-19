@@ -25,7 +25,7 @@ class StudentAcademicPeriodSyncController extends Controller
     {
         return ApiResponse::success(
             $this->syncService->preview($request->referenceDate()),
-            'Load student academic period sync preview successfully'
+            __('success.student_academic_period.preview_loaded')
         );
     }
 
@@ -41,7 +41,7 @@ class StudentAcademicPeriodSyncController extends Controller
 
         return ApiResponse::success(
             StudentAcademicPeriodSyncResponse::collection($history),
-            'Load student academic period sync history successfully'
+            __('success.student_academic_period.history_loaded')
         );
     }
 
@@ -56,7 +56,7 @@ class StudentAcademicPeriodSyncController extends Controller
 
             return ApiResponse::success(
                 StudentAcademicPeriodSyncResponse::collection($history),
-                'Sync student academic periods successfully'
+                __('success.student_academic_period.synced')
             );
         } catch (Throwable $exception) {
             report($exception);

@@ -25,7 +25,7 @@ class CurriculumPlanCourseController extends Controller
 
         return ApiResponse::success(
             $this->cmisApi->getCurriculumPlanCourses((int) $validated['study_plan_id']),
-            'Load curriculum plan courses successfully',
+            __('success.curriculum.plan_courses_loaded'),
         );
     }
 }

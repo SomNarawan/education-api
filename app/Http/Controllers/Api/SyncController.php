@@ -84,7 +84,7 @@ class SyncController extends Controller
 
         return ApiResponse::success(
             SyncResponse::collection($items),
-            'Load syncs successfully'
+            __('success.sync.history_loaded')
         );
     }
 
@@ -127,7 +127,7 @@ class SyncController extends Controller
 
             return ApiResponse::success(
                 new SyncResponse($sync),
-                'Sync successfully'
+                __('success.sync.completed')
             );
         } catch (Throwable $exception) {
             report($exception);

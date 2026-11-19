@@ -128,8 +128,8 @@ class StudentGradeController extends Controller
                 'reset_count' => $resetCount,
             ],
             $resetCount > 0
-                ? 'Reset student grades successfully'
-                : 'No student grades found for the selected semester',
+                ? __('success.student_grade.reset')
+                : __('success.student_grade.semester_missing'),
         );
     }
 }

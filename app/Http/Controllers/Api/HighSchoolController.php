@@ -36,7 +36,7 @@ class HighSchoolController extends Controller
 
         return ApiResponse::success(
             HighSchoolListResponse::collection($items)->resolve(),
-            'Load high schools successfully'
+            __('success.high_school.list_loaded')
         );
     }
 
@@ -55,7 +55,7 @@ class HighSchoolController extends Controller
 
         return ApiResponse::success(
             (new HighSchoolResponse($highSchool))->resolve(),
-            'Load high school successfully'
+            __('success.high_school.loaded')
         );
     }
 
@@ -84,7 +84,7 @@ class HighSchoolController extends Controller
 
         return ApiResponse::success(
             (new HighSchoolResponse($highSchool))->resolve(),
-            'Create high school successfully',
+            __('success.high_school.created'),
             HttpStatus::CREATED['code']
         );
     }
@@ -118,7 +118,7 @@ class HighSchoolController extends Controller
 
         return ApiResponse::success(
             (new HighSchoolResponse($highSchool))->resolve(),
-            'Update high school successfully'
+            __('success.high_school.updated')
         );
     }
 
@@ -151,7 +151,7 @@ class HighSchoolController extends Controller
 
         return ApiResponse::success(
             (new HighSchoolResponse($highSchool))->resolve(),
-            'Update high school status successfully'
+            __('success.high_school.status_updated')
         );
     }
 }
