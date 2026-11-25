@@ -3,11 +3,11 @@
 namespace App\Services\Students;
 
 use App\Constants\StudySemester;
-use App\Contracts\CmisApi;
 use App\Models\Student;
 use App\Services\Storage\LocalJsonFileStore;
 use App\Services\StudyPlans\StudentStudyPlanStore;
 use App\Services\StudyPlans\StudyPlanPayload;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use JsonException;
 use RuntimeException;
 
@@ -17,7 +17,6 @@ class StudentAcademicOverviewService
         private readonly StudentStudyPlanStore $studyPlanStore,
         private readonly StudyPlanPayload $studyPlanPayload,
         private readonly LocalJsonFileStore $jsonFiles,
-        private readonly CmisApi $cmisApi,
         private readonly StudentAcademicBaselineService $academicBaseline,
     ) {}
 
@@ -483,25 +482,16 @@ class StudentAcademicOverviewService
         array &$missingSections,
     ): array {
         try {
-            $payload = $this->studyPlanStore->get($studentCode);
+            $payload = $this->studyPlanStore->getCourses($studyPlanId)
+                ?? $this->studyPlanStore->getLegacyCourses($studentCode);
+
+            if ($payload === null && $studyPlanId > 0) {
+                $payload = $this->studyPlanStore->courses($studyPlanId);
+            }
         } catch (JsonException) {
             throw new JsonException($section);
-        }
-
-        if ($payload === null && $studyPlanId > 0) {
-            try {
-                $payload = $this->cmisApi->getCurriculumPlanCourses($studyPlanId);
-            } catch (RuntimeException) {
-                $payload = null;
-            }
-
-            if ($payload !== null) {
-                try {
-                    $this->studyPlanStore->put($studentCode, $payload);
-                } catch (JsonException|RuntimeException) {
-                    // The fetched plan remains usable even if the local cache cannot be written.
-                }
-            }
+        } catch (RuntimeException|LockTimeoutException) {
+            $payload = null;
         }
 
         if ($payload === null) {

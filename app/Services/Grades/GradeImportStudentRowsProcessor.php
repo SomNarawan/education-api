@@ -24,7 +24,7 @@ class GradeImportStudentRowsProcessor
         $pendingRows = array_values($rows);
 
         try {
-            $resolvedPlan = $this->planResolver->resolve($student, $curriculumId);
+            $resolvedPlan = $this->planResolver->resolve($student, $curriculumId, forGradeImport: true);
         } catch (Throwable $exception) {
             report($exception);
 

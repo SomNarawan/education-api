@@ -4,15 +4,17 @@ namespace App\Services\Students;
 
 use App\Constants\StudySemester;
 use App\Services\Storage\LocalJsonFileStore;
+use App\Services\StudyPlans\StudentStudyPlanStore;
+use App\Services\StudyPlans\StudyPlanPayload;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use JsonException;
 
 /**
  * Read-only history for the advisor dashboard: GPA by study year and plan
- * status per academic term. It only reads files the grade import already
- * writes (grade_attempts, study_plan); nothing is written and no other
- * service is changed. The result is cached until the students' own rows
+ * status per academic term. It reads saved grade attempts and study plans.
+ * The result is cached until the students' own rows
  * (GPAX, updated_at) change, because reading every transcript is slow.
  *
  * Plan status of a term = every course slot of the study plan that was due up
@@ -23,7 +25,11 @@ class AdvisorHistoryService
 {
     private const PASS_GRADES = ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'P', 'S'];
 
-    public function __construct(private readonly LocalJsonFileStore $files) {}
+    public function __construct(
+        private readonly LocalJsonFileStore $files,
+        private readonly StudentStudyPlanStore $studyPlans,
+        private readonly StudyPlanPayload $studyPlanPayload,
+    ) {}
 
     public function summarize(Collection $students): array
     {
@@ -56,12 +62,20 @@ class AdvisorHistoryService
 
             $entry = (int) $student->entry_year;
             $member = $this->studentIdentity($student);
-            // Every student of a plan has the same copy of it: read it once per plan.
-            $planKey = (string) ($student->study_plan_id ?? $code);
-            if (! array_key_exists($planKey, $plans)) {
-                $plans[$planKey] = $this->read("data/study_plan/{$code}.json");
+            $planId = (int) $student->study_plan_id;
+            if (! array_key_exists($planId, $plans)) {
+                try {
+                    $plans[$planId] = $this->studyPlans->getCourses($planId);
+                } catch (JsonException|LockTimeoutException) {
+                    $plans[$planId] = null;
+                }
             }
-            $plan = $plans[$planKey];
+            try {
+                $payload = $plans[$planId] ?? $this->studyPlans->getLegacyCourses($code);
+                $plan = $payload === null ? null : $this->studyPlanPayload->selected($payload, $planId);
+            } catch (JsonException) {
+                $plan = null;
+            }
 
             $periods = [];
             foreach ($attempts as $attempt) {

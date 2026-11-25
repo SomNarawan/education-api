@@ -5,7 +5,6 @@ namespace App\Services\Grades;
 use App\Exceptions\GradeImportRowException;
 use App\Models\Student;
 use App\Services\Storage\LocalJsonFileStore;
-use App\Services\StudyPlans\StudentStudyPlanStore;
 use App\Services\StudyPlans\StudyPlanPayload;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -22,7 +21,6 @@ class StudentGradeJsonGenerator
     public function __construct(
         private readonly StudentCreditSummaryCalculator $creditSummaryCalculator,
         private readonly StudyPlanPayload $studyPlanPayload,
-        private readonly StudentStudyPlanStore $studyPlanStore,
         private readonly LocalJsonFileStore $jsonFiles,
     ) {}
 
@@ -45,7 +43,6 @@ class StudentGradeJsonGenerator
             $totalCredits,
             $importId,
         );
-        $this->studyPlanStore->put($studentCode, $planResponse);
     }
 
     public function recalculate(
