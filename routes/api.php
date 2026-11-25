@@ -119,6 +119,7 @@ Route::post('/grade-calculations', [GradeCalculationController::class, 'store'])
 
 Route::prefix('students')->group(function (): void {
     Route::get('/', [StudentController::class, 'index']);
+    Route::get('/create-form-options', [ListOfValueController::class, 'studentCreateForm']);
     Route::get('/studying', [StudentController::class, 'studying']);
     Route::get('/studying/without-advisor', [StudentController::class, 'studyingWithoutAdvisor']);
     Route::get('/advisor-summary', AdvisorSummaryController::class);

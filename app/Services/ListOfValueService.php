@@ -118,6 +118,20 @@ class ListOfValueService
         };
     }
 
+    /** @return array<string, Collection> */
+    public function studentCreateFormOptions(): array
+    {
+        return [
+            'titles' => $this->get(ListOfValueType::Titles),
+            'curriculums' => $this->get(ListOfValueType::Curriculums),
+            'system_departments' => $this->get(ListOfValueType::SystemDepartments),
+            'student_statuses' => $this->get(ListOfValueType::StudentStatuses),
+            'admission_channels' => $this->get(ListOfValueType::AdmissionChannels),
+            'high_schools' => $this->get(ListOfValueType::HighSchools),
+            'guardian_relationships' => $this->get(ListOfValueType::Relationships),
+        ];
+    }
+
     private function studentOptions(): Collection
     {
         return Student::query()
