@@ -17,6 +17,8 @@ class AdvisorSummaryTest extends TestCase
 
     private const URL = 'http://localhost/api/students/advisor-summary';
 
+    private const HISTORY_URL = self::URL.'/history';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -129,15 +131,17 @@ class AdvisorSummaryTest extends TestCase
         Storage::disk('local')->put('data/enrollments_not_pass/1.json', '[]');
 
         $data = $this->getJson(self::URL, $this->headersFor(['teacher'], 'teacher', 'fengone'))->assertOk()->json('data');
-        $this->assertSame(3.6, $data['gpa_by_study_year'][0]['cohorts'][0]['students'][0]['gpa']);
-        $this->assertSame(1, $data['gpa_by_study_year'][0]['cohorts'][0]['ranges']['range_3_25_4_00']);
-        $terms = collect($data['academic_terms'])->keyBy('term_label');
+        $history = $this->history();
+        $this->assertSame(3.6, $history['gpa_by_study_year'][0]['cohorts'][0]['students'][0]['gpa']);
+        $this->assertSame(1, $history['gpa_by_study_year'][0]['cohorts'][0]['ranges']['range_3_25_4_00']);
+        $terms = collect($history['academic_terms'])->keyBy('term_label');
+        $this->assertArrayNotHasKey('students', $terms['2565 ภาคปลาย']);
         $this->assertSame(1, $terms['2565 ภาคต้น']['on_plan']);
         $this->assertSame(1, $terms['2565 ภาคปลาย']['off_plan']);
         $this->assertSame(1, $terms['2566 ภาคต้น']['on_plan']);
         $this->assertSame(1, $terms['2565 ภาคฤดูร้อน']['off_plan']);
-        $this->assertEquals(3.6, $terms['2565 ภาคฤดูร้อน']['students'][0]['gpax']);
-        $pastStudent = $terms['2565 ภาคปลาย']['students'][0];
+        $this->assertEquals(3.6, $this->termStudents(2022, 3)[0]['gpax']);
+        $pastStudent = $this->termStudents(2022, 2)[0];
         $this->assertSame(1, $pastStudent['pending_count']);
         $this->assertSame(1, $pastStudent['term_study_year']);
         $this->assertSame(['00000002'], array_column($pastStudent['pending_courses'], 'course_code'));
@@ -146,7 +150,7 @@ class AdvisorSummaryTest extends TestCase
         $this->assertTrue($pastStudent['pending_courses'][0]['resolved']);
         $this->assertSame('2566 ภาคต้น', $pastStudent['pending_courses'][0]['resolved_term_label']);
         $this->assertSame([], $data['off_plan_students']);
-        $this->assertCount(4, $data['academic_terms']);
+        $this->assertCount(4, $history['academic_terms']);
     }
 
     public function test_annual_chart_reads_all_semester_codes_from_the_grade_attempts(): void
@@ -157,7 +161,7 @@ class AdvisorSummaryTest extends TestCase
             [...$attempt, 'course_code' => '00000003', 'semester_order' => 7, 'semester' => 'ภาคพิเศษตามข้อมูล', 'credit' => 2, 'grade_point' => 4, 'grade_letter' => 'A'],
             [...$attempt, 'course_code' => 'TRAIN', 'semester_order' => 3, 'credit' => 240, 'enrollment_type' => 'hour', 'grade_point' => null, 'grade_letter' => 'P']];
         Storage::disk('local')->put('data/grade_attempts/1.json', json_encode(['grade_attempts' => $attempts]));
-        $data = $this->getJson(self::URL, $this->headersFor(['teacher'], 'teacher', 'fengone'))->assertOk()->json('data');
+        $data = $this->history();
         $this->assertSame(2.75, $data['gpa_by_study_year'][0]['cohorts'][0]['students'][0]['gpa']);
         $this->assertCount(1, $data['gpa_by_study_year'][0]['cohorts'][0]['students']);
         $this->assertSame(1, $data['history_coverage']['with_grades']);
@@ -177,30 +181,30 @@ class AdvisorSummaryTest extends TestCase
         $row = ['course_code' => '00000001', 'credit' => 3, 'plan_study_year' => 1, 'plan_semester_order' => 1, 'course_name' => 'A', 'course_category' => 'Core'];
         Storage::disk('local')->put('data/grade_attempts/1.json', json_encode(['grade_attempts' => $attempts]));
         Storage::disk('local')->put('data/study_plan/1.json', json_encode(['curriculum_plan_id' => 3, 'data' => [$row, [...$row, 'course_code' => '00000002', 'credit' => 1, 'plan_semester_order' => 7]]]));
-        $data = $this->getJson(self::URL, $this->headersFor(['teacher'], 'teacher', 'fengone'))->assertOk()->json('data');
-        $terms = collect($data['academic_terms'])->keyBy('semester_order');
+        $terms = collect($this->history()['academic_terms'])->keyBy('semester_order');
         $this->assertSame([1, 3, 7], $terms->keys()->all());
         $this->assertSame(1, $terms[1]['off_plan']);
-        $this->assertSame(1, $terms[1]['students'][0]['pending_count']);
-        $this->assertSame(['00000001'], array_column($terms[1]['students'][0]['pending_courses'], 'course_code'));
-        $this->assertSame('F', $terms[1]['students'][0]['pending_courses'][0]['grade_letter']);
-        $this->assertSame('2565 ภาคฤดูร้อน', $terms[1]['students'][0]['pending_courses'][0]['resolved_term_label']);
+        $first = $this->termStudents(2022, 1)[0];
+        $this->assertSame(1, $first['pending_count']);
+        $this->assertSame(['00000001'], array_column($first['pending_courses'], 'course_code'));
+        $this->assertSame('F', $first['pending_courses'][0]['grade_letter']);
+        $this->assertSame('2565 ภาคฤดูร้อน', $first['pending_courses'][0]['resolved_term_label']);
         $this->assertSame(1, $terms[3]['on_plan']);
-        $this->assertEquals(1.5, $terms[3]['students'][0]['gpax']);
+        $this->assertEquals(1.5, $this->termStudents(2022, 3)[0]['gpax']);
         $this->assertSame('ภาคฤดูร้อน', $terms[3]['semester_name']);
         $this->assertSame('ภาคพิเศษตามข้อมูล', $terms[7]['semester_name']);
-        $this->assertEquals(1.86, $terms[7]['students'][0]['gpax']);
-        $this->assertCount(1, $terms[3]['students']);
+        $this->assertEquals(1.86, $this->termStudents(2022, 7)[0]['gpax']);
+        $this->assertCount(1, $this->termStudents(2022, 3));
     }
 
     public function test_term_status_is_unknown_when_the_student_has_no_study_plan_file(): void
     {
         $attempt = ['student_code' => '1', 'academic_year' => 2022, 'study_year' => 1, 'semester_order' => 1, 'semester' => 'ภาคต้น', 'course_code' => '00000001', 'enrollment_type' => 'credit', 'credit' => 3, 'grade_letter' => 'A', 'grade_point' => 4];
         Storage::disk('local')->put('data/grade_attempts/1.json', json_encode(['grade_attempts' => [$attempt]]));
-        $data = $this->getJson(self::URL, $this->headersFor(['teacher'], 'teacher', 'fengone'))->assertOk()->json('data');
+        $data = $this->history();
         $this->assertSame(1, $data['academic_terms'][0]['unknown']);
         $this->assertSame(0, $data['academic_terms'][0]['on_plan'] + $data['academic_terms'][0]['off_plan']);
-        $this->assertEquals(4, $data['academic_terms'][0]['students'][0]['gpax']);
+        $this->assertEquals(4, $this->termStudents(2022, 1)[0]['gpax']);
     }
 
     public function test_a_course_that_is_still_missing_has_no_grade_and_is_not_resolved(): void
@@ -209,8 +213,7 @@ class AdvisorSummaryTest extends TestCase
         $row = ['course_code' => '00000001', 'course_name' => 'A', 'credit' => 3, 'plan_study_year' => 1, 'plan_semester_order' => 1];
         Storage::disk('local')->put('data/grade_attempts/1.json', json_encode(['grade_attempts' => [$attempt, [...$attempt, 'semester_order' => 2, 'semester' => 'ภาคปลาย', 'course_code' => '00000005']]]));
         Storage::disk('local')->put('data/study_plan/1.json', json_encode(['curriculum_plan_id' => 3, 'data' => [$row, [...$row, 'course_code' => '00000002', 'course_name' => 'Never taken', 'plan_semester_order' => 2]]]));
-        $data = $this->getJson(self::URL, $this->headersFor(['teacher'], 'teacher', 'fengone'))->assertOk()->json('data');
-        $course = $data['academic_terms'][1]['students'][0]['pending_courses'][0];
+        $course = $this->termStudents(2022, 2)[0]['pending_courses'][0];
         $this->assertSame('00000002', $course['course_code']);
         $this->assertNull($course['grade_letter']);
         $this->assertFalse($course['resolved']);
@@ -230,10 +233,9 @@ class AdvisorSummaryTest extends TestCase
             [...$row, 'course_code' => '00000001', 'course_name' => 'Passed later'],
             [...$row, 'course_code' => '00000002', 'course_name' => 'Still missing'],
         ]]));
-        $data = $this->getJson(self::URL, $this->headersFor(['teacher'], 'teacher', 'fengone'))->assertOk()->json('data');
-        $term = $data['academic_terms'][0];
+        $term = $this->history()['academic_terms'][0];
         $this->assertSame(1, $term['off_plan']);
-        $resolved = array_column($term['students'][0]['pending_courses'], 'resolved', 'course_code');
+        $resolved = array_column($this->termStudents(2022, 1)[0]['pending_courses'], 'resolved', 'course_code');
         $this->assertTrue($resolved['00000001']);
         $this->assertFalse($resolved['00000002']);
     }
@@ -245,9 +247,8 @@ class AdvisorSummaryTest extends TestCase
         $fixed = ['course_code' => '00000009', 'course_name' => 'Fixed', 'credit' => 3, 'plan_study_year' => 1, 'plan_semester_order' => 2];
         Storage::disk('local')->put('data/grade_attempts/1.json', json_encode(['grade_attempts' => [$attempt]]));
         Storage::disk('local')->put('data/study_plan/1.json', json_encode(['curriculum_plan_id' => 3, 'data' => [$group, $fixed]]));
-        $data = $this->getJson(self::URL, $this->headersFor(['teacher'], 'teacher', 'fengone'))->assertOk()->json('data');
         // Only the first term has grades: the group slot is passed, the fixed course is not due yet.
-        $this->assertSame(1, $data['academic_terms'][0]['on_plan']);
+        $this->assertSame(1, $this->history()['academic_terms'][0]['on_plan']);
     }
 
     public function test_current_off_plan_report_excludes_resolved_failures_and_contains_student_identity(): void
@@ -277,7 +278,9 @@ class AdvisorSummaryTest extends TestCase
         $this->assertEquals(1, $student['current_gpax']);
         $cohortStudent = collect($data['by_entry_year'])->flatMap(fn ($cohort) => $cohort['students'])->firstWhere('student_code', '1');
         $this->assertSame('นายสมชาย ทดสอบ', $cohortStudent['full_name_th']);
-        $this->assertSame('นายสมชาย ทดสอบ', $data['gpa_by_study_year'][0]['cohorts'][0]['students'][0]['full_name_th']);
+        $this->assertSame('นายสมชาย ทดสอบ', $this->history()['gpa_by_study_year'][0]['cohorts'][0]['students'][0]['full_name_th']);
+        // The latest term with grades of each off-plan student is part of the overview.
+        $this->assertSame(['academic_year' => 2022, 'semester_order' => 2, 'term_label' => '2565 ภาคปลาย'], $student['latest_grade_term']);
         $this->assertSame(1, $data['plan_status']['off_plan']);
     }
 
@@ -432,11 +435,18 @@ class AdvisorSummaryTest extends TestCase
             ['available' => false, 'reason' => 'grade_import_required'],
             $blocks['plan_status'],
         );
-        $this->assertSame(
-            ['available' => false, 'reason' => 'grade_history_required'],
-            $blocks['gpa_by_study_year'],
-        );
-        $this->assertFalse($blocks['gpa_by_academic_term']['available']);
+        $this->assertSame(['plan_status'], array_keys($blocks));
+    }
+
+    public function test_the_overview_leaves_the_term_history_to_its_own_endpoints(): void
+    {
+        $data = $this->getJson(self::URL, $this->headersFor(['teacher'], 'teacher', 'fengone'))->assertOk()->json('data');
+        foreach (['gpa_by_study_year', 'academic_terms', 'history_coverage'] as $key) {
+            $this->assertArrayNotHasKey($key, $data);
+        }
+        $history = $this->history();
+        $this->assertSame(['gpa_by_study_year', 'academic_terms', 'history_coverage'], array_keys($history));
+        $this->assertSame([], $this->termStudents(1900, 1));
     }
 
     public function test_admin_gets_the_advisor_list_and_the_chosen_advisor(): void
@@ -476,15 +486,29 @@ class AdvisorSummaryTest extends TestCase
 
     public function test_student_and_anonymous_requests_are_refused(): void
     {
-        $this->getJson(self::URL)->assertUnauthorized();
-        $this->getJson(self::URL, $this->headersFor(['student'], 'student', '6400000001'))
-            ->assertForbidden();
+        foreach ([self::URL, self::HISTORY_URL, self::HISTORY_URL.'/2022/1'] as $url) {
+            $this->getJson($url)->assertUnauthorized();
+            $this->getJson($url, $this->headersFor(['student'], 'student', '6400000001'))
+                ->assertForbidden();
+        }
     }
 
     public function test_teacher_token_without_nontri_id_is_refused(): void
     {
         $this->getJson(self::URL, $this->headersFor(['teacher'], 'teacher', null))
             ->assertForbidden();
+    }
+
+    /** GPA by study year and the term counts of the teacher fengone. */
+    private function history(): array
+    {
+        return $this->getJson(self::HISTORY_URL, $this->headersFor(['teacher'], 'teacher', 'fengone'))->assertOk()->json('data');
+    }
+
+    /** The students of a term of the teacher fengone. */
+    private function termStudents(int $year, int $semester): array
+    {
+        return $this->getJson(self::HISTORY_URL."/{$year}/{$semester}", $this->headersFor(['teacher'], 'teacher', 'fengone'))->assertOk()->json('data.students');
     }
 
     private function insertStudent(

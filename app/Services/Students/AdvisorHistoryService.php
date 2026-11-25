@@ -25,13 +25,93 @@ class AdvisorHistoryService
 
     public function __construct(private readonly LocalJsonFileStore $files) {}
 
+    /**
+     * GPA by study year and the plan status counts per term. The students of a
+     * term are not part of it: they are loaded when a term is opened.
+     */
     public function summarize(Collection $students): array
     {
         if (app()->environment('testing')) {
-            return $this->calculate($students);
+            return $this->split($this->calculate($students))[0];
         }
 
-        return Cache::remember('advisor-history:v2:'.hash('sha256', $students->toJson()), now()->addDay(), fn () => $this->calculate($students));
+        $key = $this->cacheKey($students);
+
+        return Cache::get($key.':summary') ?? $this->store($students, $key);
+    }
+
+    /** The students of one term, with their plan status and the courses still missing at that term. */
+    public function termStudents(Collection $students, int $academicYear, int $semester): array
+    {
+        if (app()->environment('testing')) {
+            return $this->split($this->calculate($students))[1]["{$academicYear}-{$semester}"] ?? [];
+        }
+
+        $key = $this->cacheKey($students);
+        if (! Cache::has($key.':summary')) {
+            $this->store($students, $key);
+        }
+
+        return Cache::get($key.":term:{$academicYear}-{$semester}", []);
+    }
+
+    /** The latest term with grades of a student, or null when there are none. */
+    public function latestTermOf(string $studentCode): ?array
+    {
+        if (preg_match('/^\d{1,10}$/', $studentCode) !== 1) {
+            return null;
+        }
+
+        $payload = $this->read("data/grade_attempts/{$studentCode}.json") ?? [];
+        $attempts = array_values(array_filter(array_is_list($payload) ? $payload : ($payload['grade_attempts'] ?? []), 'is_array'));
+        $latest = null;
+        foreach ($attempts as $attempt) {
+            $period = $this->periodOf($attempt);
+            if ($period !== null && ($latest === null || $period > $latest['period'])) {
+                $latest = ['period' => $period, 'attempt' => $attempt];
+            }
+        }
+        if ($latest === null) {
+            return null;
+        }
+
+        [$year, $semester] = $latest['period'];
+
+        return ['academic_year' => $year, 'semester_order' => $semester,
+            'term_label' => ($year + 543).' '.$this->semesterName($latest['attempt'], $semester)];
+    }
+
+    private function cacheKey(Collection $students): string
+    {
+        return 'advisor-history:v3:'.hash('sha256', $students->toJson());
+    }
+
+    private function store(Collection $students, string $key): array
+    {
+        [$summary, $termStudents] = $this->split($this->calculate($students));
+        $ttl = now()->addDay();
+        foreach ($termStudents as $termKey => $list) {
+            Cache::put("{$key}:term:{$termKey}", $list, $ttl);
+        }
+        Cache::put($key.':summary', $summary, $ttl);
+
+        return $summary;
+    }
+
+    /**
+     * @return array{0: array<string, mixed>, 1: array<string, list<array<string, mixed>>>}
+     */
+    private function split(array $full): array
+    {
+        $termStudents = [];
+        $terms = [];
+        foreach ($full['academic_terms'] as $term) {
+            $termStudents["{$term['academic_year']}-{$term['semester_order']}"] = $term['students'];
+            unset($term['students']);
+            $terms[] = $term;
+        }
+
+        return [[...$full, 'academic_terms' => $terms], $termStudents];
     }
 
     private function calculate(Collection $students): array

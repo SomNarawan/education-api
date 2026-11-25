@@ -4,6 +4,7 @@ namespace App\Services\Students;
 
 use App\Constants\Status;
 use App\Services\Storage\LocalJsonFileStore;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use JsonException;
 
@@ -66,7 +67,11 @@ class AdvisorSummaryService
             ->all();
     }
 
-    public function summarize(?string $teacherId): array
+    /**
+     * The non-deleted students of an advisor, with the columns the overview and
+     * the history need.
+     */
+    public function studentRows(?string $teacherId): Collection
     {
         $rows = $teacherId === null
             ? collect()
@@ -94,7 +99,17 @@ class AdvisorSummaryService
             unset($row->title_abbr_th, $row->first_name_th, $row->last_name_th);
         });
 
-        $history = $this->history->summarize($rows);
+        return $rows;
+    }
+
+    /**
+     * Everything the advisor page needs at first sight. Cheap: database rows and
+     * the plan result files of the studying students only. The history of past
+     * terms is served separately by AdvisorHistoryService.
+     */
+    public function overview(?string $teacherId): array
+    {
+        $rows = $this->studentRows($teacherId);
 
         $totals = ['all' => 0, 'studying' => 0, 'graduated' => 0, 'retired' => 0, 'other' => 0];
         $studyingGpax = $this->emptyRanges();
@@ -164,6 +179,7 @@ class AdvisorSummaryService
                 $byEntryYear[$year]['plan'][$plan]++;
                 if ($plan === self::PLAN_OFF) {
                     $offPlanStudents[] = [...$student, 'plan_status' => self::PLAN_OFF,
+                        'latest_grade_term' => $this->history->latestTermOf((string) $row->student_code),
                         'pending_count' => count($pending),
                         'pending_credits' => array_sum(array_map(fn (array $course): float => ($course['enrollment_type'] ?? 'credit') === 'credit' ? (float) ($course['credit'] ?? 0) : 0, $pending)),
                         'pending_courses' => $pending];
@@ -180,7 +196,6 @@ class AdvisorSummaryService
 
         return [
             'teacher_id' => $teacherId,
-            ...$history,
             'teacher_full_name' => $teacherId === null
                 ? null
                 : DB::table('students')->where('teacher_id', $teacherId)->value('teacher_full_name'),
@@ -201,7 +216,7 @@ class AdvisorSummaryService
                 'gpax_zero' => $gpaxZero,
                 'gpax_missing' => $gpaxMissing,
             ],
-            'blocks' => $this->pendingBlocks($planStatus, $history),
+            'blocks' => $this->pendingBlocks($planStatus),
         ];
     }
 
@@ -209,7 +224,7 @@ class AdvisorSummaryService
      * @param  array<string, int>  $planStatus
      * @return array<string, array{available: bool, reason: string|null}>
      */
-    private function pendingBlocks(array $planStatus, array $history): array
+    private function pendingBlocks(array $planStatus): array
     {
         $planKnown = $planStatus[self::PLAN_ON] + $planStatus[self::PLAN_OFF] > 0;
 
@@ -218,10 +233,6 @@ class AdvisorSummaryService
             'plan_status' => $planKnown
                 ? ['available' => true, 'reason' => null]
                 : ['available' => false, 'reason' => 'grade_import_required'],
-            // Grade ranges per study year and per academic term need the grade
-            // history of every term, which comes from the grade import.
-            'gpa_by_study_year' => ['available' => $history['history_coverage']['with_grades'] > 0, 'reason' => $history['history_coverage']['with_grades'] > 0 ? null : 'grade_history_required'],
-            'gpa_by_academic_term' => ['available' => $history['academic_terms'] !== [], 'reason' => $history['academic_terms'] !== [] ? null : 'grade_history_required'],
         ];
     }
 

@@ -122,7 +122,10 @@ Route::prefix('students')->group(function (): void {
     Route::get('/create-form-options', [ListOfValueController::class, 'studentCreateForm']);
     Route::get('/studying', [StudentController::class, 'studying']);
     Route::get('/studying/without-advisor', [StudentController::class, 'studyingWithoutAdvisor']);
-    Route::get('/advisor-summary', AdvisorSummaryController::class);
+    Route::get('/advisor-summary', [AdvisorSummaryController::class, 'overview']);
+    Route::get('/advisor-summary/history', [AdvisorSummaryController::class, 'history']);
+    Route::get('/advisor-summary/history/{academicYear}/{semester}', [AdvisorSummaryController::class, 'termStudents'])
+        ->whereNumber(['academicYear', 'semester']);
     Route::patch('/advisor', [StudentController::class, 'updateAdvisor']);
     Route::get('/import/template', [StudentImportController::class, 'downloadTemplate']);
     Route::post('/import', StudentImportController::class);
