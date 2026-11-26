@@ -50,7 +50,8 @@ flowchart LR
 
 ### แผนการเรียนและผลการเรียน
 
-- ดึงแผนการเรียนจาก CMIS และเก็บ snapshot ที่ `data/study_plan/{studentCode}.json`
+- เก็บรายวิชาและโครงสร้างหลักสูตรจาก CMIS ร่วมกันตาม `study_plan_id` ใน `data/study_plans/{studyPlanId}/` และใช้ไฟล์เดิมเมื่อสร้างนิสิตในแผนที่มีข้อมูลแล้ว
+- เมื่อประมวลผลการนำเข้าเกรด ระบบจะดึงรายวิชาและโครงสร้างหลักสูตรใหม่จาก CMIS ครั้งเดียวต่อแผนในรอบนั้น แล้วอัปเดตไฟล์กลางก่อนคำนวณผลการเรียน หากดึงข้อมูลไม่สำเร็จ แถวของแผนนั้นจะถูกรายงานว่านำเข้าไม่สำเร็จ
 - เมื่อสร้างนิสิต ระบบจะสร้าง `data/enrollments/{studentCode}.json` จากแผนการเรียนทันที แม้ยังไม่มีผลการเรียน
 - นำเข้าเกรดจาก Excel ผ่าน queue และสร้างไฟล์ JSON สำหรับการลงทะเบียน วิชาที่ผ่าน/ไม่ผ่าน/เกินแผน และกราฟสรุป
 - เก็บ `source_import_id` ระดับไฟล์ใน `data/grade_attempts/{studentCode}.json` เพื่ออ้างถึงงานนำเข้าล่าสุด
@@ -345,7 +346,9 @@ curriculums, study-plans, curriculum-personnel, students
 
 ```text
 data/
-├── study_plan/{studentCode}.json
+├── study_plans/{studyPlanId}/
+│   ├── courses.json
+│   └── categories.json
 ├── grade_attempts/{studentCode}.json
 ├── enrollments/{studentCode}.json
 ├── enrollments_pass/{studentCode}.json

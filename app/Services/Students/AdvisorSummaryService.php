@@ -175,7 +175,7 @@ class AdvisorSummaryService
                     $studyingByStudyYear[(int) $row->study_year]++;
                 }
 
-                $assessment = $this->pendingCoursesOf((string) $row->student_code);
+                $assessment = $this->pendingCoursesOf((string) $row->student_code, (int) $row->study_plan_id);
                 $usingImport = $usingImport || ! empty($assessment['used_import']);
                 $plan = $this->planStatusOf($assessment);
                 $pending = $assessment['confirmed'] ?? [];
@@ -262,7 +262,7 @@ class AdvisorSummaryService
             }
 
             $code = (string) $row->student_code;
-            $pending = $this->pendingCoursesOf($code);
+            $pending = $this->pendingCoursesOf($code, (int) $row->study_plan_id);
             $students[] = [
                 'id' => (int) $row->id,
                 'student_code' => $code,
@@ -287,7 +287,7 @@ class AdvisorSummaryService
         return $pending === null || ! empty($pending['unassessed']) ? self::PLAN_UNKNOWN : self::PLAN_ON;
     }
 
-    private function pendingCoursesOf(string $studentCode): ?array
+    private function pendingCoursesOf(string $studentCode, int $studyPlanId): ?array
     {
         // The code becomes part of a file path: digits only.
         if (preg_match('/^\d{1,10}$/', $studentCode) !== 1) {
@@ -311,7 +311,7 @@ class AdvisorSummaryService
             return ! in_array(end($grades), ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'P', 'S'], true);
         }));
 
-        return $this->history->reconcileUnits($studentCode, $pending);
+        return $this->history->reconcileUnits($studentCode, $pending, $studyPlanId);
     }
 
     /**

@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Contracts\CmisApi;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Services\StudyPlans\StudentStudyPlanStore;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CurriculumPlanCourseController extends Controller
 {
     public function __construct(
-        private readonly CmisApi $cmisApi,
+        private readonly StudentStudyPlanStore $studyPlans,
     ) {}
 
     /**
@@ -24,7 +24,7 @@ class CurriculumPlanCourseController extends Controller
         ]);
 
         return ApiResponse::success(
-            $this->cmisApi->getCurriculumPlanCourses((int) $validated['study_plan_id']),
+            $this->studyPlans->courses((int) $validated['study_plan_id']),
             __('success.curriculum.plan_courses_loaded'),
         );
     }

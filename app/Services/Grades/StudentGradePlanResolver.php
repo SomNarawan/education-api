@@ -2,17 +2,19 @@
 
 namespace App\Services\Grades;
 
-use App\Contracts\CmisApi;
 use App\Models\Student;
+use App\Services\StudyPlans\StudentStudyPlanStore;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use RuntimeException;
 
 class StudentGradePlanResolver
 {
-    private array $plans = [];
+    /** @var array<int, array|RuntimeException|LockTimeoutException> */
+    private array $importPlans = [];
 
-    public function __construct(private readonly CmisApi $cmisApi) {}
+    public function __construct(private readonly StudentStudyPlanStore $studyPlans) {}
 
-    public function resolve(?Student $student, int $curriculumId): array
+    public function resolve(?Student $student, int $curriculumId, bool $forGradeImport = false): array
     {
         if ($student === null) {
             throw new RuntimeException('ไม่พบข้อมูลนิสิตในระบบ');
@@ -28,11 +30,30 @@ class StudentGradePlanResolver
             throw new RuntimeException('นิสิตยังไม่มีข้อมูลแผนการเรียน');
         }
 
-        $this->plans[$studyPlanId] ??= $this->cmisApi->getCurriculumPlanCourses($studyPlanId);
-
         return [
             'study_plan_id' => $studyPlanId,
-            'courses' => $this->plans[$studyPlanId],
+            'courses' => $forGradeImport
+                ? $this->importCourses($studyPlanId)
+                : $this->studyPlans->courses($studyPlanId, refresh: true),
         ];
+    }
+
+    private function importCourses(int $studyPlanId): array
+    {
+        if (! isset($this->importPlans[$studyPlanId])) {
+            try {
+                $this->importPlans[$studyPlanId] = $this->studyPlans->refreshForGradeImport($studyPlanId);
+            } catch (RuntimeException|LockTimeoutException $exception) {
+                $this->importPlans[$studyPlanId] = $exception;
+            }
+        }
+
+        $result = $this->importPlans[$studyPlanId];
+
+        if ($result instanceof RuntimeException || $result instanceof LockTimeoutException) {
+            throw $result;
+        }
+
+        return $result;
     }
 }

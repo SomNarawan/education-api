@@ -4,15 +4,17 @@ namespace App\Services\Students;
 
 use App\Constants\StudySemester;
 use App\Services\Storage\LocalJsonFileStore;
+use App\Services\StudyPlans\StudentStudyPlanStore;
+use App\Services\StudyPlans\StudyPlanPayload;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use JsonException;
 
 /**
  * Read-only history for the advisor dashboard: GPA by study year and plan
- * status per academic term. It only reads files the grade import already
- * writes (grade_attempts, study_plan); nothing is written and no other
- * service is changed. The result is cached until the students' own rows
+ * status per academic term. It reads saved grade attempts and study plans.
+ * The result is cached until the students' own rows
  * (GPAX, updated_at) change, because reading every transcript is slow.
  *
  * Plan status of a term = every course slot of the study plan that was due up
@@ -23,7 +25,15 @@ class AdvisorHistoryService
 {
     private const PASS_GRADES = ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'P', 'S'];
 
-    public function __construct(private readonly LocalJsonFileStore $files, private readonly AdvisorPlanUnits $units) {}
+    /** @var array<int, array|null> */
+    private array $plans = [];
+
+    public function __construct(
+        private readonly LocalJsonFileStore $files,
+        private readonly StudentStudyPlanStore $studyPlans,
+        private readonly StudyPlanPayload $studyPlanPayload,
+        private readonly AdvisorPlanUnits $units,
+    ) {}
 
     /**
      * GPA by study year and the plan status counts per term. The students of a
@@ -114,10 +124,30 @@ class AdvisorHistoryService
         return [[...$full, 'academic_terms' => $terms], $termStudents];
     }
 
-    /** Preserve the importer's credit allocation, but reassess placements that need unit-aware evidence. */
-    public function reconcileUnits(string $studentCode, array $pending): array
+    /** The study plan of a student: the shared copy of the plan, or the old per-student file. */
+    private function planOf(int $planId, string $studentCode): ?array
     {
-        $plan = $this->read("data/study_plan/{$studentCode}.json");
+        if (! array_key_exists($planId, $this->plans)) {
+            try {
+                $this->plans[$planId] = $this->studyPlans->getCourses($planId);
+            } catch (JsonException|LockTimeoutException) {
+                $this->plans[$planId] = null;
+            }
+        }
+
+        try {
+            $payload = $this->plans[$planId] ?? $this->studyPlans->getLegacyCourses($studentCode);
+
+            return $payload === null ? null : $this->studyPlanPayload->selected($payload, $planId);
+        } catch (JsonException) {
+            return null;
+        }
+    }
+
+    /** Preserve the importer's credit allocation, but reassess placements that need unit-aware evidence. */
+    public function reconcileUnits(string $studentCode, array $pending, int $studyPlanId): array
+    {
+        $plan = $this->planOf($studyPlanId, $studentCode);
         $slots = $plan['data'] ?? [];
         $payload = $this->read("data/grade_attempts/{$studentCode}.json") ?? [];
         $source = $payload['grade_attempts'] ?? $payload;
@@ -214,7 +244,6 @@ class AdvisorHistoryService
     private function calculate(Collection $students): array
     {
         $annual = [];
-        $plans = [];
         $terms = [];
         $withHistory = 0;
 
@@ -233,12 +262,8 @@ class AdvisorHistoryService
 
             $entry = (int) $student->entry_year;
             $member = $this->studentIdentity($student);
-            // Every student of a plan has the same copy of it: read it once per plan.
-            $planKey = (string) ($student->study_plan_id ?? $code);
-            if (! array_key_exists($planKey, $plans)) {
-                $plans[$planKey] = $this->read("data/study_plan/{$code}.json");
-            }
-            $plan = $plans[$planKey];
+            $planId = (int) $student->study_plan_id;
+            $plan = $this->planOf($planId, $code);
 
             $periods = [];
             foreach ($attempts as $attempt) {

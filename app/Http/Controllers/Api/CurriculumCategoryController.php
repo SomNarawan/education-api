@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Contracts\CmisApi;
 use App\Http\Controllers\Controller;
+use App\Services\StudyPlans\StudentStudyPlanStore;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CurriculumCategoryController extends Controller
 {
     public function __construct(
-        private readonly CmisApi $cmisApi,
+        private readonly StudentStudyPlanStore $studyPlans,
     ) {}
 
     /**
@@ -19,11 +19,11 @@ class CurriculumCategoryController extends Controller
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'study_plan_id' => ['required', 'integer'],
+            'study_plan_id' => ['required', 'integer', 'min:1'],
         ]);
 
         return response()->json(
-            $this->cmisApi->getCurriculumCategories((int) $validated['study_plan_id']),
+            $this->studyPlans->categories((int) $validated['study_plan_id']),
             options: JSON_UNESCAPED_UNICODE,
         );
     }
