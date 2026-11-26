@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\TitleController;
 use App\Http\Controllers\MockLoginController;
 use App\Http\Middleware\AuthenticateJwt;
 use App\Http\Middleware\AuthenticatePortalMainApiKey;
+use App\Services\Students\AdvisorSummaryService;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class)->withoutMiddleware(AuthenticateJwt::class);
@@ -122,7 +123,12 @@ Route::prefix('students')->group(function (): void {
     Route::get('/create-form-options', [ListOfValueController::class, 'studentCreateForm']);
     Route::get('/studying', [StudentController::class, 'studying']);
     Route::get('/studying/without-advisor', [StudentController::class, 'studyingWithoutAdvisor']);
-    Route::get('/advisor-summary', AdvisorSummaryController::class);
+    Route::get('/advisor-summary', [AdvisorSummaryController::class, 'overview']);
+    Route::get('/advisor-summary/gpax/{range}', [AdvisorSummaryController::class, 'gpaxStudents'])
+        ->whereIn('range', [AdvisorSummaryService::RANGE_HIGH, AdvisorSummaryService::RANGE_GOOD, AdvisorSummaryService::RANGE_WARNING, AdvisorSummaryService::RANGE_RISK, AdvisorSummaryService::NO_GPAX]);
+    Route::get('/advisor-summary/history', [AdvisorSummaryController::class, 'history']);
+    Route::get('/advisor-summary/history/{academicYear}/{semester}', [AdvisorSummaryController::class, 'termStudents'])
+        ->whereNumber(['academicYear', 'semester']);
     Route::patch('/advisor', [StudentController::class, 'updateAdvisor']);
     Route::get('/import/template', [StudentImportController::class, 'downloadTemplate']);
     Route::post('/import', StudentImportController::class);
