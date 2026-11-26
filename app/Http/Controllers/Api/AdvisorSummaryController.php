@@ -41,6 +41,19 @@ class AdvisorSummaryController extends Controller
         return ApiResponse::success($data, __('success.advisor_summary.loaded'));
     }
 
+    public function gpaxStudents(Request $request, string $range): JsonResponse
+    {
+        $advisor = $this->advisorOf($request);
+        if ($advisor instanceof JsonResponse) {
+            return $advisor;
+        }
+
+        return ApiResponse::success(
+            ['students' => $this->summary->gpaxStudents($advisor[0], $range)],
+            __('success.advisor_summary.loaded')
+        );
+    }
+
     /** API: GET /api/students/advisor-summary/history — GPA by study year and plan status counts per term. */
     public function history(Request $request): JsonResponse
     {

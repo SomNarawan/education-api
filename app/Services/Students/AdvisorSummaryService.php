@@ -174,7 +174,7 @@ class AdvisorSummaryService
                 }
 
                 $pending = $this->pendingCoursesOf((string) $row->student_code);
-                $plan = $pending === null ? self::PLAN_UNKNOWN : ($pending === [] ? self::PLAN_ON : self::PLAN_OFF);
+                $plan = $this->planStatusOf($pending);
                 $planStatus[$plan]++;
                 $byEntryYear[$year]['plan'][$plan]++;
                 if ($plan === self::PLAN_OFF) {
@@ -242,6 +242,35 @@ class AdvisorSummaryService
     private function emptyPlanStatus(): array
     {
         return [self::PLAN_ON => 0, self::PLAN_OFF => 0, self::PLAN_UNKNOWN => 0];
+    }
+
+    public function gpaxStudents(?string $teacherId, string $range): array
+    {
+        $students = [];
+        foreach ($this->studentRows($teacherId) as $row) {
+            if ($row->status_name !== Status::STUDYING || $this->rangeOf($row->gpax) !== $range) {
+                continue;
+            }
+
+            $code = (string) $row->student_code;
+            $pending = $this->pendingCoursesOf($code);
+            $students[] = [
+                'id' => (int) $row->id,
+                'student_code' => $code,
+                'full_name_th' => $row->full_name_th,
+                'study_year' => $row->study_year === null ? null : (int) $row->study_year,
+                'current_gpax' => $row->gpax === null ? null : (float) $row->gpax,
+                'plan_status' => $this->planStatusOf($pending),
+                'latest_grade_term' => $this->history->latestTermOf($code),
+            ];
+        }
+
+        return $students;
+    }
+
+    private function planStatusOf(?array $pending): string
+    {
+        return $pending === null ? self::PLAN_UNKNOWN : ($pending === [] ? self::PLAN_ON : self::PLAN_OFF);
     }
 
     private function pendingCoursesOf(string $studentCode): ?array

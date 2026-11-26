@@ -284,6 +284,33 @@ class AdvisorSummaryTest extends TestCase
         $this->assertSame(1, $data['plan_status']['off_plan']);
     }
 
+    public function test_gpax_roster_matches_each_current_range_and_uses_each_students_grade_term(): void
+    {
+        $headers = $this->headersFor(['teacher'], 'teacher', 'fengone');
+        Storage::disk('local')->put('data/enrollments_not_pass/4.json', '[]');
+        Storage::disk('local')->put('data/enrollments_not_pass/5.json', '[{"grade_letter":"F"}]');
+        Storage::disk('local')->put('data/grade_attempts/4.json', '[{"academic_year":2023,"semester_order":1,"grade_letter":"B"}]');
+        foreach ([
+            'range_3_25_4_00' => ['1'], 'range_2_00_3_24' => ['2', '3'],
+            'range_1_75_1_99' => ['4', '5'], 'range_0_00_1_74' => ['6', '7'], 'no_gpax' => ['8'],
+        ] as $range => $codes) {
+            $students = $this->getJson(self::URL.'/gpax/'.$range.'?teacher_id=fengtwo', $headers)->assertOk()->json('data.students');
+            $this->assertEqualsCanonicalizing($codes, array_column($students, 'student_code'));
+            $byCode = array_column($students, null, 'student_code');
+            if ($range === 'range_1_75_1_99') {
+                $this->assertSame('on_plan', $byCode['4']['plan_status']);
+                $this->assertSame(2023, $byCode['4']['latest_grade_term']['academic_year']);
+                $this->assertSame('off_plan', $byCode['5']['plan_status']);
+                $this->assertNull($byCode['5']['latest_grade_term']);
+            }
+            if ($range === 'no_gpax') {
+                $this->assertSame('unknown', $byCode['8']['plan_status']);
+                $this->assertNull($byCode['8']['current_gpax']);
+            }
+        }
+        $this->getJson(self::URL.'/gpax/invalid', $headers)->assertNotFound();
+    }
+
     public function test_teacher_cannot_read_another_advisor_through_the_query(): void
     {
         $data = $this->getJson(
