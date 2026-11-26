@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\CmisApi;
 use App\Services\Grades\StudentGradeJsonGenerator;
 use App\Services\JwtIssuer;
+use App\Services\Students\AdvisorPlanUnits;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -282,6 +284,134 @@ class AdvisorSummaryTest extends TestCase
         // The latest term with grades of each off-plan student is part of the overview.
         $this->assertSame(['academic_year' => 2022, 'semester_order' => 2, 'term_label' => '2565 ภาคปลาย'], $student['latest_grade_term']);
         $this->assertSame(1, $data['plan_status']['off_plan']);
+    }
+
+    public function test_dashboard_compares_internship_hours_with_the_plan_and_keeps_other_pending_courses(): void
+    {
+        $files = Storage::disk('local');
+        $this->mock(CmisApi::class)->shouldReceive('getCurriculumCategories')->atLeast()->once()->with(3)->andReturn([
+            'data' => [['curriculum_structure_node_id' => 99, 'requirement_unit' => 'hours', 'children' => [
+                ['curriculum_structure_node_id' => 99, 'is_pool_subject' => true]]]],
+        ]);
+        $training = ['course_code' => 'FIELD-01', 'curriculum_structure_node_id' => 99, 'course_name' => 'หมวดการฝึกงาน', 'plan_study_period' => 'ปีที่ 1 ภาคต้น',
+            'plan_study_year' => 1, 'plan_semester_order' => 1, 'enrollment_type' => 'credit', 'credit' => 240];
+        $pending = ['course_code' => '-', 'course_name' => $training['course_name'], 'study_period' => $training['plan_study_period'],
+            'credit' => 240, 'enrollment_type' => 'credit', 'grade_letter' => null];
+        $failed = ['course_code' => '01420114', 'grade_letter' => 'F', 'enrollment_type' => 'credit', 'credit' => 3];
+        $attempt = ['course_code' => 'FIELD-01', 'enrollment_type' => 'hour', 'grade_letter' => 'P', 'credit' => 120,
+            'academic_year' => 2022, 'study_year' => 1, 'semester_order' => 1];
+        $files->put('data/study_plan/1.json', json_encode(['curriculum_plan_id' => 3, 'data' => [$training]]));
+        $files->put('data/enrollments_not_pass/1.json', json_encode([$pending, $failed]));
+        $files->put('data/grade_attempts/1.json', json_encode(['grade_attempts' => [$attempt, $attempt]]));
+        $headers = $this->headersFor(['teacher'], 'teacher', 'fengone');
+        $student = $this->getJson(self::URL, $headers)->assertOk()->json('data.off_plan_students.0');
+        $byCourse = array_column($student['pending_courses'], null, 'course_code');
+        $this->assertSame('hour', $byCourse['FIELD-01']['enrollment_type']);
+        $this->assertEquals(120, $byCourse['FIELD-01']['credit']);
+        $this->assertEquals(3, $student['pending_credits']);
+
+        $files->put('data/grade_attempts/1.json', json_encode(['grade_attempts' => [$attempt,
+            [...$attempt, 'credit' => 240, 'grade_letter' => 'W'],
+            [...$attempt, 'semester_order' => 2, 'credit' => 240]]]));
+        $student = $this->getJson(self::URL, $headers)->assertOk()->json('data.off_plan_students.0');
+        $this->assertSame([$failed], $student['pending_courses']);
+        $this->assertEquals(120, $this->termStudents(2022, 1)[0]['pending_courses'][0]['credit']);
+        $this->assertSame('on_plan', $this->termStudents(2022, 2)[0]['plan_status']);
+        $files->put('data/enrollments_not_pass/1.json', json_encode([$pending]));
+        $this->getJson(self::URL.'/gpax/range_3_25_4_00', $headers)->assertOk()->assertJsonPath('data.students.0.plan_status', 'on_plan');
+    }
+
+    public function test_dashboard_keeps_units_separate_and_counts_each_passed_course_once(): void
+    {
+        $slot = ['plan_study_year' => 1, 'plan_semester_order' => 1, 'credit' => 3];
+        $slots = [];
+        foreach (['D' => 'days', 'W' => 'weeks', 'C' => 'courses', 'H' => 'hours', 'A' => 'credits', 'U' => 'unrecognized'] as $code => $unit) {
+            $slots[] = [...$slot, 'course_code' => $code, 'requirement_unit' => $unit,
+                'courses' => $code === 'C' ? [['course_code' => 'C1'], ['course_code' => 'C2']] : []];
+        }
+        $result = ['study_year' => 1, 'academic_year' => 2022, 'semester_order' => 1, 'grade_letter' => 'P', 'credit' => 1];
+        $attempts = [];
+        foreach (['D' => 'day', 'W' => 'weeks', 'C1' => 'credit', 'C2' => 'credit', 'H' => 'day', 'A' => 'audit'] as $code => $unit) {
+            $attempts[] = [...$result, 'course_code' => $code, 'enrollment_type' => $unit];
+        }
+        $attempts[] = [...$result, 'course_code' => 'C1', 'enrollment_type' => 'credit', 'credit' => 6];
+        $files = Storage::disk('local');
+        $files->put('data/study_plan/1.json', json_encode(['data' => $slots]));
+        $files->put('data/grade_attempts/1.json', json_encode($attempts));
+        $files->put('data/enrollments_not_pass/1.json', '[]');
+        $data = $this->getJson(self::URL, $this->headersFor(['teacher'], 'teacher', 'fengone'))->assertOk()->json('data');
+        foreach ([$data['off_plan_students'][0], $this->termStudents(2022, 1)[0]] as $student) {
+            $this->assertSame(4, $student['pending_count']);
+            $this->assertEquals(3, $student['pending_credits']);
+            $this->assertEquals(['D' => 2, 'W' => 2, 'C' => 1, 'A' => 3], array_column($student['pending_courses'], 'credit', 'course_code'));
+            $this->assertEqualsCanonicalizing(['H', 'U'], array_column($student['unassessed_courses'], 'course_code'));
+        }
+        $this->assertCount(1, $data['unit_review_students']);
+    }
+
+    public function test_dashboard_reuses_only_verified_units_of_the_same_plan_and_refreshes_after_recovery(): void
+    {
+        $cmis = $this->mock(CmisApi::class);
+        $calls = 0;
+        $online = true;
+        $unit = 'hours';
+        $cmis->shouldReceive('getCurriculumCategories')->andReturnUsing(function () use (&$calls, &$online, &$unit) {
+            $calls++;
+            if (! $online) {
+                throw new \RuntimeException('CMIS offline');
+            }
+
+            return ['data' => [['curriculum_structure_node_id' => 27, 'requirement_unit' => $unit]]];
+        });
+        $slot = ['curriculum_structure_node_id' => 27, 'enrollment_type' => 'credit'];
+        $unavailable = false;
+        $this->assertSame('hour', (new AdvisorPlanUnits($cmis))->forSlot($slot, 3, $unavailable));
+        $online = false;
+        $offline = new AdvisorPlanUnits($cmis);
+        $this->assertSame('hour', $offline->forSlot($slot, 3, $unavailable));
+        $this->assertFalse($unavailable);
+        $this->assertNull($offline->forSlot(['curriculum_structure_node_id' => 28], 3, $unavailable));
+        $this->assertTrue($unavailable);
+        $unavailable = false;
+        $this->assertNull($offline->forSlot($slot, 4, $unavailable));
+        $this->assertTrue($unavailable);
+        $this->assertSame(3, $calls);
+
+        $online = true;
+        $unit = 'days';
+        $this->assertSame('day', (new AdvisorPlanUnits($cmis))->forSlot($slot, 3));
+        $online = false;
+        $this->travel(1)->day();
+        $this->assertSame('day', (new AdvisorPlanUnits($cmis))->forSlot($slot, 3));
+    }
+
+    public function test_offline_current_status_uses_the_import_and_past_terms_require_their_own_evidence(): void
+    {
+        $this->mock(CmisApi::class)->shouldReceive('getCurriculumCategories')->andThrow(new \RuntimeException('CMIS offline'));
+        $files = Storage::disk('local');
+        $slot = ['course_code' => 'LAB', 'course_name' => 'Lab', 'plan_study_year' => 1, 'plan_semester_order' => 1,
+            'curriculum_structure_node_id' => 27, 'enrollment_type' => 'credit', 'credit' => 10];
+        $attempt = ['study_year' => 1, 'academic_year' => 2022, 'semester_order' => 1,
+            'course_code' => 'LAB', 'enrollment_type' => 'day', 'credit' => 10, 'grade_letter' => 'P'];
+        $files->put('data/study_plan/1.json', json_encode(['curriculum_plan_id' => 3, 'data' => [$slot]]));
+        $files->put('data/grade_attempts/1.json', json_encode([$attempt]));
+        $files->put('data/enrollments_not_pass/1.json', json_encode([['course_code' => 'LAB', 'credit' => 10, 'enrollment_type' => 'credit']]));
+        $headers = $this->headersFor(['teacher'], 'teacher', 'fengone');
+        $data = $this->getJson(self::URL, $headers)->assertOk()->json('data');
+        $this->assertSame(['on_plan' => 0, 'off_plan' => 1, 'unknown' => 7], $data['plan_status']);
+        $this->assertSame('imported_plan_result', $data['blocks']['plan_status']['reason']);
+        $this->assertSame('LAB', $data['off_plan_students'][0]['pending_courses'][0]['course_code']);
+        $this->assertNull($data['off_plan_students'][0]['pending_courses'][0]['credit']);
+        $this->getJson(self::URL.'/gpax/range_3_25_4_00', $headers)->assertOk()->assertJsonPath('data.students.0.plan_status', 'off_plan');
+        $files->put('data/enrollments_not_pass/1.json', '[]');
+        $this->getJson(self::URL, $headers)->assertOk()->assertJsonPath('data.plan_status.on_plan', 1);
+        $this->assertSame('curriculum_unavailable', $this->termStudents(2022, 1)[0]['plan_status']);
+
+        $files->put('data/study_plan/1.json', json_encode(['data' => [[...$slot, 'effective_unit' => 'hours']]]));
+        $files->put('data/grade_attempts/1.json', json_encode([[...$attempt, 'enrollment_type' => 'hour', 'credit' => 5],
+            [...$attempt, 'semester_order' => 2]]));
+        $this->assertNull($this->termStudents(2022, 1)[0]['pending_courses'][0]['resolved']);
+        $this->assertSame('unknown', $this->termStudents(2022, 2)[0]['plan_status']);
     }
 
     public function test_gpax_roster_matches_each_current_range_and_uses_each_students_grade_term(): void

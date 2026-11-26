@@ -120,6 +120,8 @@ class AdvisorSummaryService
         $gpaxZero = 0;
         $gpaxMissing = 0;
         $offPlanStudents = [];
+        $unitReviewStudents = [];
+        $usingImport = false;
 
         foreach ($rows as $row) {
             $kind = $this->statusKind((string) $row->status_name);
@@ -173,16 +175,22 @@ class AdvisorSummaryService
                     $studyingByStudyYear[(int) $row->study_year]++;
                 }
 
-                $pending = $this->pendingCoursesOf((string) $row->student_code);
-                $plan = $this->planStatusOf($pending);
-                $planStatus[$plan]++;
-                $byEntryYear[$year]['plan'][$plan]++;
+                $assessment = $this->pendingCoursesOf((string) $row->student_code);
+                $usingImport = $usingImport || ! empty($assessment['used_import']);
+                $plan = $this->planStatusOf($assessment);
+                $pending = $assessment['confirmed'] ?? [];
+                if (! empty($assessment['unassessed'])) {
+                    $unitReviewStudents[] = [...$student, 'unassessed_courses' => $assessment['unassessed']];
+                    $roster = &$byEntryYear[$year]['students'];
+                    $roster[array_key_last($roster)]['unassessed_courses'] = $assessment['unassessed'];
+                    unset($roster);
+                }
+                $planStatus[$plan] = ($planStatus[$plan] ?? 0) + 1;
+                $byEntryYear[$year]['plan'][$plan] = ($byEntryYear[$year]['plan'][$plan] ?? 0) + 1;
                 if ($plan === self::PLAN_OFF) {
                     $offPlanStudents[] = [...$student, 'plan_status' => self::PLAN_OFF,
                         'latest_grade_term' => $this->history->latestTermOf((string) $row->student_code),
-                        'pending_count' => count($pending),
-                        'pending_credits' => array_sum(array_map(fn (array $course): float => ($course['enrollment_type'] ?? 'credit') === 'credit' ? (float) ($course['credit'] ?? 0) : 0, $pending)),
-                        'pending_courses' => $pending];
+                        ...AdvisorHistoryService::pendingDetails($pending), 'unassessed_courses' => $assessment['unassessed']];
                 }
             } else {
                 $graduatedGpax[$range]++;
@@ -209,6 +217,7 @@ class AdvisorSummaryService
             ),
             'plan_status' => $planStatus,
             'off_plan_students' => $offPlanStudents,
+            'unit_review_students' => $unitReviewStudents,
             'by_entry_year' => array_values($byEntryYear),
             // GPAX of a student who is studying or has graduated that is exactly
             // 0.00 or missing usually means grades were never imported.
@@ -216,7 +225,7 @@ class AdvisorSummaryService
                 'gpax_zero' => $gpaxZero,
                 'gpax_missing' => $gpaxMissing,
             ],
-            'blocks' => $this->pendingBlocks($planStatus),
+            'blocks' => $this->pendingBlocks($planStatus, $usingImport),
         ];
     }
 
@@ -224,14 +233,14 @@ class AdvisorSummaryService
      * @param  array<string, int>  $planStatus
      * @return array<string, array{available: bool, reason: string|null}>
      */
-    private function pendingBlocks(array $planStatus): array
+    private function pendingBlocks(array $planStatus, bool $usingImport): array
     {
         $planKnown = $planStatus[self::PLAN_ON] + $planStatus[self::PLAN_OFF] > 0;
 
         return [
             // Plan status needs the grade import of at least one studying student.
             'plan_status' => $planKnown
-                ? ['available' => true, 'reason' => null]
+                ? ['available' => true, 'reason' => $usingImport ? 'imported_plan_result' : null]
                 : ['available' => false, 'reason' => 'grade_import_required'],
         ];
     }
@@ -261,6 +270,7 @@ class AdvisorSummaryService
                 'study_year' => $row->study_year === null ? null : (int) $row->study_year,
                 'current_gpax' => $row->gpax === null ? null : (float) $row->gpax,
                 'plan_status' => $this->planStatusOf($pending),
+                'unassessed_courses' => $pending['unassessed'] ?? [],
                 'latest_grade_term' => $this->history->latestTermOf($code),
             ];
         }
@@ -270,7 +280,11 @@ class AdvisorSummaryService
 
     private function planStatusOf(?array $pending): string
     {
-        return $pending === null ? self::PLAN_UNKNOWN : ($pending === [] ? self::PLAN_ON : self::PLAN_OFF);
+        if (! empty($pending['confirmed'])) {
+            return self::PLAN_OFF;
+        }
+
+        return $pending === null || ! empty($pending['unassessed']) ? self::PLAN_UNKNOWN : self::PLAN_ON;
     }
 
     private function pendingCoursesOf(string $studentCode): ?array
@@ -286,19 +300,18 @@ class AdvisorSummaryService
             return null;
         }
 
-        if ($notPass === null) {
+        if ($notPass === null || ! array_is_list($notPass) || count(array_filter($notPass, 'is_array')) !== count($notPass)) {
             return null;
         }
 
         // This is the current outstanding list, not the history of failed attempts.
-        return array_values(array_filter($notPass, function (mixed $course): bool {
-            if (! is_array($course)) {
-                return false;
-            }
+        $pending = array_values(array_filter($notPass, function (mixed $course): bool {
             $grades = array_map('trim', explode(',', strtoupper((string) ($course['grade_letter'] ?? ''))));
 
             return ! in_array(end($grades), ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'P', 'S'], true);
         }));
+
+        return $this->history->reconcileUnits($studentCode, $pending);
     }
 
     /**

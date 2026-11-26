@@ -17,13 +17,13 @@ use JsonException;
  *
  * Plan status of a term = every course slot of the study plan that was due up
  * to that term has been passed with the grades up to that term. The latest
- * term of a student gives the same result as data/enrollments_not_pass.
+ * term uses the requirement unit from the curriculum when comparing results.
  */
 class AdvisorHistoryService
 {
     private const PASS_GRADES = ['A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'P', 'S'];
 
-    public function __construct(private readonly LocalJsonFileStore $files) {}
+    public function __construct(private readonly LocalJsonFileStore $files, private readonly AdvisorPlanUnits $units) {}
 
     /**
      * GPA by study year and the plan status counts per term. The students of a
@@ -83,13 +83,13 @@ class AdvisorHistoryService
 
     private function cacheKey(Collection $students): string
     {
-        return 'advisor-history:v3:'.hash('sha256', $students->toJson());
+        return 'advisor-history:v6:'.hash('sha256', $students->toJson());
     }
 
     private function store(Collection $students, string $key): array
     {
         [$summary, $termStudents] = $this->split($this->calculate($students));
-        $ttl = now()->addDay();
+        $ttl = now()->addSeconds($this->units->lookupFailed ? 15 : 300);
         foreach ($termStudents as $termKey => $list) {
             Cache::put("{$key}:term:{$termKey}", $list, $ttl);
         }
@@ -114,6 +114,103 @@ class AdvisorHistoryService
         return [[...$full, 'academic_terms' => $terms], $termStudents];
     }
 
+    /** Preserve the importer's credit allocation, but reassess placements that need unit-aware evidence. */
+    public function reconcileUnits(string $studentCode, array $pending): array
+    {
+        $plan = $this->read("data/study_plan/{$studentCode}.json");
+        $slots = $plan['data'] ?? [];
+        $payload = $this->read("data/grade_attempts/{$studentCode}.json") ?? [];
+        $source = $payload['grade_attempts'] ?? $payload;
+        $attempts = is_array($source) ? array_filter($source, 'is_array') : [];
+        $latest = null;
+        $studyYear = null;
+        $nonCreditAttempts = [];
+        foreach ($attempts as $attempt) {
+            $period = $this->periodOf($attempt);
+            if ($period !== null && AdvisorPlanUnits::normalize($attempt['enrollment_type'] ?? 'credit') !== 'credit') {
+                $nonCreditAttempts[trim((string) ($attempt['course_code'] ?? ''))] = true;
+            }
+            if ($period !== null && ($latest === null || $period > $latest)) {
+                $latest = $period;
+                $studyYear = $attempt['study_year'] ?? null;
+            }
+        }
+        $confirmed = [];
+        $unassessed = [];
+        $planId = (int) ($plan['curriculum_plan_id'] ?? 0);
+        $reviews = [];
+        $curriculumUnavailable = false;
+        if (is_array($slots) && $slots && $latest !== null && is_numeric($studyYear)) {
+            $standing = $this->standing($attempts, $plan, $latest[0], $latest[1], (int) $studyYear);
+            $reviews = $standing['unit_reviews'];
+            $curriculumUnavailable = $standing['curriculum_unavailable'];
+        }
+        foreach ($pending as $index => $row) {
+            $unit = AdvisorPlanUnits::normalize($row['enrollment_type'] ?? 'credit');
+            $identity = trim((string) ($row['course_code'] ?? ''));
+            $matches = [];
+            $direct = [];
+            foreach (is_array($slots) ? $slots : [] as $id => $slot) {
+                if (! is_array($slot)) {
+                    continue;
+                }
+                if ($identity !== '' && $identity !== '-' && $this->slotMatches($slot, $identity)) {
+                    $matches[] = $id;
+                    if (($slot['course_code'] ?? null) === $identity) {
+                        $direct[] = $id;
+                    }
+                } elseif (! empty($row['course_name']) && $row['course_name'] === ($slot['course_name'] ?? null)
+                    && ! empty($row['study_period']) && $row['study_period'] === ($slot['plan_study_period'] ?? null)) {
+                    $direct[] = $id;
+                }
+            }
+            $matches = $direct ?: $matches;
+            $reviewed = array_intersect($matches, array_keys($reviews));
+            $ambiguousUnit = $unit === null || ($matches === [] && $unit === 'credit'
+                && (isset($nonCreditAttempts[$identity]) || ($identity === '-' && $nonCreditAttempts !== [])));
+            foreach ($matches as $id) {
+                if ($this->units->forSlot($slots[$id], $planId, $curriculumUnavailable) !== $unit) {
+                    $ambiguousUnit = true;
+                }
+            }
+            // Preserve the imported course even when its quantity has no reliable unit.
+            if ($ambiguousUnit) {
+                $pending[$index]['credit'] = null;
+                $pending[$index]['enrollment_type'] = null;
+            } elseif (isset($row['enrollment_type'])) {
+                $pending[$index]['enrollment_type'] = $unit;
+            }
+            if ($matches && count($reviewed) === count($matches)) {
+                continue;
+            }
+            if ($ambiguousUnit || $unit !== 'credit' || $reviewed !== []) {
+                $unassessed[] = $row;
+            } else {
+                if (isset($row['enrollment_type'])) {
+                    $row['enrollment_type'] = $unit;
+                }
+                $confirmed[] = $row;
+            }
+        }
+        if ($curriculumUnavailable) {
+            // This file records the current import. It cannot establish the standing of a past term.
+            return ['confirmed' => $pending, 'unassessed' => [], 'used_import' => true];
+        }
+        foreach ($reviews as $row) {
+            if ($row === null) {
+                continue;
+            }
+            unset($row['_slot']);
+            if (! empty($row['unit_unknown'])) {
+                $unassessed[] = $row;
+            } else {
+                $confirmed[] = $row;
+            }
+        }
+
+        return ['confirmed' => $confirmed, 'unassessed' => $unassessed, 'used_import' => false];
+    }
+
     private function calculate(Collection $students): array
     {
         $annual = [];
@@ -129,7 +226,7 @@ class AdvisorHistoryService
 
             $payload = $this->read("data/grade_attempts/{$code}.json") ?? [];
             $attempts = array_is_list($payload) ? $payload : ($payload['grade_attempts'] ?? []);
-            $attempts = array_values(array_filter($attempts, 'is_array'));
+            $attempts = is_array($attempts) ? array_values(array_filter($attempts, 'is_array')) : [];
             if ($attempts === []) {
                 continue;
             }
@@ -183,12 +280,16 @@ class AdvisorHistoryService
                     'on_plan' => 0, 'off_plan' => 0, 'retired' => 0, 'unknown' => 0,
                     'students' => [],
                 ];
-                $terms[$key][$status]++;
+                if ($standing['curriculum_unavailable']) {
+                    $terms[$key]['incomplete_curriculum'] = true;
+                }
+                $terms[$key][$status] = ($terms[$key][$status] ?? 0) + 1;
                 $terms[$key]['students'][] = [
                     ...$member,
-                    ...($status === 'off_plan' ? $this->pendingDetails($standing['pending_courses']) : []),
+                    ...($status === 'off_plan' ? self::pendingDetails($standing['pending_courses']) : []),
                     'term_study_year' => $period['year'] >= $entry ? $period['year'] - $entry + 1 : null,
                     'gpax' => $this->gpaxUpTo($attempts, $period['year'], $period['semester']),
+                    'unassessed_courses' => array_values(array_map(fn ($row) => array_diff_key($row, ['_slot' => true]), $standing['unassessed'])),
                     'plan_status' => $status,
                     'status_source' => 'calculated',
                 ];
@@ -214,59 +315,102 @@ class AdvisorHistoryService
      * Plan status and the courses still missing, using only the grades up to
      * the given term. A missing or unreadable plan is "unknown".
      *
-     * @return array{plan_status: string, pending_courses: list<array<string, mixed>>|null}
+     * @return array{plan_status: string, pending_courses: ?array, unassessed: array, unit_reviews: array, curriculum_unavailable: bool}
      */
     private function standing(array $attempts, ?array $plan, int $year, int $semester, int $studyYear): array
     {
         $slots = is_array($plan['data'] ?? null) ? $plan['data'] : null;
         if ($slots === null || $slots === []) {
-            return ['plan_status' => 'unknown', 'pending_courses' => null];
+            return ['plan_status' => 'unknown', 'pending_courses' => null, 'unassessed' => [], 'unit_reviews' => [], 'curriculum_unavailable' => false];
         }
 
-        $passed = [];
+        $results = [];
         foreach ($attempts as $attempt) {
-            $period = $this->periodOf($attempt);
-            if ($period === null || $period > [$year, $semester] || ! $this->isPassed($attempt)) {
+            if (! is_array($attempt) || ($attempt['_is_in_plan'] ?? true) === false) {
                 continue;
             }
-            $passed[(string) ($attempt['course_code'] ?? '')] = (float) ($attempt['credit'] ?? 0);
+            $period = $this->periodOf($attempt);
+            $code = trim((string) ($attempt['course_code'] ?? ''));
+            if ($code === '' || $period === null || $period > [$year, $semester]) {
+                continue;
+            }
+            $unit = AdvisorPlanUnits::normalize($attempt['enrollment_type'] ?? 'credit') ?? 'unknown';
+            $passed = $this->isPassed($attempt);
+            $value = $passed ? ($attempt['credit'] ?? null) : 0;
+            $results[$code][$unit]['passed'] = ($results[$code][$unit]['passed'] ?? false) || $passed;
+            if (is_numeric($value) && $value >= 0) {
+                $results[$code][$unit]['amount'] = max((float) $value, $results[$code][$unit]['amount'] ?? 0);
+            } else {
+                $results[$code][$unit]['incomplete'] = true;
+            }
         }
 
         $due = array_filter($slots, fn ($slot): bool => is_array($slot)
             && [(int) ($slot['plan_study_year'] ?? PHP_INT_MAX), (int) ($slot['plan_semester_order'] ?? PHP_INT_MAX)] <= [$studyYear, $semester]);
-        // Fixed courses claim their grades before group / elective slots do.
         uasort($due, fn (array $a, array $b): int => $this->isGroupSlot($a) <=> $this->isGroupSlot($b));
 
         $used = [];
         $pending = [];
+        $unassessed = [];
+        $reviews = [];
+        $curriculumUnavailable = false;
         foreach ($due as $slotId => $slot) {
-            $need = (float) ($slot['credit'] ?? 0);
+            $unit = $this->units->forSlot($slot, (int) ($plan['curriculum_plan_id'] ?? 0), $curriculumUnavailable);
+            $need = $slot['credit'] ?? null;
+            $uncertain = $unit === null || $unit === 'audit' || ! is_numeric($need) || $need < 0;
+            $review = $uncertain || $unit !== 'credit';
             $got = 0.0;
-            foreach ($passed as $courseCode => $credit) {
-                if (isset($used[$courseCode]) || ! $this->slotMatches($slot, $courseCode)) {
+            foreach ($results as $code => $byUnit) {
+                if (isset($used[$code]) || ! $this->slotMatches($slot, (string) $code)) {
                     continue;
                 }
-                $used[$courseCode] = true;
-                $got += $credit;
-                if ($got >= $need) {
+                $review = $review || array_keys($byUnit) !== ['credit'];
+                unset($byUnit['audit']);
+                $earned = 0.0;
+                foreach ($byUnit as $actual => $result) {
+                    if ($unit === 'course' && $actual !== 'unknown') {
+                        $earned = max($earned, $result['passed'] ? 1.0 : 0.0);
+                    } elseif ($actual === $unit) {
+                        $earned = $result['amount'] ?? 0.0;
+                        $uncertain = $uncertain || ! empty($result['incomplete']);
+                    } else {
+                        $uncertain = true;
+                    }
+                }
+                if ($earned > 0) {
+                    $used[$code] = true;
+                    $got += $earned;
+                }
+                if (is_numeric($need) && $got >= $need) {
                     break;
                 }
             }
-            if ($got + 0.0001 < $need) {
-                $pending[] = [
-                    '_slot' => $slotId,
-                    'course_code' => $slot['course_code'] ?? null,
-                    'course_name' => $slot['course_name'] ?? null,
-                    'study_period' => $slot['plan_study_period'] ?? null,
+            $complete = $unit !== null && $unit !== 'audit' && is_numeric($need) && $need >= 0 && $got + 0.0001 >= $need;
+            $row = null;
+            if (! $complete) {
+                $row = [
+                    '_slot' => $slotId, 'course_code' => $slot['course_code'] ?? null,
+                    'course_name' => $slot['course_name'] ?? null, 'study_period' => $slot['plan_study_period'] ?? null,
                     'semester_year_be' => isset($slot['plan_year_be']) ? (int) $slot['plan_year_be'] : null,
                     'grade_letter' => $this->failedGrades($attempts, $slot, $year, $semester),
-                    'enrollment_type' => $slot['enrollment_type'] ?? 'credit',
-                    'credit' => round($need - $got, 2),
+                    'enrollment_type' => $unit, 'credit' => $uncertain ? null : round($need - $got, 2),
                 ];
+                if ($uncertain) {
+                    $row['unit_unknown'] = true;
+                    $unassessed[] = $row;
+                } else {
+                    $pending[] = $row;
+                }
+            }
+            if ($review) {
+                $reviews[$slotId] = $row;
             }
         }
 
-        return ['plan_status' => $pending === [] ? 'on_plan' : 'off_plan', 'pending_courses' => $pending];
+        $status = $curriculumUnavailable ? 'curriculum_unavailable' : ($unassessed ? 'unknown' : 'on_plan');
+
+        return ['plan_status' => $pending ? 'off_plan' : $status, 'curriculum_unavailable' => $curriculumUnavailable,
+            'pending_courses' => $pending, 'unassessed' => $unassessed, 'unit_reviews' => $reviews];
     }
 
     /**
@@ -285,16 +429,21 @@ class AdvisorHistoryService
         $keys = array_keys($standings);
         $position = array_search($key, $keys, true);
         $slotsAt = fn (string $periodKey): array => array_column($standings[$periodKey]['pending_courses'] ?? [], '_slot');
-        $stillPending = $slotsAt($keys[array_key_last($keys)]);
+        $last = $keys[array_key_last($keys)];
+        $stillPending = $slotsAt($last);
+        $uncertainAt = fn (string $periodKey): array => array_column($standings[$periodKey]['unassessed'], '_slot');
 
-        return array_map(function (array $course) use ($keys, $position, $slotsAt, $stillPending, $periods): array {
+        return array_map(function (array $course) use ($keys, $position, $slotsAt, $stillPending, $uncertainAt, $last, $periods): array {
             $slot = $course['_slot'];
             unset($course['_slot']);
+            if (in_array($slot, $uncertainAt($last), true)) {
+                return [...$course, 'resolved' => null, 'resolved_term_label' => null];
+            }
             $resolved = $position < count($keys) - 1 && ! in_array($slot, $stillPending, true);
             $label = null;
             if ($resolved) {
                 foreach (array_slice($keys, $position + 1) as $later) {
-                    if (! in_array($slot, $slotsAt($later), true)) {
+                    if (! in_array($slot, $slotsAt($later), true) && ! in_array($slot, $uncertainAt($later), true)) {
                         $label = ($periods[$later]['year'] + 543).' '.$periods[$later]['name'];
                         break;
                     }
@@ -311,7 +460,8 @@ class AdvisorHistoryService
         $letters = [];
         foreach ($attempts as $attempt) {
             $period = $this->periodOf($attempt);
-            if ($period === null || $period > [$year, $semester] || $this->isPassed($attempt)
+            if ($period === null || $period > [$year, $semester] || $this->isPassed($attempt) || AdvisorPlanUnits::normalize($attempt['enrollment_type'] ?? 'credit') === 'audit'
+                || ($attempt['_is_in_plan'] ?? true) === false
                 || ! $this->slotMatches($slot, (string) ($attempt['course_code'] ?? ''))) {
                 continue;
             }
@@ -343,7 +493,7 @@ class AdvisorHistoryService
                 return true;
             }
             // Codes such as 01175xxx stand for every course with that prefix.
-            if (str_contains(strtolower($candidate), 'x') && str_starts_with($courseCode, rtrim($candidate, 'xX'))) {
+            if (preg_match('/^[0-9]*[xX]+$/D', $candidate) && preg_match('/^'.str_ireplace('x', '[0-9]', $candidate).'$/D', $courseCode)) {
                 return true;
             }
         }
@@ -366,7 +516,7 @@ class AdvisorHistoryService
         foreach ($attempts as $attempt) {
             $period = $this->periodOf($attempt);
             if ($period === null || $period > [$year, $semester]
-                || ($attempt['enrollment_type'] ?? 'credit') !== 'credit'
+                || AdvisorPlanUnits::normalize($attempt['enrollment_type'] ?? 'credit') !== 'credit'
                 || ! is_numeric($attempt['grade_point'] ?? null)
                 || ! is_numeric($attempt['credit'] ?? null)
                 || (float) $attempt['credit'] <= 0) {
@@ -415,11 +565,11 @@ class AdvisorHistoryService
         return 'ภาคเรียน '.$semester;
     }
 
-    private function pendingDetails(?array $pending): array
+    public static function pendingDetails(?array $pending): array
     {
         return ['pending_courses' => $pending,
             'pending_count' => $pending === null ? null : count($pending),
-            'pending_credits' => $pending === null ? null : array_sum(array_map(fn (array $course): float => ($course['enrollment_type'] ?? 'credit') === 'credit' ? (float) ($course['credit'] ?? 0) : 0, $pending))];
+            'pending_credits' => $pending === null ? null : array_sum(array_map(fn (array $course): float => AdvisorPlanUnits::normalize($course['enrollment_type'] ?? null) === 'credit' ? (float) ($course['credit'] ?? 0) : 0, $pending))];
     }
 
     /** All semesters count toward their academic year; no semester-code allowlist. */
@@ -428,7 +578,7 @@ class AdvisorHistoryService
         $years = [];
         foreach ($attempts as $attempt) {
             if (! is_numeric($attempt['academic_year'] ?? null)
-                || ($attempt['enrollment_type'] ?? 'credit') !== 'credit'
+                || AdvisorPlanUnits::normalize($attempt['enrollment_type'] ?? 'credit') !== 'credit'
                 || ! is_numeric($attempt['grade_point'] ?? null)
                 || ! is_numeric($attempt['credit'] ?? null)
                 || (float) $attempt['credit'] <= 0) {
