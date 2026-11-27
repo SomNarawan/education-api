@@ -39,7 +39,7 @@ class StudentWriteRequest extends FormRequest
             'last_name_th' => $this->requiredRules(['string', 'max:50']),
             'first_name_en' => ['sometimes', 'nullable', 'string', 'max:50'],
             'last_name_en' => ['sometimes', 'nullable', 'string', 'max:50'],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:10'],
+            'phone' => ['sometimes', 'nullable', 'string', $this->isMethod('post') ? 'digits:10' : 'max:10'],
             'email' => ['sometimes', 'nullable', 'email', 'max:50'],
 
             'teacher_id' => [
@@ -81,7 +81,7 @@ class StudentWriteRequest extends FormRequest
             'guardian_first_name_th' => ['sometimes', 'nullable', 'string', 'max:50'],
             'guardian_last_name_th' => ['sometimes', 'nullable', 'string', 'max:50'],
             'guardian_relationship_id' => ['sometimes', 'nullable', 'integer', 'exists:relationships,id'],
-            'guardian_phone' => ['sometimes', 'nullable', 'string', 'max:10'],
+            'guardian_phone' => ['sometimes', 'nullable', 'string', $this->isMethod('post') ? 'digits:10' : 'max:10'],
         ];
     }
 
@@ -91,6 +91,7 @@ class StudentWriteRequest extends FormRequest
             'required' => 'กรุณาระบุ :attribute',
             'required_with' => 'กรุณาระบุ :attribute เมื่อมีการระบุ :values',
             'string' => ':attribute ต้องเป็นข้อความ',
+            'digits' => ':attribute ต้องเป็นตัวเลข :digits หลัก',
             'integer' => ':attribute ต้องเป็นจำนวนเต็ม',
             'max.string' => ':attribute ต้องยาวไม่เกิน :max ตัวอักษร',
             'min.numeric' => ':attribute ต้องมีค่าอย่างน้อย :min',

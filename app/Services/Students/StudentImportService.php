@@ -30,6 +30,8 @@ class StudentImportService
 
     private const TEMPLATE_DATA_LAST_ROW = 1002;
 
+    private const TEMPLATE_PHONE_COLUMNS = [8, 18]; // H: เบอร์โทร, R: เบอร์โทรผู้ปกครอง
+
     private const GROUP_HEADERS = [
         'รหัสนิสิต',
         'ข้อมูลส่วนตัว', '', '', '', '', '', '', '',
@@ -158,6 +160,7 @@ class StudentImportService
             $disk->path($path),
             $this->templateNamedRanges($masterData),
             $this->templateValidations(),
+            textColumns: self::TEMPLATE_PHONE_COLUMNS,
         );
 
         return $disk->path($path);
@@ -469,7 +472,7 @@ class StudentImportService
             'last_name_th' => $row[4],
             'first_name_en' => $this->optionalCell($row[5]),
             'last_name_en' => $this->optionalCell($row[6]),
-            'phone' => $this->optionalCell($this->phone($row[7])),
+            'phone' => $this->optionalCell($row[7]),
             'email' => $this->optionalCell($row[8]),
             'system_department_id' => $systemDepartmentId,
             'curriculum_id' => $curriculumId,
@@ -485,7 +488,7 @@ class StudentImportService
             'guardian_first_name_th' => $this->optionalCell($row[14]),
             'guardian_last_name_th' => $this->optionalCell($row[15]),
             'guardian_relationship_id' => $relationshipId,
-            'guardian_phone' => $this->optionalCell($this->phone($row[17])),
+            'guardian_phone' => $this->optionalCell($row[17]),
             'student_status_id' => $studentStatusId,
             'is_international' => $isInternational,
         ], $masterErrors];
@@ -680,7 +683,7 @@ class StudentImportService
             'last_name_th' => ['required', 'string', 'max:50'],
             'first_name_en' => ['nullable', 'string', 'max:50'],
             'last_name_en' => ['nullable', 'string', 'max:50'],
-            'phone' => ['nullable', 'string', 'max:10'],
+            'phone' => ['nullable', 'string', 'digits:10'],
             'email' => ['nullable', 'email', 'max:50'],
             'system_department_id' => [
                 'required',
@@ -700,7 +703,7 @@ class StudentImportService
             'guardian_first_name_th' => ['nullable', 'string', 'max:50'],
             'guardian_last_name_th' => ['nullable', 'string', 'max:50'],
             'guardian_relationship_id' => ['nullable', 'integer', Rule::exists('relationships', 'id')],
-            'guardian_phone' => ['nullable', 'string', 'max:10'],
+            'guardian_phone' => ['nullable', 'string', 'digits:10'],
             'student_status_id' => ['required', 'integer', Rule::exists('student_statuses', 'id')],
             'is_international' => ['required', 'boolean'],
         ];
@@ -711,6 +714,7 @@ class StudentImportService
         return [
             'required' => ':attribute จำเป็นต้องระบุ',
             'string' => ':attribute ต้องเป็นข้อความ',
+            'digits' => ':attribute ต้องเป็นตัวเลข :digits หลัก',
             'integer' => ':attribute ต้องเป็นจำนวนเต็ม',
             'numeric' => ':attribute ต้องเป็นตัวเลข',
             'email' => ':attribute รูปแบบไม่ถูกต้อง',
@@ -874,15 +878,6 @@ class StudentImportService
         $year = (int) $value;
 
         return $year >= 2400 ? $year - 543 : $year;
-    }
-
-    private function phone(string $value): string
-    {
-        if ($value !== '' && ctype_digit($value) && strlen($value) < 10) {
-            return str_pad($value, 10, '0', STR_PAD_LEFT);
-        }
-
-        return $value;
     }
 
     private function normalizedKey(mixed $value): string
