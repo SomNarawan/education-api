@@ -83,7 +83,7 @@ return [
         'student_header_missing' => 'ไม่พบหัวตารางที่แถว 1-2 ในชีต :sheet',
         'student_header_invalid' => 'รูปแบบหัวตารางไม่ตรงกับแม่แบบนำเข้าข้อมูลนิสิต',
         'student_row_save_failed' => 'ไม่สามารถบันทึกข้อมูลลงฐานข้อมูลได้',
-        'student_reference_missing' => 'ไม่พบ :label ":value" ในรายการข้อมูลอ้างอิง',
+        'student_reference_missing' => 'ไม่พบ:label ":value" ในระบบ',
         'student_result_create_failed' => 'ไม่สามารถสร้างไฟล์ผลลัพธ์การนำเข้าได้',
         'student_row_failed' => 'แถว :row: :errors',
         'student_failed' => 'ไม่สามารถนำเข้าข้อมูลได้',
