@@ -340,6 +340,35 @@ curriculums, study-plans, curriculum-personnel, students
 
 ไฟล์ทั้งสองประเภทต้องเป็น `.xlsx` และมีขนาดไม่เกิน 20 MB
 
+### ล้างข้อมูลระหว่างทดสอบ import
+
+ใช้ `./docker/clean-imports.sh` ลบข้อมูลที่ import นิสิตและเกรดใน Docker stack เพื่อทดสอบ import ซ้ำ script นี้เรียก `php artisan dev:clean-import-data` ใน container `api` ด้วย `-u www-data` และ `-e APP_ENV=local` ให้ ทุกครั้งที่รันจะแสดงตารางสรุปสิ่งที่จะลบและถามยืนยันก่อน
+
+```bash
+./docker/clean-imports.sh                        # ล้างทั้งหมด (เท่ากับ --all)
+./docker/clean-imports.sh --all --grades-only    # ล้างเฉพาะเกรด เก็บนิสิตไว้
+./docker/clean-imports.sh --plan=123             # เฉพาะนิสิตใน study_plan_id นี้ (ระบุซ้ำได้)
+./docker/clean-imports.sh --student=6510000001   # เฉพาะรหัสนิสิตนี้ (ระบุซ้ำได้)
+./docker/clean-imports.sh --all --dry-run        # ดูสรุปอย่างเดียว ไม่ลบ
+./docker/clean-imports.sh --all --force          # ไม่ถามยืนยัน
+```
+
+ต้องเลือกขอบเขตเพียงอย่างเดียวจาก `--all`, `--plan` หรือ `--student`
+
+| ขอบเขต | สิ่งที่ถูกลบ |
+|---|---|
+| `--all` | นิสิตทุกคน (รวม `notes` และ `student_guardian_phone_histories`), รายการ import ประเภท `student`/`grade` ในตาราง `imports`, ไฟล์เกรดใน `data/` และโฟลเดอร์ `imports/students`, `imports/grades` |
+| `--plan`, `--student` | นิสิตที่ตรงเงื่อนไขและไฟล์เกรดของนิสิตเหล่านั้น ไม่ลบประวัติ import เพราะรายการ import เกรดไม่ได้ผูกกับแผนการเรียนหรือนิสิตรายคน |
+| `--grades-only` | ใช้คู่กับขอบเขตด้านบน เก็บนิสิตไว้ ลบเฉพาะไฟล์เกรด และตั้ง `gpa`, `gpax`, `passed_credits`, `not_passed_credits`, `overed_credits` เป็น `NULL` เมื่อใช้กับ `--all` จะลบเฉพาะประวัติ import เกรด |
+
+- นิสิตถูกลบออกจากตารางจริง รวมแถวที่ถูก soft delete ไปแล้ว เพราะการ import ค้นหานิสิตโดยไม่รวมแถวที่ถูก soft delete แถวที่ค้างอยู่อาจทำให้ import รหัสเดิมซ้ำไม่ได้
+- ไม่ลบ cache หลักสูตรจาก CMIS (`data/study_plans/`), template สำหรับ import และประวัติ import ประเภทอื่น
+- คำสั่งรันได้เฉพาะ `APP_ENV=local` หรือ `testing` จึงรันบน production ไม่ได้ ห้ามรัน `php artisan dev:clean-import-data` บนเครื่องโดยตรง เพราะจะเชื่อมกับ DB ตาม `.env` ไม่ใช่ DB ใน Docker
+- หลังล้างข้อมูลไม่ต้อง rebuild container การลบมีผลทันที ส่วนการ rebuild จะทำให้ไฟล์ใน `storage/app/private` ของ container หายด้วย เพราะ container ไม่มี volume เก็บ `storage/` ไว้
+- ใช้ container ชื่ออื่นได้ด้วย `CONTAINER=<name> ./docker/clean-imports.sh`
+
+ลำดับการทดสอบ: import นิสิต → import เกรด → ตรวจผล → `./docker/clean-imports.sh` → เริ่มใหม่
+
 ## Runtime files
 
 ทุก path ด้านล่างอยู่ภายใต้ `storage/app/private/`:
@@ -384,6 +413,7 @@ imports/
 ```text
 app/
 ├── Actions/Students/        # use case การบันทึกนิสิตและมอบหมายอาจารย์
+├── Console/Commands/        # artisan commands เช่น dev:clean-import-data
 ├── Contracts/               # interface สำหรับ CMIS/Teacher API
 ├── Enums/                   # ประเภท list-of-values
 ├── Http/
@@ -402,6 +432,7 @@ app/
 
 config/                      # JWT, CMIS, CORS, health, mock login ฯลฯ
 database/migrations/         # migration พื้นฐานของ Laravel เท่านั้น
+docker/clean-imports.sh      # ล้างข้อมูลที่ import ระหว่างทดสอบ (ดู "ล้างข้อมูลระหว่างทดสอบ import")
 docs/                        # เอกสาร integration เพิ่มเติม
 resources/templates/         # Excel templates
 resources/mocks/             # mock users สำหรับ development
