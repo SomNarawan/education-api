@@ -25,7 +25,7 @@ return [
 
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    'exposed_headers' => ['X-Import-Id', 'X-Import-Total', 'X-Import-Success', 'X-Import-Failed'],
 
     'max_age' => 0,
 
